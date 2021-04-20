@@ -3,6 +3,7 @@ if "" not in sys.path : sys.path.append("")
 if "src" not in sys.path : sys.path.append("src")
 
 from initialization import initialize
+from preprocessing import preprocessing
 
 
 def main():
@@ -11,7 +12,10 @@ def main():
     """
 
     # Initialize the pipeline
-    paths = initialize()
+    paths, settings = initialize()
+
+    # Preprocess the data
+    preprocessing(paths, settings)
 
 if __name__ == "__main__":
     main()

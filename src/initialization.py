@@ -3,10 +3,25 @@ if "" not in sys.path : sys.path.append("")
 if "src" not in sys.path : sys.path.append("src")
 
 import os
-import sys
 import warnings
 from glob import glob
-from util.general import check_os, extract_json, print_result
+from util.general import check_os, extract_json
+from util.style import print_result, print_header
+
+
+def extract_settings(config_data):
+    """
+    This function extracts the settings used for the pipeline from the config.json file.
+    Output is in the form of a dictionary. 
+    """
+
+    settings = {}
+
+    for key, value in config_data.items():
+        if key not in ["projectDir", "relative_paths", "excluded_subjects"]:
+            settings[key] = value
+
+    return settings
 
 
 def check_paths(paths):
@@ -80,26 +95,31 @@ def initialize(config_path="config.json", verbose=True):
     It takes the path of the config file as a parameter.
     """
 
-    if verbose : print("\n==== 01 - INITIALIZATION ====\n")
+    if verbose : print_header("\n==== MODULE 0 - INITIALIZATION ====\n")
 
     # Determine OS
-    if verbose : print("Extracting OS... ", end = "", flush=True)
+    if verbose : print("Determining OS...\t\t", end = "", flush=True)
     os_str = check_os()
     if verbose : print_result()
     
     # Extract config data
-    if verbose : print("Extracting config data... ", end="", flush=True)
+    if verbose : print("Extracting config data...\t", end="", flush=True)
     config_data = extract_json(config_path)
     if verbose : print_result()
 
+    # Setup settings
+    if verbose : print("Creating settings dict...\t", end="", flush=True)
+    settings = extract_settings(config_data)
+    if verbose : print_result()
+
     # Setup paths
-    if verbose : print("Setting up paths... ", end="", flush=True)
+    if verbose : print("Setting up paths...\t\t", end="", flush=True)
     paths, success = setup_paths(config_data)
     if verbose : print_result(success)
 
-    if verbose : print("\nINITIALIZATION FINISHED")
+    if verbose : print_header("\nINITIALIZATION FINISHED")
 
-    return paths
+    return paths, settings
 
 
 if __name__ == "__main__":

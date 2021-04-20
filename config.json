@@ -1,5 +1,4 @@
 {
-
     "projectDir": "D:\\Documents\\TUe\\MSc\\Internship_DBS_planning", 
 
     "relative_paths": {
@@ -10,6 +9,7 @@
         "scripts": "scripts"
     }, 
 
-    "excluded_subjects": []
+    "excluded_subjects": [],
 
+    "run_modules": [1, 1]
 }
