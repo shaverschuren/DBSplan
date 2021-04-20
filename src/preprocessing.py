@@ -16,7 +16,9 @@ def generate_process_paths(paths, settings):
     We'll use info from dicts 'paths' and 'settings'.
     """
 
+    # Initialize paths array and new data field the for paths dict
     process_paths = []
+    paths["source_nii"] = {}
 
     # Extract data from the usedScans.json file
     usedScans_file = os.path.join(paths["projectDir"], settings["usedScans_file"])
@@ -32,7 +34,11 @@ def generate_process_paths(paths, settings):
                 nii_path = os.path.join(paths["sourcedataDir"], "nifti", subject, scanType + ".nii")
 
                 if os.path.exists(dcm_path):
+                    # Add paths to path array
                     process_paths.append([dcm_path, nii_path])
+                    # Add paths to paths dict
+                    if subject not in paths["source_nii"]: paths["source_nii"][subject] = {}
+                    paths["source_nii"][subject][scanType] = nii_path
                 else:
                     raise ValueError(f"Dicom path '{dcm_path}' doesn't exist.")
             else:
@@ -130,7 +136,7 @@ def preprocessing(paths, settings, verbose=True):
         if verbose : print("dcm2nii conversion completed!")
 
         if verbose : print_header("\nPREPROCESSING FINISHED")
-        return
+        return paths, settings
 
     else:
         raise ValueError("parameter run_modules should be a list containing only 0's and 1's. " \

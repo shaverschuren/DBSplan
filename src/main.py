@@ -4,6 +4,7 @@ if "src" not in sys.path : sys.path.append("src")
 
 from initialization import initialize
 from preprocessing import preprocessing
+import pprint
 
 
 def main():
@@ -15,7 +16,7 @@ def main():
     paths, settings = initialize()
 
     # MODULE 1 : PREPROCESSING
-    preprocessing(paths, settings)
+    paths, settings = preprocessing(paths, settings)
 
 if __name__ == "__main__":
     main()
