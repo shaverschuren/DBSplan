@@ -9,14 +9,14 @@ from util.general import check_os, extract_json, check_type
 from util.style import print_result, print_header
 
 
-def extract_settings(config_data):
+def extract_settings(config_data, os_str):
     """
     This function extracts the settings used for the pipeline from the config.json file.
     Output is in the form of a dictionary. 
     """
 
-    # Create empty dictionary
-    settings = {}
+    # Create settings dictionary. Add OS.
+    settings = {"OS": os_str}
 
     # Extract settings from config data. Omit paths
     for key, value in config_data.items():
@@ -125,7 +125,7 @@ def initialize(config_path="config.json", verbose=True):
 
     # Setup settings
     if verbose : print("Creating settings dict...\t", end="", flush=True)
-    settings = extract_settings(config_data)
+    settings = extract_settings(config_data, os_str)
     if verbose : print_result()
 
     # Setup paths
