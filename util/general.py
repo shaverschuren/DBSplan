@@ -2,6 +2,23 @@ import sys
 import json
 
 
+def check_type(var, var_type):
+    """
+    This function checks whether a variable is of the appropriate type.
+    If not, it generates an error of sorts.
+    """
+
+    # Determine the actual variable type
+    act_type = type(var)
+
+    # Check whether the actual type matches the wanted type
+    if var_type != act_type:
+        raise TypeError("Variable is not of the appropriate type." \
+                        f"Should be {var_type}, not {act_type}")
+    else:
+        return True
+
+
 def check_os():
     """
     This function checks the operating system of the current machine.

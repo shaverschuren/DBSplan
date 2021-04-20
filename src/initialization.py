@@ -5,7 +5,7 @@ if "src" not in sys.path : sys.path.append("src")
 import os
 import warnings
 from glob import glob
-from util.general import check_os, extract_json
+from util.general import check_os, extract_json, check_type
 from util.style import print_result, print_header
 
 
@@ -15,11 +15,18 @@ def extract_settings(config_data):
     Output is in the form of a dictionary. 
     """
 
+    # Create empty dictionary
     settings = {}
 
+    # Extract settings from config data. Omit paths
     for key, value in config_data.items():
         if key not in ["projectDir", "relative_paths", "excluded_subjects"]:
             settings[key] = value
+    
+    # Check for the existence of some needed vars
+    if "run_modules" not in settings:
+        warnings.warn("run_modules not defined. Running everything.")
+        settings["run_modules"] = [1, 1]
 
     return settings
 
@@ -30,28 +37,32 @@ def check_paths(paths):
     It raises warnings for non-existent paths.
     """
 
+    # Initialize success/result to be True
     result = True
 
-    for key, value in paths.items():
-
+    # Loop over dictionary of paths
+    for _, value in paths.items():
+        
+        # Check data type, act accordingly. str, dict and list supported.
         if type(value) == str:
             path = value
             if not os.path.exists(path): 
                 result = False
                 warnings.warn(f"Extracted path '{path}' doesn't exist. Check config.json file.")
         elif type(value) == dict:
-            for name, path in value.items():
+            for _, path in value.items():
+                check_type(path, str)
                 if not os.path.exists(path): 
                     result = False
                     warnings.warn(f"Extracted path '{path}' doesn't exist. Check config.json file.")
         elif type(value) == list:
             for path in value:
+                check_type(path, str)
                 if not os.path.exists(path): 
                     result = False
                     warnings.warn(f"Extracted path '{path}' doesn't exist. Check config.json file.")
         else:
             raise ValueError(f"Unexpected value type ({type(value)}) in path dict. Expected str, dict, list.")
-
 
     return result
 
