@@ -1,5 +1,6 @@
-{   
-    "project_folder": "CHANGE_ME_TO_PROJECT_FOLDER_ABS_PATH", 
+{
+
+    "projectDir": "D:\\Documents\\TUe\\MSc\\Internship_DBS_planning", 
 
     "relative_paths": {
         "sourcedata": "sourcedata",
@@ -7,6 +8,8 @@
         "logs": "logs", 
         "results": "results", 
         "scripts": "scripts"
-    }
+    }, 
+
+    "excluded_subjects": []
 
 }
