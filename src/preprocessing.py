@@ -49,8 +49,14 @@ def dcm2nii(process_paths, paths, settings, verbose=True):
     # Initialize logs string
     log_str = ""
 
+    # Define iterator
+    if verbose:
+        iterator = tqdm(range(len(process_paths)), ascii=True, bar_format='{l_bar}{bar:30}{r_bar}{bar:-30b}')
+    else:
+        iterator = range(len(process_paths))
+
     # Loop over the dcm,nii path pairs and perform the conversion.
-    for img_i in (tqdm(range(len(process_paths)), ascii=True) if verbose else range(len(process_paths))):
+    for img_i in iterator:
         # Extract paths from array
         dcm_path, nii_path = process_paths[img_i]
 
@@ -114,7 +120,7 @@ def preprocessing(paths, settings, verbose=True):
         # Run module
 
         # Firstly, check which scans will have to be processed.
-        if verbose : print("\nGenerating processing paths... ", end="", flush=True)
+        if verbose : print("\nGenerating processing paths...\t", end="", flush=True)
         process_paths = generate_process_paths(paths, settings)
         if verbose : print_result()
 
