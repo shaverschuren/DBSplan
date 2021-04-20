@@ -1,3 +1,6 @@
+# System-specific configuration
+config.json
+
 # VS code 
 .vscode/
 
