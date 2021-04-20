@@ -4,8 +4,41 @@ if "src" not in sys.path : sys.path.append("src")
 
 import os
 import sys
+import warnings
 from glob import glob
 from util.general import check_os, extract_json, print_result
+
+
+def check_paths(paths):
+    """
+    This function takes a dict of all paths and checks their validity.
+    It raises warnings for non-existent paths.
+    """
+
+    result = True
+
+    for key, value in paths.items():
+
+        if type(value) == str:
+            path = value
+            if not os.path.exists(path): 
+                result = False
+                warnings.warn(f"Extracted path '{path}' doesn't exist. Check config.json file.")
+        elif type(value) == dict:
+            for name, path in value.items():
+                if not os.path.exists(path): 
+                    result = False
+                    warnings.warn(f"Extracted path '{path}' doesn't exist. Check config.json file.")
+        elif type(value) == list:
+            for path in value:
+                if not os.path.exists(path): 
+                    result = False
+                    warnings.warn(f"Extracted path '{path}' doesn't exist. Check config.json file.")
+        else:
+            raise ValueError(f"Unexpected value type ({type(value)}) in path dict. Expected str, dict, list.")
+
+
+    return result
 
 
 def setup_paths(config_data):
@@ -35,9 +68,10 @@ def setup_paths(config_data):
             paths["source_dcm"][subject_names[subject_i]] = subject_paths[subject_i]
         else:
             pass
-
     
-    return paths
+    correct_bool = check_paths(paths)
+    
+    return paths, correct_bool
 
 
 def initialize(config_path="config.json", verbose=True):
@@ -51,17 +85,17 @@ def initialize(config_path="config.json", verbose=True):
     # Determine OS
     if verbose : print("Extracting OS... ", end = "", flush=True)
     os_str = check_os()
-    if verbose : print_result(True)
+    if verbose : print_result()
     
     # Extract config data
     if verbose : print("Extracting config data... ", end="", flush=True)
     config_data = extract_json(config_path)
-    if verbose : print_result(True)
+    if verbose : print_result()
 
     # Setup paths
     if verbose : print("Setting up paths... ", end="", flush=True)
-    paths = setup_paths(config_data)
-    if verbose : print_result(True)
+    paths, success = setup_paths(config_data)
+    if verbose : print_result(success)
 
     if verbose : print("\nINITIALIZATION FINISHED")
 
