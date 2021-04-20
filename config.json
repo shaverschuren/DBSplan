@@ -7,9 +7,11 @@
         "logs": "logs", 
         "results": "results", 
         "scripts": "scripts"
-    }, 
+    },
+
+    "usedScans_file": "sourcedata\\doc\\usedScans.json",
 
     "excluded_subjects": [],
 
-    "run_modules": [1, 1]
+    "run_modules": [1, 0, 0, 0]
 }

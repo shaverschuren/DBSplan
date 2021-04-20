@@ -14,7 +14,7 @@ def main():
     # Initialize the pipeline
     paths, settings = initialize()
 
-    # Preprocess the data
+    # MODULE 1 : PREPROCESSING
     preprocessing(paths, settings)
 
 if __name__ == "__main__":

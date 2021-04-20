@@ -18,9 +18,9 @@ def preprocessing(paths, settings, verbose=True):
     if verbose : print_header("\n==== MODULE 1 - PREPROCESSING ====")
 
     # Check whether module should be run (from config file)
-    if settings["run_modules"][1] == 0:
+    if settings["run_modules"][0] == 0:
         if verbose : print("Skipped module...")
-    elif settings["run_modules"][1] == 1:   
+    elif settings["run_modules"][0] == 1:   
         # TODO: Implement preprocessing
         if verbose : print_header("\nPREPROCESSING FINISHED")
         return

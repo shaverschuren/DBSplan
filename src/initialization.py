@@ -24,9 +24,14 @@ def extract_settings(config_data):
             settings[key] = value
     
     # Check for the existence of some needed vars
+    # If they're not there, take the default and give a warning.
     if "run_modules" not in settings:
-        warnings.warn("run_modules not defined. Running everything.")
-        settings["run_modules"] = [1, 1]
+        settings["run_modules"] = [1, 0, 0, 0]
+        warnings.warn(f"\nrun_modules not defined. Using {settings['run_modules']}.")
+    
+    if "usedScans_file" not in settings:
+        settings["pickScans_UI"] = 1
+        raise UserWarning("\nusedScans_file was not defined. Going to UI, which still has to be implemented...")
 
     return settings
 
