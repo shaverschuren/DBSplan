@@ -26,10 +26,16 @@ def generate_process_paths(paths, settings):
         # Loop over subjects, dcm paths
         for subject, path in pathArray.items():
             # Find paths for the actual dcm folder and to-be-created nifti-file
-            dcm_path = os.path.join(paths["sourcedataDir"], *path)
-            nii_path = os.path.join(paths["sourcedataDir"], "nifti", subject, scanType + ".nii")
+            if type(path) in [list, str]:
+                dcm_path = os.path.join(paths["source_dcm"][subject], *path)
+                nii_path = os.path.join(paths["sourcedataDir"], "nifti", subject, scanType + ".nii")
 
-            process_paths.append([dcm_path, nii_path])
+                if os.path.exists(dcm_path):
+                    process_paths.append([dcm_path, nii_path])
+                else:
+                    raise ValueError(f"Dicom path '{dcm_path}' doesn't exist.")
+            else:
+                pass
 
     return process_paths
 
