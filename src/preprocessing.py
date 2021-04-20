@@ -4,6 +4,7 @@ if "src" not in sys.path : sys.path.append("src")
 
 import os
 import warnings
+from tqdm import tqdm
 from util.style import print_header
 from util.general import extract_json
 
@@ -40,8 +41,60 @@ def generate_process_paths(paths, settings):
     return process_paths
 
 
-def dcm2nii(process_paths, verbose=True):
-    # TODO: Implement dcm2nii file conversion.
+def dcm2nii(process_paths, paths, settings, verbose=True):
+    """
+    This function performs the actual dicom to nifti conversion.
+    It makes use of the external program dcm2nii for this purpose.
+    """
+    # Initialize logs string
+    log_str = ""
+
+    # Loop over the dcm,nii path pairs and perform the conversion.
+    for img_i in (tqdm(range(len(process_paths)), ascii=True) if verbose else range(len(process_paths))):
+        # Extract paths from array
+        dcm_path, nii_path = process_paths[img_i]
+
+        # Check whether output folder exists and if not, make it
+        output_folder = os.path.dirname(nii_path)
+        if not os.path.isdir(output_folder) : os.mkdir(output_folder)
+
+        # Check OS for command line implementation.
+        if settings["OS"] == "win":
+            dcm2nii_path = os.path.join("ext", "MRIcron", "dcm2nii.exe")
+            quote = "\""
+        elif settings["OS"] == "lnx":
+            dcm2nii_path = os.path.join("ext", "MRIcron", "dcm2nii-lx64")
+            quote = "\""
+        elif settings["OS"] == "mac":
+            dcm2nii_path = os.path.join("ext", "MRIcron", "dcm2nii-osx")
+            quote = "\'\'"
+        else:
+            raise UserWarning("Operating system not supported (or value of settings['OS'] is wrong).")
+
+        # Assemble command
+        command =   f'{dcm2nii_path} ' \
+                    f'-f {quote}{os.path.splitext(os.path.split(nii_path)[-1])[0]}{quote} ' \
+                    f'-p y -z y ' \
+                    f'-o {quote}{os.path.dirname(nii_path)}{quote} ' \
+                    f'{quote}{dcm_path}{quote}'
+        
+        # Give the command and read the output (store as logs)
+        cmd_stream = os.popen(command)
+        output = cmd_stream.read()
+
+        img_log =   "------------------------------------------------------" \
+                    f"\nDICOM path: {dcm_path}" \
+                    f"\nNIFTI path: {nii_path}" \
+                    + "\n\n" + output + "\n\n"
+
+        log_str = log_str + img_log
+
+    # Write logs to text file
+    logs_path = os.path.join(paths["logsDir"], "dcm2nii_logs.txt")
+    logs_file = open(logs_path, "w")
+    logs_file.write(log_str)
+    logs_file.close()   
+
     return
 
 
@@ -66,7 +119,7 @@ def preprocessing(paths, settings, verbose=True):
         process_paths = generate_process_paths(paths, settings)
 
         # Now, Perform the dcm2nii file conversion.
-        dcm2nii(process_paths, verbose)
+        dcm2nii(process_paths, paths, settings, verbose)
 
         if verbose : print_header("\nPREPROCESSING FINISHED")
         return
