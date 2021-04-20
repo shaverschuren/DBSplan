@@ -3,9 +3,9 @@ if "" not in sys.path : sys.path.append("")
 if "src" not in sys.path : sys.path.append("src")
 
 import os
-import warnings
 from tqdm import tqdm
-from util.style import print_header
+from initialization import initialize
+from util.style import print_header, print_result
 from util.general import extract_json
 
 
@@ -93,9 +93,7 @@ def dcm2nii(process_paths, paths, settings, verbose=True):
     logs_path = os.path.join(paths["logsDir"], "dcm2nii_logs.txt")
     logs_file = open(logs_path, "w")
     logs_file.write(log_str)
-    logs_file.close()   
-
-    return
+    logs_file.close()
 
 
 def preprocessing(paths, settings, verbose=True):
@@ -116,10 +114,14 @@ def preprocessing(paths, settings, verbose=True):
         # Run module
 
         # Firstly, check which scans will have to be processed.
+        if verbose : print("\nGenerating processing paths... ", end="", flush=True)
         process_paths = generate_process_paths(paths, settings)
+        if verbose : print_result()
 
         # Now, Perform the dcm2nii file conversion.
+        if verbose : print("\nPerforming dcm2nii conversion...")
         dcm2nii(process_paths, paths, settings, verbose)
+        if verbose : print("dcm2nii conversion completed!")
 
         if verbose : print_header("\nPREPROCESSING FINISHED")
         return
@@ -130,4 +132,4 @@ def preprocessing(paths, settings, verbose=True):
 
 
 if __name__ == "__main__":
-    preprocessing(..., ...)
+    preprocessing(*initialize())
