@@ -1,0 +1,12 @@
+{   
+    "project_folder": "CHANGE_ME_TO_PROJECT_FOLDER_ABS_PATH", 
+
+    "relative_paths": {
+        "sourcedata": "sourcedata",
+        "tmpData": "tmpData", 
+        "logs": "logs", 
+        "results": "results", 
+        "scripts": "scripts"
+    }
+
+}
