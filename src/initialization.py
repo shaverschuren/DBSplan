@@ -105,7 +105,7 @@ def setup_paths(config_data):
     return paths, correct_bool
 
 
-def initialize(config_path="config.json", verbose=True):
+def initialization(config_path="config.json", verbose=True):
     """
     This function is the main initialization function for the DBSplan pipeline.
     It takes the path of the config file as a parameter.
@@ -139,4 +139,4 @@ def initialize(config_path="config.json", verbose=True):
 
 
 if __name__ == "__main__":
-    initialize()
+    initialization()
