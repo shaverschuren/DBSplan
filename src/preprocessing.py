@@ -126,7 +126,11 @@ def preprocessing(paths, settings, verbose=True):
     # Check whether module should be run (from config file)
     if settings["run_modules"][0] == 0:
         # Skip module
-        if verbose : print("Skipped module...")
+        if verbose : print( "\nSKIPPED:\n" \
+                            "'run_modules'[0] parameter == 0.\n" \
+                            "Assuming all data is already preprocessed.\n" \
+                            "Skipping dcm2nii conversion. " \
+                            "Added expected nifti paths to 'paths'.")
         process_paths, paths = generate_process_paths(paths, settings)
         return paths, settings
     elif settings["run_modules"][0] == 1:   
