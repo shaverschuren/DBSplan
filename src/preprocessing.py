@@ -5,6 +5,7 @@ if "src" not in sys.path : sys.path.append("src")
 import os
 from tqdm import tqdm
 from initialization import initialization
+from ScanSelection import ScanSelection
 from util.style import print_header, print_result
 from util.general import extract_json
 
@@ -21,9 +22,22 @@ def generate_process_paths(paths, settings):
     paths["nii_paths"] = {}
     paths["dcm_paths"] = {}
 
-    # Extract data from the usedScans.json file
-    usedScans_file = os.path.join(paths["projectDir"], settings["usedScans_file"])
-    dcmPaths_dict = extract_json(usedScans_file)
+    # Check for the existence of the "usedScans_file" parameter.
+    # If it's there, use the file to find appropriate scans.
+    # If not, start up a GUI to select the appropriate scans.
+    if "usedScans_file" in settings:
+        usedScans_file = os.path.join(paths["projectDir"], settings["usedScans_file"])
+        if os.path.exists(usedScans_file) and usedScans_file.endswith(".json"):
+            # Extract data from the usedScans.json file
+            dcmPaths_dict = extract_json(usedScans_file)
+        else:
+            raise ValueError(   "The 'usedScans_file' parameter in " \
+                                "the config.json file is an invalid path.\n" \
+                                "Please either (1) fix the path or (2) remove " \
+                                "the data-field to start up the image selection GUI.")
+    else:
+        # Fire up the scan selection GUI for choosing the appropiate scans.
+        dcmPaths_dict = ScanSelection(paths, settings)
 
     # Loop over scan types (T1w, T1w-GADO and CT)
     for scanType, pathArray in dcmPaths_dict.items():
