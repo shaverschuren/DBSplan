@@ -18,7 +18,8 @@ def generate_process_paths(paths, settings):
 
     # Initialize paths array and new data field the for paths dict
     process_paths = []
-    paths["source_nii"] = {}
+    paths["nii_paths"] = {}
+    paths["dcm_paths"] = {}
 
     # Extract data from the usedScans.json file
     usedScans_file = os.path.join(paths["projectDir"], settings["usedScans_file"])
@@ -36,15 +37,19 @@ def generate_process_paths(paths, settings):
                 if os.path.exists(dcm_path):
                     # Add paths to path array
                     process_paths.append([dcm_path, nii_path])
-                    # Add paths to paths dict
-                    if subject not in paths["source_nii"]: paths["source_nii"][subject] = {}
-                    paths["source_nii"][subject][scanType] = nii_path
+
+                    # Add nii path to paths dict
+                    if subject not in paths["nii_paths"]: paths["nii_paths"][subject] = {}
+                    paths["nii_paths"][subject][scanType] = nii_path
+                    # Add dcm path to paths dict
+                    if subject not in paths["dcm_paths"]: paths["dcm_paths"][subject] = {}
+                    paths["dcm_paths"][subject][scanType] = dcm_path
                 else:
                     raise ValueError(f"Dicom path '{dcm_path}' doesn't exist.")
             else:
                 pass
 
-    return process_paths
+    return process_paths, paths
 
 
 def dcm2nii(process_paths, paths, settings, verbose=True):
@@ -127,7 +132,7 @@ def preprocessing(paths, settings, verbose=True):
 
         # Firstly, check which scans will have to be processed.
         if verbose : print("\nGenerating processing paths...\t", end="", flush=True)
-        process_paths = generate_process_paths(paths, settings)
+        process_paths, paths = generate_process_paths(paths, settings)
         if verbose : print_result()
 
         # Now, Perform the dcm2nii file conversion.
