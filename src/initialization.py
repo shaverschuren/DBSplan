@@ -7,7 +7,28 @@ import warnings
 from glob import glob
 from util.general import check_os, extract_json, check_type
 from util.style import print_result, print_header
+from util.checks import check_freesurfer
 
+
+def check_system(settings):
+    """
+    This function checks the system for needed installations.
+    Checks include:
+    - FreeSurfer
+    - [...]
+    """
+    # Initialize success variable
+    success = True
+
+    # Check for FreeSurfer
+    try:
+        check_freesurfer()
+    except UserWarning as msg:
+        success = False
+        print_result(False)
+        print(msg)
+
+    return success
 
 def extract_settings(config_data, os_str):
     """
@@ -51,22 +72,26 @@ def check_paths(paths):
         # Check data type, act accordingly. str, dict and list supported.
         if type(value) == str:
             path = value
-            if not os.path.exists(path): 
-                result = False
+            if not os.path.exists(path):
+                if result : print_result(False)
                 warnings.warn(f"Extracted path '{path}' doesn't exist. Check config.json file.")
+                result = False
         elif type(value) == dict:
             for _, path in value.items():
                 check_type(path, str)
                 if not os.path.exists(path): 
-                    result = False
+                    if result : print_result(False)
                     warnings.warn(f"Extracted path '{path}' doesn't exist. Check config.json file.")
+                    result = False
         elif type(value) == list:
             for path in value:
                 check_type(path, str)
                 if not os.path.exists(path): 
-                    result = False
+                    if result : print_result(False)
                     warnings.warn(f"Extracted path '{path}' doesn't exist. Check config.json file.")
+                    result = False
         else:
+            if result : print_result(False)
             raise ValueError(f"Unexpected value type ({type(value)}) in path dict. Expected str, dict, list.")
 
     return result
@@ -130,8 +155,22 @@ def initialization(config_path="config.json", verbose=True):
 
     # Setup paths
     if verbose : print("Setting up paths...\t\t", end="", flush=True)
-    paths, success = setup_paths(config_data)
-    if verbose : print_result(success)
+    paths, success_paths = setup_paths(config_data)
+    if verbose and success_paths : print_result(success_paths)
+
+    # Check for all required installations
+    if verbose : print("Checking system...\t\t", end="", flush=True)
+    success_sys = check_system(settings)
+    if verbose and success_sys : print_result(success_sys)
+
+    # Check whether there were any failed checks
+    if not (success_paths and success_sys):
+        path_check = ("" if success_paths else "Path check\t(check config.json file)\n")
+        sys_check = ("" if success_sys else "System check\t(check for requirements)\n")
+
+        raise UserWarning(  "The initialization was not (completely) successful.\n" \
+                            "Please check the warning messages provided earlier.\n" \
+                            "Issues were found in:\n" + path_check + sys_check)
 
     if verbose : print_header("\nINITIALIZATION FINISHED")
 

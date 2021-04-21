@@ -127,6 +127,8 @@ def preprocessing(paths, settings, verbose=True):
     if settings["run_modules"][0] == 0:
         # Skip module
         if verbose : print("Skipped module...")
+        process_paths, paths = generate_process_paths(paths, settings)
+        return paths, settings
     elif settings["run_modules"][0] == 1:   
         # Run module
 
