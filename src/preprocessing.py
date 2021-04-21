@@ -4,7 +4,7 @@ if "src" not in sys.path : sys.path.append("src")
 
 import os
 from tqdm import tqdm
-from initialization import initialize
+from initialization import initialization
 from util.style import print_header, print_result
 from util.general import extract_json
 
@@ -144,4 +144,4 @@ def preprocessing(paths, settings, verbose=True):
 
 
 if __name__ == "__main__":
-    preprocessing(*initialize())
+    preprocessing(*initialization())

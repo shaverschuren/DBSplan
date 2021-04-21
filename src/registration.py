@@ -3,6 +3,7 @@ if "" not in sys.path : sys.path.append("")
 if "src" not in sys.path : sys.path.append("src")
 
 from initialization import initialization
+from preprocessing import preprocessing
 
 
 def registration(paths, settings, verbose=True):
@@ -16,4 +17,4 @@ def registration(paths, settings, verbose=True):
 
 
 if __name__ == "__main__":
-    registration(*initialization())
+    registration(*preprocessing(*initialization()))
