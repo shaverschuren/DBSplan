@@ -4,6 +4,9 @@ if "src" not in sys.path : sys.path.append("src")
 
 import os
 from tqdm import tqdm
+import shutil
+import subprocess
+from datetime import datetime
 from initialization import initialization
 from ScanSelection import ScanSelection
 from util.style import print_header, print_result
@@ -17,10 +20,14 @@ def generate_process_paths(paths, settings):
     We'll use info from dicts 'paths' and 'settings'.
     """
 
-    # Initialize paths array and new data field the for paths dict
+    # Initialize paths array
     process_paths = []
+    # Add new data fields for paths dict
+    if "niiDir" not in paths : paths["niiDir"] = os.path.join(paths["tmpDataDir"], "nifti")
+    if "fsDir" not in paths : paths["fsDir"] = os.path.join(paths["tmpDataDir"], "freesurfer")
     paths["nii_paths"] = {}
     paths["dcm_paths"] = {}
+    paths["fs_paths"] = {}
 
     # Check for the existence of the "usedScans_file" parameter.
     # If it's there, use the file to find appropriate scans.
@@ -46,18 +53,24 @@ def generate_process_paths(paths, settings):
             # Find paths for the actual dcm folder and to-be-created nifti-file
             if type(path) in [list, str]:
                 dcm_path = os.path.join(paths["source_dcm"][subject], *path)
-                nii_path = os.path.join(paths["sourcedataDir"], "nifti", subject, scanType + ".nii.gz")
+                nii_path = os.path.join(paths["niiDir"], subject, scanType + ".nii.gz")
+                fs_path = os.path.join(paths["fsDir"], subject)
 
                 if os.path.exists(dcm_path):
+                    # Remove fs path for non-T1w without GADO
+                    if scanType != "MRI_T1W":
+                        fs_path = None
                     # Add paths to path array
-                    process_paths.append([dcm_path, nii_path])
+                    process_paths.append([dcm_path, nii_path, fs_path])
 
-                    # Add nii path to paths dict
-                    if subject not in paths["nii_paths"]: paths["nii_paths"][subject] = {}
-                    paths["nii_paths"][subject][scanType] = nii_path
                     # Add dcm path to paths dict
                     if subject not in paths["dcm_paths"]: paths["dcm_paths"][subject] = {}
                     paths["dcm_paths"][subject][scanType] = dcm_path
+                    # Add nii path to paths dict
+                    if subject not in paths["nii_paths"]: paths["nii_paths"][subject] = {}
+                    paths["nii_paths"][subject][scanType] = nii_path
+                    # Add fs path to paths dict
+                    paths["fs_paths"][subject]= fs_path
                 else:
                     raise ValueError(f"Dicom path '{dcm_path}' doesn't exist.")
             else:
@@ -74,6 +87,9 @@ def dcm2nii(process_paths, paths, settings, verbose=True):
     # Initialize logs string
     log_str = ""
 
+    # If applicable, make nifti directory
+    if not os.path.isdir(paths["niiDir"]) : os.mkdir(paths["niiDir"])
+
     # Define iterator
     if verbose:
         iterator = tqdm(range(len(process_paths)), ascii=True, bar_format='{l_bar}{bar:30}{r_bar}{bar:-30b}')
@@ -83,7 +99,7 @@ def dcm2nii(process_paths, paths, settings, verbose=True):
     # Loop over the dcm,nii path pairs and perform the conversion.
     for img_i in iterator:
         # Extract paths from array
-        dcm_path, nii_path = process_paths[img_i]
+        dcm_path, nii_path, _ = process_paths[img_i]
 
         # Check whether output folder exists and if not, make it.
         # If output nifti file already exists, remove it.
@@ -112,13 +128,16 @@ def dcm2nii(process_paths, paths, settings, verbose=True):
                     f'-p y -z y ' \
                     f'-o {quote}{os.path.dirname(nii_path)}{quote} ' \
                     f'{quote}{dcm_path}{quote}'
-        
+
         # Give the command and read the output (store as logs)
         cmd_stream = os.popen(command)
         output = cmd_stream.read()
 
-        img_log =   "------------------------------------------------------" \
-                    f"\nDICOM path: {dcm_path}" \
+        # Store output in logs (timed)
+        now = datetime.now()
+        img_log =   f"---------------- {now.strftime('%d/%m/%Y %H:%M:%S')} ----------------" \
+                    f"\n{command}" \
+                    f"\n\nDICOM path: {dcm_path}" \
                     f"\nNIFTI path: {nii_path}" \
                     + "\n\n" + output + "\n\n"
 
@@ -126,6 +145,69 @@ def dcm2nii(process_paths, paths, settings, verbose=True):
 
     # Write logs to text file
     logs_path = os.path.join(paths["logsDir"], "dcm2nii_logs.txt")
+    logs_file = open(logs_path, "w")
+    logs_file.write(log_str)
+    logs_file.close()
+
+
+def nii2fs(process_paths, paths, settings, verbose=True):
+    """
+    This function performs a dicom to freesurfer conversion.
+    It makes use of the command line freesurfer application.
+    """
+
+    # Initialize logs string
+    log_str = ""
+
+    # If applicable, make freesurfer directory
+    if not os.path.isdir(paths["fsDir"]) : os.mkdir(paths["fsDir"])
+
+    # Define iterator
+    if verbose:
+        iterator = tqdm(range(len(process_paths)), ascii=True, bar_format='{l_bar}{bar:30}{r_bar}{bar:-30b}')
+    else:
+        iterator = range(len(process_paths))
+
+    # Loop over the dcm,nii path pairs and perform the conversion.
+    for img_i in iterator:
+        # Extract paths from array
+        _, nii_path, fs_path = process_paths[img_i]
+
+        # Only process the T1-w non-contrast images
+        if fs_path:
+            # If output freesurfer folder already exists, remove it.
+            if os.path.exists(fs_path): shutil.rmtree(fs_path)
+
+            # Assemble command
+            command = [ "recon-all", 
+                        "-subjid", os.path.split(os.path.split(fs_path)[0])[-1], 
+                        "-i", nii_path, 
+                        "-sd", paths["fsDir"],
+                        "-3T",
+                        "-all"]
+
+            # Open stream and pass command
+            recon_stream = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            # Read output
+            msg, error = recon_stream.communicate()
+            # End stream
+            recon_stream.terminate()
+
+            # Store output in logs (timed)
+            now = datetime.now()
+            img_log =   f"---------------- {now.strftime('%d/%m/%Y %H:%M:%S')} ----------------" \
+                        f"\n{command}" \
+                        f"\n\nNIFTI path:\t\t{nii_path}" \
+                        f"\nFreeSurfer path:\t{fs_path}" \
+                        f"\n\n{msg.decode('utf-8')}" \
+                        f"\n{error.decode('utf-8')}\n\n"
+
+            log_str = log_str + img_log
+        else:
+            pass
+
+    # Write logs to text file
+    logs_path = os.path.join(paths["logsDir"], "nii2freesurfer_logs.txt")
     logs_file = open(logs_path, "w")
     logs_file.write(log_str)
     logs_file.close()
@@ -163,6 +245,11 @@ def preprocessing(paths, settings, verbose=True):
         if verbose : print("\nPerforming dcm2nii conversion...")
         dcm2nii(process_paths, paths, settings, verbose)
         if verbose : print("dcm2nii conversion completed!")
+
+        # # Also, perform a freesurfer file conversion.
+        # if verbose : print("\nPerforming FreeSurfer conversion...")
+        # nii2fs(process_paths, paths, settings, verbose)
+        # if verbose : print("FreeSurfer conversion completed!")
 
         if verbose : print_header("\nPREPROCESSING FINISHED")
         return paths, settings
