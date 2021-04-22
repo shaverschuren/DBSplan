@@ -46,7 +46,7 @@ def generate_process_paths(paths, settings):
             # Find paths for the actual dcm folder and to-be-created nifti-file
             if type(path) in [list, str]:
                 dcm_path = os.path.join(paths["source_dcm"][subject], *path)
-                nii_path = os.path.join(paths["sourcedataDir"], "nifti", subject, scanType + ".nii")
+                nii_path = os.path.join(paths["sourcedataDir"], "nifti", subject, scanType + ".nii.gz")
 
                 if os.path.exists(dcm_path):
                     # Add paths to path array
@@ -85,9 +85,13 @@ def dcm2nii(process_paths, paths, settings, verbose=True):
         # Extract paths from array
         dcm_path, nii_path = process_paths[img_i]
 
-        # Check whether output folder exists and if not, make it
+        # Check whether output folder exists and if not, make it.
+        # If output nifti file already exists, remove it.
         output_folder = os.path.dirname(nii_path)
         if not os.path.isdir(output_folder) : os.mkdir(output_folder)
+        if os.path.exists(nii_path): 
+            os.remove(nii_path)
+            os.remove(nii_path.replace(".nii.gz", ".json"))
 
         # Check OS for command line implementation.
         if settings["OS"] == "win":
@@ -104,7 +108,7 @@ def dcm2nii(process_paths, paths, settings, verbose=True):
 
         # Assemble command
         command =   f'{dcm2nii_path} ' \
-                    f'-f {quote}{os.path.splitext(os.path.split(nii_path)[-1])[0]}{quote} ' \
+                    f'-f {quote}{os.path.split(nii_path)[-1][:-7]}{quote} ' \
                     f'-p y -z y ' \
                     f'-o {quote}{os.path.dirname(nii_path)}{quote} ' \
                     f'{quote}{dcm_path}{quote}'
