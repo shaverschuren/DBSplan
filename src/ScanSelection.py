@@ -41,19 +41,7 @@ class Window(QMainWindow):
 
 def ScanSelection(paths, settings):
 
-    dcmPaths = {}
-
-    # create pyqt5 app
-    App = QApplication(sys.argv)
-    
-    # create the instance of our Window
-    window = Window()
-    
-    # start the app
-    sys.exit(App.exec())
-
-
-    return dcmPaths
+    raise UserWarning("The scan selection GUI is not implemented yet!")
 
 
 if __name__ == "__main__":
