@@ -18,7 +18,7 @@ def registration(paths, settings, verbose=True):
     if verbose : print_header("\n==== MODULE 2 - REGISTRATION ====")
 
     # Check whether module should be run (from config file)
-    if settings["run_modules"][1] == 0:
+    if settings["runModules"][1] == 0:
         # Skip module
         if verbose : print( "\nSKIPPED:\n" \
                             "'run_modules'[1] parameter == 0.\n" \
@@ -26,7 +26,7 @@ def registration(paths, settings, verbose=True):
                             "Skipping registration process. " \
                             "Added expected nifti paths to 'paths'.")
         return paths, settings
-    elif settings["run_modules"][1] == 1:   
+    elif settings["runModules"][1] == 1:   
         # Run module
         # TODO: Implement registration module
 

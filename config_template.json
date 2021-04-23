@@ -1,7 +1,9 @@
-{
+{   
+    "_info": "",
+    
     "projectDir": "CHANGE_ME_TO_PROJECT_FOLDER", 
 
-    "relative_paths": {
+    "relativePaths": {
         "sourcedata": "sourcedata",
         "tmpData": "tmpData", 
         "logs": "logs", 
@@ -9,9 +11,28 @@
         "scripts": "scripts"
     },
 
-    "usedScans_file": "sourcedata\\doc\\usedScans.json",
+    "clinicalMode": 0,
 
-    "excluded_subjects": [],
+    "runModules": [1, 1, 1, 1],
 
-    "run_modules": [1, 0, 0, 0]
+    "resetModules": [0, 0, 0, 0],
+    
+    "excludedSubjects": [],
+
+    "usedScans": {
+        "MRI_T1W": {
+            "SEEGBCI-01": ["101659704", "801-T1W_3D_TFE"],
+            "SEEGBCI-13": ["101833719", "201-T1W_3D_TFE"]
+        }, 
+        
+        "MRI_T1W_GADO": {
+            "SEEGBCI-01": ["101653079", "201-T1W_3D_TFE"],
+            "SEEGBCI-13": ["101897469", "201-3D"]
+        },
+        
+        "CT_PRE": {
+            "SEEGBCI-01": ["101647474", "2-neuronavstereo"],
+            "SEEGBCI-13": ["101898223", "2-Sch"]
+        }
+    }
 }

@@ -41,16 +41,16 @@ def extract_settings(config_data, os_str):
 
     # Extract settings from config data. Omit paths
     for key, value in config_data.items():
-        if key not in ["projectDir", "relative_paths", "excluded_subjects"]:
+        if key not in ["projectDir", "relativePaths"]:
             settings[key] = value
     
     # Check for the existence of some needed vars
     # If they're not there, take the default and give a warning.
-    if "run_modules" not in settings:
-        settings["run_modules"] = [1, 0, 0, 0]
-        warnings.warn(f"\nrun_modules not defined. Using {settings['run_modules']}.")
+    if "runModules" not in settings:
+        settings["runModules"] = [1, 1, 1, 1]
+        warnings.warn(f"\nrunModules not defined. Using {settings['runModules']}.")
     
-    if "usedScans_file" not in settings:
+    if "usedScans" not in settings:
         settings["pickScans_UI"] = 1
         raise UserWarning("\nusedScans_file was not defined. Going to UI, which still has to be implemented...")
 
@@ -108,8 +108,8 @@ def setup_paths(config_data):
     paths = {"projectDir": config_data["projectDir"]}
 
     # Extract the subdirs used for the pipeline
-    for folder in config_data["relative_paths"]:
-        relative_path = config_data["relative_paths"][folder]
+    for folder in config_data["relativePaths"]:
+        relative_path = config_data["relativePaths"][folder]
         abs_path = os.path.join(paths["projectDir"], relative_path)
 
         paths[folder+"Dir"] = abs_path
@@ -120,7 +120,7 @@ def setup_paths(config_data):
     subject_names = [os.path.split(path)[-1] for path in subject_paths]
 
     for subject_i in range(len(subject_names)):
-        if subject_names[subject_i] not in config_data["excluded_subjects"]:
+        if subject_names[subject_i] not in config_data["excludedSubjects"]:
             paths["source_dcm"][subject_names[subject_i]] = subject_paths[subject_i]
         else:
             pass

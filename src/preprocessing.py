@@ -32,16 +32,10 @@ def generate_process_paths(paths, settings):
     # Check for the existence of the "usedScans_file" parameter.
     # If it's there, use the file to find appropriate scans.
     # If not, start up a GUI to select the appropriate scans.
-    if "usedScans_file" in settings:
-        usedScans_file = os.path.join(paths["projectDir"], settings["usedScans_file"])
-        if os.path.exists(usedScans_file) and usedScans_file.endswith(".json"):
-            # Extract data from the usedScans.json file
-            dcmPaths_dict = extract_json(usedScans_file)
-        else:
-            raise ValueError(   "The 'usedScans_file' parameter in " \
-                                "the config.json file is an invalid path.\n" \
-                                "Please either (1) fix the path or (2) remove " \
-                                "the data-field to start up the image selection GUI.")
+    if "usedScans" in settings:
+        # Extract data from settings
+        dcmPaths_dict = settings["usedScans"]
+
     else:
         # Fire up the scan selection GUI for choosing the appropiate scans.
         dcmPaths_dict = ScanSelection(paths, settings)
@@ -83,9 +77,12 @@ def dcm2nii(process_paths, paths, settings, verbose=True):
     """
     This function performs the actual dicom to nifti conversion.
     It makes use of the external program dcm2nii for this purpose.
+    If the output files are already there and resetModule is 0, 
+    skip the file.
     """
-    # Initialize logs string
+    # Initialize logs string and skip label
     log_str = ""
+    skipped_img = False
 
     # If applicable, make nifti directory
     if not os.path.isdir(paths["niiDir"]) : os.mkdir(paths["niiDir"])
@@ -102,36 +99,47 @@ def dcm2nii(process_paths, paths, settings, verbose=True):
         dcm_path, nii_path, _ = process_paths[img_i]
 
         # Check whether output folder exists and if not, make it.
-        # If output nifti file already exists, remove it.
         output_folder = os.path.dirname(nii_path)
         if not os.path.isdir(output_folder) : os.mkdir(output_folder)
-        if os.path.exists(nii_path): 
-            os.remove(nii_path)
-            os.remove(nii_path.replace(".nii.gz", ".json"))
 
-        # Check OS for command line implementation.
-        if settings["OS"] == "win":
-            dcm2nii_path = os.path.join("ext", "MRIcron", "dcm2nii.exe")
-            quote = "\""
-        elif settings["OS"] == "lnx":
-            dcm2nii_path = os.path.join("ext", "MRIcron", "dcm2nii-lx64")
-            quote = "\""
-        elif settings["OS"] == "mac":
-            dcm2nii_path = os.path.join("ext", "MRIcron", "dcm2nii-osx")
-            quote = "\'\'"
-        else:
-            raise UserWarning("Operating system not supported (or value of settings['OS'] is wrong).")
+        # Check whether all output files are already there
+        if os.path.exists(nii_path) and os.path.exists(nii_path.replace(".nii.gz", ".json")):
+            # If resetModules[0] is 0, skip this scan
+            if settings["resetModules"][0] == 0:
+                command = "---"
+                output = "Output files are already there. Skipping..."
+                skipped_img = True
+            # If resetModules[0] is 1, remove output and redo conversion
+            elif settings["resetModules"][0] == 1: 
+                os.remove(nii_path)
+                os.remove(nii_path.replace(".nii.gz", ".json"))
 
-        # Assemble command
-        command =   f'{dcm2nii_path} ' \
-                    f'-f {quote}{os.path.split(nii_path)[-1][:-7]}{quote} ' \
-                    f'-p y -z y ' \
-                    f'-o {quote}{os.path.dirname(nii_path)}{quote} ' \
-                    f'{quote}{dcm_path}{quote}'
+                # Check OS for command line implementation.
+                if settings["OS"] == "win":
+                    dcm2nii_path = os.path.join("ext", "MRIcron", "dcm2nii.exe")
+                    quote = "\""
+                elif settings["OS"] == "lnx":
+                    dcm2nii_path = os.path.join("ext", "MRIcron", "dcm2nii-lx64")
+                    quote = "\""
+                elif settings["OS"] == "mac":
+                    dcm2nii_path = os.path.join("ext", "MRIcron", "dcm2nii-osx")
+                    quote = "\'\'"
+                else:
+                    raise UserWarning("Operating system not supported (or value of settings['OS'] is wrong).")
 
-        # Give the command and read the output (store as logs)
-        cmd_stream = os.popen(command)
-        output = cmd_stream.read()
+                # Assemble command
+                command =   f'{dcm2nii_path} ' \
+                            f'-f {quote}{os.path.split(nii_path)[-1][:-7]}{quote} ' \
+                            f'-p y -z y ' \
+                            f'-o {quote}{os.path.dirname(nii_path)}{quote} ' \
+                            f'{quote}{dcm_path}{quote}'
+
+                # Give the command and read the output (store as logs)
+                cmd_stream = os.popen(command)
+                output = cmd_stream.read()
+            else:
+                raise ValueError(   "Parameter 'resetModules' should be a list containing only 0's and 1's. " \
+                                    "Please check the config file (config.json).")
 
         # Store output in logs (timed)
         now = datetime.now()
@@ -148,6 +156,12 @@ def dcm2nii(process_paths, paths, settings, verbose=True):
     logs_file = open(logs_path, "w")
     logs_file.write(log_str)
     logs_file.close()
+
+    # If some files were skipped, write message
+    if verbose and skipped_img:
+        print(  "Some scans were skipped due to the output being already there.\n" \
+                "If you want to rerun this entire module, please set " \
+                "'resetModules'[0] to 0 in the config.json file.")
 
 
 def nii2fs(process_paths, paths, settings, verbose=True):
@@ -224,16 +238,15 @@ def preprocessing(paths, settings, verbose=True):
     if verbose : print_header("\n==== MODULE 1 - PREPROCESSING ====")
 
     # Check whether module should be run (from config file)
-    if settings["run_modules"][0] == 0:
+    if settings["runModules"][0] == 0:
         # Skip module
         if verbose : print( "\nSKIPPED:\n" \
-                            "'run_modules'[0] parameter == 0.\n" \
+                            "'runModules'[0] parameter == 0.\n" \
                             "Assuming all data is already preprocessed.\n" \
-                            "Skipping dcm2nii conversion. " \
-                            "Added expected nifti paths to 'paths'.")
+                            "Skipping module....")
         process_paths, paths = generate_process_paths(paths, settings)
         return paths, settings
-    elif settings["run_modules"][0] == 1:   
+    elif settings["runModules"][0] == 1:   
         # Run module
 
         # Firstly, check which scans will have to be processed.
@@ -255,8 +268,8 @@ def preprocessing(paths, settings, verbose=True):
         return paths, settings
 
     else:
-        raise ValueError("parameter run_modules should be a list containing only 0's and 1's. " \
-                        "Please check the config file (config.json).")
+        raise ValueError(   "Parameter 'runModules' should be a list containing only 0's and 1's. " \
+                            "Please check the config file (config.json).")
 
 
 if __name__ == "__main__":
