@@ -10,7 +10,6 @@ from datetime import datetime
 from initialization import initialization
 from ScanSelection import ScanSelection
 from util.style import print_header, print_result
-from util.general import extract_json
 
 
 def generate_process_paths(paths, settings):
@@ -245,7 +244,7 @@ def preprocessing(paths, settings, verbose=True):
                             "Assuming all data is already preprocessed.\n" \
                             "Skipping module....")
         process_paths, paths = generate_process_paths(paths, settings)
-        return paths, settings
+
     elif settings["runModules"][0] == 1:   
         # Run module
 
@@ -265,11 +264,12 @@ def preprocessing(paths, settings, verbose=True):
         # if verbose : print("FreeSurfer conversion completed!")
 
         if verbose : print_header("\nPREPROCESSING FINISHED")
-        return paths, settings
 
     else:
         raise ValueError(   "Parameter 'runModules' should be a list containing only 0's and 1's. " \
                             "Please check the config file (config.json).")
+    
+    return paths, settings
 
 
 if __name__ == "__main__":
