@@ -1,13 +1,10 @@
-AnyQt @ file:///tmp/build/80754af9/anyqt_1617884551221/work
 certifi==2020.12.5
 nibabel==3.2.1
-numpy @ file:///tmp/build/80754af9/numpy_and_numpy_base_1607448156598/work
 packaging==20.9
 pyparsing==2.4.7
 PyQt5==5.15.4
 PyQt5-Qt5==5.15.2
 PyQt5-sip==12.8.1
-pyqtgraph @ file:///tmp/build/80754af9/pyqtgraph_1594064840332/work
 QtPy==1.9.0
 sip==4.19.13
 tqdm==4.60.0
