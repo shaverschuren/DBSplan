@@ -52,7 +52,7 @@ def extract_settings(config_data, os_str):
     
     if "usedScans" not in settings:
         settings["pickScans_UI"] = 1
-        raise UserWarning("\nusedScans_file was not defined. Going to UI, which still has to be implemented...")
+        raise UserWarning("\nusedScans was not defined. Going to UI, which still has to be implemented...")
 
     return settings
 
