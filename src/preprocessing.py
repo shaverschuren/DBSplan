@@ -108,37 +108,49 @@ def dcm2nii(process_paths, paths, settings, verbose=True):
                 command = "---"
                 output = "Output files are already there. Skipping..."
                 skipped_img = True
+                # Store output in logs (timed)
+                now = datetime.now()
+                img_log =   f"---------------- {now.strftime('%d/%m/%Y %H:%M:%S')} ----------------" \
+                            f"\n{command}" \
+                            f"\n\nDICOM path: {dcm_path}" \
+                            f"\nNIFTI path: {nii_path}" \
+                            + "\n\n" + output + "\n\n"
+                log_str = log_str + img_log
+                continue
+
             # If resetModules[0] is 1, remove output and redo conversion
             elif settings["resetModules"][0] == 1: 
                 os.remove(nii_path)
                 os.remove(nii_path.replace(".nii.gz", ".json"))
 
-                # Check OS for command line implementation.
-                if settings["OS"] == "win":
-                    dcm2nii_path = os.path.join("ext", "MRIcron", "dcm2nii.exe")
-                    quote = "\""
-                elif settings["OS"] == "lnx":
-                    dcm2nii_path = os.path.join("ext", "MRIcron", "dcm2nii-lx64")
-                    quote = "\""
-                elif settings["OS"] == "mac":
-                    dcm2nii_path = os.path.join("ext", "MRIcron", "dcm2nii-osx")
-                    quote = "\'\'"
-                else:
-                    raise UserWarning("Operating system not supported (or value of settings['OS'] is wrong).")
-
-                # Assemble command
-                command =   f'{dcm2nii_path} ' \
-                            f'-f {quote}{os.path.split(nii_path)[-1][:-7]}{quote} ' \
-                            f'-p y -z y ' \
-                            f'-o {quote}{os.path.dirname(nii_path)}{quote} ' \
-                            f'{quote}{dcm_path}{quote}'
-
-                # Give the command and read the output (store as logs)
-                cmd_stream = os.popen(command)
-                output = cmd_stream.read()
+            # Other: Raise error
             else:
                 raise ValueError(   "Parameter 'resetModules' should be a list containing only 0's and 1's. " \
                                     "Please check the config file (config.json).")
+
+        # Check OS for command line implementation.
+        if settings["OS"] == "win":
+            dcm2nii_path = os.path.join("ext", "MRIcron", "dcm2nii.exe")
+            quote = "\""
+        elif settings["OS"] == "lnx":
+            dcm2nii_path = os.path.join("ext", "MRIcron", "dcm2nii-lx64")
+            quote = "\""
+        elif settings["OS"] == "mac":
+            dcm2nii_path = os.path.join("ext", "MRIcron", "dcm2nii-osx")
+            quote = "\'\'"
+        else:
+            raise UserWarning("Operating system not supported (or value of settings['OS'] is wrong).")
+
+        # Assemble command
+        command =   f'{dcm2nii_path} ' \
+                    f'-f {quote}{os.path.split(nii_path)[-1][:-7]}{quote} ' \
+                    f'-p y -z y ' \
+                    f'-o {quote}{os.path.dirname(nii_path)}{quote} ' \
+                    f'{quote}{dcm_path}{quote}'
+
+        # Give the command and read the output (store as logs)
+        cmd_stream = os.popen(command)
+        output = cmd_stream.read()
 
         # Store output in logs (timed)
         now = datetime.now()
@@ -169,8 +181,12 @@ def nii2fs(process_paths, paths, settings, verbose=True):
     It makes use of the command line freesurfer application.
     """
 
-    # Initialize logs string
+    # Initialize logs string and skipped_img variable
     log_str = ""
+    skipped_img = False
+
+    # Remove irrelevant scans from list
+    process_paths = [paths for paths in process_paths if paths[2] != None]
 
     # If applicable, make freesurfer directory
     if not os.path.isdir(paths["fsDir"]) : os.mkdir(paths["fsDir"])
@@ -186,44 +202,68 @@ def nii2fs(process_paths, paths, settings, verbose=True):
         # Extract paths from array
         _, nii_path, fs_path = process_paths[img_i]
 
-        # Only process the T1-w non-contrast images
-        if fs_path:
+        if os.path.exists(fs_path):
+            # If output folder already exists, skip this image
+            if settings["resetModules"][0] == 0:
+                command = "---"
+                output = "Output files are already there. Skipping..."
+                skipped_img = True
+                # Store output in logs (timed)
+                now = datetime.now()
+                img_log =   f"---------------- {now.strftime('%d/%m/%Y %H:%M:%S')} ----------------" \
+                            f"\n{command}" \
+                            f"\n\nNIFTI path:\t\t{nii_path}" \
+                            f"\nFreeSurfer path:\t{fs_path}" \
+                            + "\n\n" + output + "\n\n"
+                log_str = log_str + img_log
+                continue
+
             # If output freesurfer folder already exists, remove it.
-            if os.path.exists(fs_path): shutil.rmtree(fs_path)
+            elif settings["resetModules"][0] == 1:
+                shutil.rmtree(fs_path)
 
-            # Assemble command
-            command = [ "recon-all", 
-                        "-subjid", os.path.split(os.path.split(fs_path)[0])[-1], 
-                        "-i", nii_path, 
-                        "-sd", paths["fsDir"],
-                        "-3T",
-                        "-all"]
+            # Other: Raise error
+            else:
+                raise ValueError(   "Parameter 'resetModules' should be a list containing only 0's and 1's. " \
+                                    "Please check the config file (config.json).")
 
-            # Open stream and pass command
-            recon_stream = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            # Read output
-            msg, error = recon_stream.communicate()
-            # End stream
-            recon_stream.terminate()
+        # Assemble command
+        command = [ "recon-all", 
+                    "-subjid", os.path.split(fs_path)[-1], 
+                    "-i", nii_path, 
+                    "-sd", paths["fsDir"],
+                    "-3T",
+                    "-autorecon1"]
 
-            # Store output in logs (timed)
-            now = datetime.now()
-            img_log =   f"---------------- {now.strftime('%d/%m/%Y %H:%M:%S')} ----------------" \
-                        f"\n{command}" \
-                        f"\n\nNIFTI path:\t\t{nii_path}" \
-                        f"\nFreeSurfer path:\t{fs_path}" \
-                        f"\n\n{msg.decode('utf-8')}" \
-                        f"\n{error.decode('utf-8')}\n\n"
+        # Open stream and pass command
+        recon_stream = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # Read output
+        msg, error = recon_stream.communicate()
+        # End stream
+        recon_stream.terminate()
 
-            log_str = log_str + img_log
-        else:
-            pass
+        # Store output in logs (timed)
+        now = datetime.now()
+        img_log =   f"---------------- {now.strftime('%d/%m/%Y %H:%M:%S')} ----------------" \
+                    f"\n{command}" \
+                    f"\n\nNIFTI path:\t\t{nii_path}" \
+                    f"\nFreeSurfer path:\t{fs_path}" \
+                    f"\n\n{msg.decode('utf-8')}" \
+                    f"\n{error.decode('utf-8')}\n\n"
+
+        log_str = log_str + img_log
 
     # Write logs to text file
     logs_path = os.path.join(paths["logsDir"], "nii2freesurfer_logs.txt")
     logs_file = open(logs_path, "w")
     logs_file.write(log_str)
     logs_file.close()
+
+    # If some files were skipped, write message
+    if verbose and skipped_img:
+        print(  "Some scans were skipped due to the output being already there.\n" \
+                "If you want to rerun this entire module, please set " \
+                "'resetModules'[0] to 0 in the config.json file.")
 
 
 def preprocessing(paths, settings, verbose=True):
@@ -258,10 +298,10 @@ def preprocessing(paths, settings, verbose=True):
         dcm2nii(process_paths, paths, settings, verbose)
         if verbose : print("dcm2nii conversion completed!")
 
-        # # Also, perform a freesurfer file conversion.
-        # if verbose : print("\nPerforming FreeSurfer conversion...")
-        # nii2fs(process_paths, paths, settings, verbose)
-        # if verbose : print("FreeSurfer conversion completed!")
+        # Also, perform a freesurfer file conversion.
+        if verbose : print("\nPerforming FreeSurfer conversion...")
+        nii2fs(process_paths, paths, settings, verbose)
+        if verbose : print("FreeSurfer conversion completed!")
 
         if verbose : print_header("\nPREPROCESSING FINISHED")
 
