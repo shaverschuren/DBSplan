@@ -12,6 +12,41 @@ from preprocessing import preprocessing
 from util.style import print_header
 
 
+def generate_fsl_paths(paths, settings):
+    """
+    This function generates an array of strings (paths). 
+    It contains all paths required for the fsl bet/fast process.
+    We'll use info from dicts 'paths' and 'settings'.
+    """
+
+    fsl_paths = []
+
+    # If applicable, make fsl directory
+    if "fslDir" not in paths : paths["fslDir"] = os.path.join(paths["tmpDataDir"], "fsl") 
+    if not os.path.isdir(paths["fslDir"]) : os.mkdir(paths["fslDir"])
+
+    # Create fsl paths struct
+    if "fsl_paths" not in paths : paths["fsl_paths"] = {}
+
+    # Loop over subjects
+    for subject, scans in paths["nii_paths"].items():
+        # Retrieve T1w nifti path
+        path_t1w = scans["MRI_T1W"]
+        
+        # Create FSL processing paths
+        path_ori = os.path.join(paths["fslDir"], subject, "T1w_ori.nii.gz")
+        path_bet = os.path.join(paths["fslDir"], subject, "T1w_bet.nii.gz")
+        path_fast_csf = os.path.join(paths["fslDir"], subject, "csf_mask.nii.gz")
+        path_fast_wm = os.path.join(paths["fslDir"], subject, "wm_mask.nii.gz")
+        path_fast_gm = os.path.join(paths["fslDir"], subject, "gm_mask.nii.gz")
+
+        # Add subject paths to {paths} and [fsl_paths]
+        paths["fsl_paths"][subject] = os.path.join(paths["fslDir"], subject)
+        fsl_paths.append([path_t1w, path_ori, path_bet, path_fast_csf, path_fast_wm, path_fast_gm])
+
+    return fsl_paths, paths
+
+
 def fsl_fast(paths, settings, verbose=True):
     """
     This function runs the FSL FAST module for all relevant images, 
@@ -27,10 +62,6 @@ def fsl_fast(paths, settings, verbose=True):
     # Remove irrelevant scans from list
     process_paths = []
     raise UserWarning("Still working on this function!!")
-
-    # If applicable, make fsl directory
-    if "fslDir" not in paths : paths["fslDir"] = os.path.join(paths["tmpDataDir"], "fsl") 
-    if not os.path.isdir(paths["fslDir"]) : os.mkdir(paths["fslDir"])
 
     # Define iterator
     if verbose:
@@ -109,6 +140,24 @@ def fsl_fast(paths, settings, verbose=True):
     return
 
 
+def process_fsl(paths, settings, verbose=True):
+    """
+    Main function for the fsl processing steps.
+    """
+
+    # Generate fsl processing paths
+    fsl_paths, paths = generate_fsl_paths(paths, settings)
+
+    for subject_paths in fsl_paths:
+        # Run FSL BET
+
+        # Run FSL FAST
+        
+        continue
+
+    return paths, settings
+
+
 def seg_ventricles(paths, settings, verbose=True):
 
     return
@@ -134,9 +183,10 @@ def segmentation(paths, settings, verbose=True):
     elif settings["runModules"][1] == 1:   
         # Run module
         
-        if verbose : print("\nRunning FSL FAST...")
-        fsl_fast(paths, settings, verbose)
-        if verbose : print("FSL FAST completed!")
+
+        if verbose : print("\nRunning FSL BET/FAST...")
+        paths, settings = process_fsl(paths, settings, verbose)
+        if verbose : print("FSL BET/FAST completed!")
 
         if verbose : print("\nPerforming ventricle segmentation...")
         seg_ventricles(paths, settings, verbose)
