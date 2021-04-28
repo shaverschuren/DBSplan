@@ -128,13 +128,13 @@ def fsl_fast(fsl_paths, paths, settings, reset=True):
         if os.path.exists(path_fast_m) : os.remove(path_fast_m)
 
     # Assemble command
-    command = [ "fast",                 # main FAST call
-                path_bet,               # Input file
-                "-S", "1",              # Number of input channels (=1)
-                "-t", "1",              # Type of input image (1=T1w)
-                "o", path_fast_base,    # Output base path
-                "-n", "2",              # Number of tissue-type classes (2 = CSF, other)
-                "-B"]                   # Flag --> Output bias-field corrected image
+    command = [ "fast",                     # main FAST call
+                "--channels=1",             # Number of input channels (=1)
+                "--type=1",                 # Type of input image (1=T1w)
+                f"--out={path_fast_base}",  # Output base path
+                "--class=2",                # Number of tissue-type classes (2 = CSF, other)
+                "-B",                       # Flag --> Output bias-field corrected image
+                path_bet]                   # Input file
 
     # Open stream and pass command
     recon_stream = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -187,6 +187,8 @@ def process_fsl(paths, settings, verbose=True):
         output_ok = bool(len(subject_paths[2:]) == len([path for path in subject_paths[2:] if os.path.exists(path)]))
 
         if not output_ok:
+            # Copy original T1w scan to FSL folder
+            shutil.copyfile(subject_paths[2], subject_paths[3])
             # Run FSL BET
             paths, settings = fsl_bet(subject_paths, paths, settings)
             # Run FSL FAST
@@ -211,7 +213,7 @@ def process_fsl(paths, settings, verbose=True):
             # Rerun this subject
             elif settings["resetModules"][1] == 1:
                 # Copy original T1w scan to FSL folder
-                shutil.copyfile(subject_paths[1], subject_paths[2])
+                shutil.copyfile(subject_paths[2], subject_paths[3])
                 # Run FSL BET
                 paths, settings = fsl_bet(subject_paths, paths, settings)
                 # Run FSL FAST
