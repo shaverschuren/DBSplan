@@ -2,6 +2,15 @@ import sys
 import json
 
 
+def append_logs(msg, file, mode="a"):
+    """
+    This function is used for appending log files.
+    """
+    logs_file = open(file, mode)
+    logs_file.write(msg)
+    logs_file.close()
+
+
 def check_type(var, var_type):
     """
     This function checks whether a variable is of the appropriate type.
