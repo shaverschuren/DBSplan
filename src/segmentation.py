@@ -10,6 +10,7 @@ from datetime import datetime
 from initialization import initialization
 from preprocessing import preprocessing
 from util.style import print_header
+from util.general import append_logs
 
 
 def generate_fsl_paths(paths, settings):
@@ -20,6 +21,21 @@ def generate_fsl_paths(paths, settings):
     """
 
     fsl_paths = []
+
+    # Create fsl log file
+    if "fsl_logs" not in paths : paths["fsl_logs"] = os.path.join(paths["logsDir"], "fsl_logs.txt")
+
+    # Reset logs if applicable
+    if settings["resetModules"][1] == 1 and os.path.exists(paths["fsl_logs"]) : os.remove(paths["fsl_logs"])
+
+    # Write logs header
+    write_mode = ("w" if not os.path.exists(paths["fsl_logs"]) else "a")
+
+    now = datetime.now()
+    logs_file = open(paths["fsl_logs"], write_mode)
+    logs_file.write(    f"==================== NEW RUN ====================\n\n" \
+                        f"Starting at : {now.strftime('%d/%m/%Y %H:%M:%S')}\n\n")
+    logs_file.close()
 
     # If applicable, make fsl directory
     if "fslDir" not in paths : paths["fslDir"] = os.path.join(paths["tmpDataDir"], "fsl") 
@@ -36,18 +52,60 @@ def generate_fsl_paths(paths, settings):
         # Create FSL processing paths
         path_ori = os.path.join(paths["fslDir"], subject, "T1w_ori.nii.gz")
         path_bet = os.path.join(paths["fslDir"], subject, "T1w_bet.nii.gz")
-        path_fast_csf = os.path.join(paths["fslDir"], subject, "csf_mask.nii.gz")
-        path_fast_wm = os.path.join(paths["fslDir"], subject, "wm_mask.nii.gz")
-        path_fast_gm = os.path.join(paths["fslDir"], subject, "gm_mask.nii.gz")
+        path_fast_base = os.path.join(paths["fslDir"], subject, "fast_")
+        path_fast_corr = path_fast_base + "_biasCorr.nii.gz"
+        path_fast_csf = path_fast_base + "_csf.nii.gz"
+        path_fast_m = path_fast_base + "_m.nii.gz"
 
         # Add subject paths to {paths} and [fsl_paths]
         paths["fsl_paths"][subject] = os.path.join(paths["fslDir"], subject)
-        fsl_paths.append([path_t1w, path_ori, path_bet, path_fast_csf, path_fast_wm, path_fast_gm])
+        fsl_paths.append([  subject, path_fast_base, path_t1w, path_ori, 
+                            path_bet, path_fast_corr, path_fast_csf, path_fast_m])
 
     return fsl_paths, paths
 
 
-def fsl_fast(paths, settings, verbose=True):
+def fsl_bet(fsl_paths, paths, settings, reset=True):
+    """
+    This function runs the FSL BET module for all relevant images, 
+    as is described at https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/BET.
+    This step is a.o. important for the ventricle segmentation.
+    It makes use of the FSL software packages command line.
+    """
+
+    # Extract relevant info
+    subject = fsl_paths[0]
+    path_ori = fsl_paths[3]
+    path_bet = fsl_paths[4]
+
+    # If applicable, remove any files from previous runs
+    if reset and os.path.exists(path_bet) : os.remove(path_bet)
+
+    # Assemble command
+    command = ["bet", path_ori, path_bet]
+
+    # Open stream and pass command
+    recon_stream = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    # Read output
+    msg, error = recon_stream.communicate()
+    # End stream
+    recon_stream.terminate()
+
+    # Store output in logs (timed)
+    now = datetime.now()
+    img_log =   f"---------------- {now.strftime('%d/%m/%Y %H:%M:%S')} ----------------" \
+                f"\n{command}" \
+                f"\n\nT1w path:\t{path_ori}" \
+                f"\nBET path:\t{path_bet}" \
+                f"\n\n{msg.decode('utf-8')}" \
+                f"\n{error.decode('utf-8')}\n\n"
+
+    append_logs(img_log, paths["fsl_logs"])
+
+    return paths, settings
+
+
+def fsl_fast(fsl_paths, paths, settings, reset=True):
     """
     This function runs the FSL FAST module for all relevant images, 
     as is described at https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FAST.
@@ -55,89 +113,51 @@ def fsl_fast(paths, settings, verbose=True):
     It makes use of the FSL software packages command line.
     """
 
-    # Initialize logs string and skipped_img variable
-    log_str = ""
-    skipped_img = False
+    # Extract relevant info
+    subject = fsl_paths[0]
+    path_bet = fsl_paths[4]
+    path_fast_base = fsl_paths[1]
+    path_fast_corr = fsl_paths[5]
+    path_fast_csf = fsl_paths[6]
+    path_fast_m = fsl_paths[7]
 
-    # Remove irrelevant scans from list
-    process_paths = []
-    raise UserWarning("Still working on this function!!")
+    # If applicable, remove any files from previous runs
+    if reset:
+        if os.path.exists(path_fast_corr) : os.remove(path_fast_corr)
+        if os.path.exists(path_fast_csf) : os.remove(path_fast_csf)
+        if os.path.exists(path_fast_m) : os.remove(path_fast_m)
 
-    # Define iterator
-    if verbose:
-        iterator = tqdm(range(len(process_paths)), ascii=True, bar_format='{l_bar}{bar:30}{r_bar}{bar:-30b}')
-    else:
-        iterator = range(len(process_paths))
+    # Assemble command
+    command = [ "fast",                 # main FAST call
+                path_bet,               # Input file
+                "-S", "1",              # Number of input channels (=1)
+                "-t", "1",              # Type of input image (1=T1w)
+                "o", path_fast_base,    # Output base path
+                "-n", "2",              # Number of tissue-type classes (2 = CSF, other)
+                "-B"]                   # Flag --> Output bias-field corrected image
 
-    # # Loop over the dcm,nii path pairs and perform the conversion.
-    # for img_i in iterator:
-    #     # Extract paths from array
-    #     _, nii_path, fs_path = process_paths[img_i]
+    # Open stream and pass command
+    recon_stream = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    # Read output
+    msg, error = recon_stream.communicate()
+    # End stream
+    recon_stream.terminate()
 
-    #     if os.path.exists(fs_path):
-    #         # If output folder already exists, skip this image
-    #         if settings["resetModules"][0] == 0:
-    #             command = "---"
-    #             output = "Output files are already there. Skipping..."
-    #             skipped_img = True
-    #             # Store output in logs (timed)
-    #             now = datetime.now()
-    #             img_log =   f"---------------- {now.strftime('%d/%m/%Y %H:%M:%S')} ----------------" \
-    #                         f"\n{command}" \
-    #                         f"\n\nNIFTI path:\t\t{nii_path}" \
-    #                         f"\nFreeSurfer path:\t{fs_path}" \
-    #                         + "\n\n" + output + "\n\n"
-    #             log_str = log_str + img_log
-    #             continue
+    # Rename output files
+    # TODO: Rename output files
 
-    #         # If output freesurfer folder already exists, remove it.
-    #         elif settings["resetModules"][0] == 1:
-    #             shutil.rmtree(fs_path)
+    # Store output in logs (timed)
+    now = datetime.now()
+    img_log =   f"---------------- {now.strftime('%d/%m/%Y %H:%M:%S')} ----------------" \
+                f"\n{command}" \
+                f"\n\nBET path:\t{path_bet}" \
+                f"\nFAST base:\t{path_fast_base}[...]" \
+                f"\n\n{msg.decode('utf-8')}" \
+                f"\n{error.decode('utf-8')}\n\n"
+                
+    append_logs(img_log, paths["fsl_logs"])
 
-    #         # Other: Raise error
-    #         else:
-    #             raise ValueError(   "Parameter 'resetModules' should be a list containing only 0's and 1's. " \
-    #                                 "Please check the config file (config.json).")
-
-    #     # Assemble command
-    #     command = [ "recon-all", 
-    #                 "-subjid", os.path.split(fs_path)[-1], 
-    #                 "-i", nii_path, 
-    #                 "-sd", paths["fsDir"],
-    #                 "-3T",
-    #                 "-autorecon1"]
-
-    #     # Open stream and pass command
-    #     recon_stream = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    #     # Read output
-    #     msg, error = recon_stream.communicate()
-    #     # End stream
-    #     recon_stream.terminate()
-
-    #     # Store output in logs (timed)
-    #     now = datetime.now()
-    #     img_log =   f"---------------- {now.strftime('%d/%m/%Y %H:%M:%S')} ----------------" \
-    #                 f"\n{command}" \
-    #                 f"\n\nNIFTI path:\t\t{nii_path}" \
-    #                 f"\nFreeSurfer path:\t{fs_path}" \
-    #                 f"\n\n{msg.decode('utf-8')}" \
-    #                 f"\n{error.decode('utf-8')}\n\n"
-
-    #     log_str = log_str + img_log
-
-    # # Write logs to text file
-    # logs_path = os.path.join(paths["logsDir"], "nii2freesurfer_logs.txt")
-    # logs_file = open(logs_path, "w")
-    # logs_file.write(log_str)
-    # logs_file.close()
-
-    # If some files were skipped, write message
-    if verbose and skipped_img:
-        print(  "Some scans were skipped due to the output being already there.\n" \
-                "If you want to rerun this entire module, please set " \
-                "'resetModules'[1] to 0 in the config.json file.")
-    
-    return
+    return paths, settings
 
 
 def process_fsl(paths, settings, verbose=True):
@@ -145,16 +165,69 @@ def process_fsl(paths, settings, verbose=True):
     Main function for the fsl processing steps.
     """
 
+    # Initialize skipped_img variable
+    skipped_img = False
+
     # Generate fsl processing paths
     fsl_paths, paths = generate_fsl_paths(paths, settings)
 
-    for subject_paths in fsl_paths:
-        # Run FSL BET
+    # Define iterator
+    if verbose:
+        iterator = tqdm(fsl_paths, ascii=True, bar_format='{l_bar}{bar:30}{r_bar}{bar:-30b}')
+    else:
+        iterator = fsl_paths
 
-        # Run FSL FAST
-        
-        continue
+    # Loop over subjects in fsl_paths list
+    for subject_paths in iterator:
+        # Create subject directory
+        subjectDir = paths["fsl_paths"][subject_paths[0]]
+        if not os.path.isdir(subjectDir) : os.mkdir(subjectDir)
 
+        # Check whether results are already there
+        output_ok = bool(len(subject_paths[2:]) == len([path for path in subject_paths[2:] if os.path.exists(path)]))
+
+        if not output_ok:
+            # Run FSL BET
+            paths, settings = fsl_bet(subject_paths, paths, settings)
+            # Run FSL FAST
+            paths, settings = fsl_fast(subject_paths, paths, settings)
+        else:
+            # Skip this subject
+            if settings["resetModules"][1] == 0:
+                command = "---"
+                output = "Output files are already there. Skipping..."
+                skipped_img = True
+                # Store output in logs (timed)
+                now = datetime.now()
+                img_log =   f"---------------- {now.strftime('%d/%m/%Y %H:%M:%S')} ----------------" \
+                            f"\n---" \
+                            f"\n\nNIFTI path:\t{subject_paths[1]}" \
+                            f"\nFSL path:\t{subjectDir}" \
+                            + "\n\n" + output + "\n\n"
+                append_logs(paths["fsl_logs"], img_log)
+
+                continue
+
+            # Rerun this subject
+            elif settings["resetModules"][1] == 1:
+                # Copy original T1w scan to FSL folder
+                shutil.copyfile(subject_paths[1], subject_paths[2])
+                # Run FSL BET
+                paths, settings = fsl_bet(subject_paths, paths, settings)
+                # Run FSL FAST
+                paths, settings = fsl_fast(subject_paths, paths, settings)
+
+            # Raise ValueError
+            else:
+                raise ValueError(   "Parameter 'resetModules' should be a list containing only 0's and 1's. " \
+                                    "Please check the config file (config.json).")
+
+    # If some files were skipped, write message
+    if verbose and skipped_img:
+        print(  "Some scans were skipped due to the output being already there.\n" \
+                "If you want to rerun this entire module, please set " \
+                "'resetModules'[1] to 0 in the config.json file.")
+    
     return paths, settings
 
 
@@ -183,7 +256,6 @@ def segmentation(paths, settings, verbose=True):
     elif settings["runModules"][1] == 1:   
         # Run module
         
-
         if verbose : print("\nRunning FSL BET/FAST...")
         paths, settings = process_fsl(paths, settings, verbose)
         if verbose : print("FSL BET/FAST completed!")
