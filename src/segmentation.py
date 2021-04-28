@@ -6,6 +6,7 @@ import os
 import subprocess
 import shutil
 from tqdm import tqdm
+from glob import glob
 from datetime import datetime
 from initialization import initialization
 from preprocessing import preprocessing
@@ -52,7 +53,7 @@ def generate_fsl_paths(paths, settings):
         # Create FSL processing paths
         path_ori = os.path.join(paths["fslDir"], subject, "T1w_ori.nii.gz")
         path_bet = os.path.join(paths["fslDir"], subject, "T1w_bet.nii.gz")
-        path_fast_base = os.path.join(paths["fslDir"], subject, "fast_")
+        path_fast_base = os.path.join(paths["fslDir"], subject, "fast")
         path_fast_corr = path_fast_base + "_biasCorr.nii.gz"
         path_fast_csf = path_fast_base + "_csf.nii.gz"
         path_fast_m = path_fast_base + "_m.nii.gz"
@@ -143,8 +144,18 @@ def fsl_fast(fsl_paths, paths, settings, reset=True):
     # End stream
     recon_stream.terminate()
 
-    # Rename output files
-    # TODO: Rename output files
+    # Restructure output files
+    fastDir = os.path.join(paths["fsl_paths"][subject], "fast_raw")
+    if not os.path.isdir(fastDir) : os.mkdir(fastDir)
+
+    fast_output = glob(path_fast_base+"_*.nii.gz")
+    for path in fast_output:
+        filename = os.path.split(path)[-1]
+        os.rename(path, os.path.join(fastDir, filename))
+    
+    shutil.copyfile(os.path.join(fastDir, "fast_restore.nii.gz"), path_fast_corr)
+    shutil.copyfile(os.path.join(fastDir, "fast_pve_0.nii.gz"), path_fast_csf)
+    shutil.copyfile(os.path.join(fastDir, "fast_pve_1.nii.gz"), path_fast_m)
 
     # Store output in logs (timed)
     now = datetime.now()
@@ -206,7 +217,7 @@ def process_fsl(paths, settings, verbose=True):
                             f"\n\nNIFTI path:\t{subject_paths[1]}" \
                             f"\nFSL path:\t{subjectDir}" \
                             + "\n\n" + output + "\n\n"
-                append_logs(paths["fsl_logs"], img_log)
+                append_logs(img_log, paths["fsl_logs"])
 
                 continue
 
