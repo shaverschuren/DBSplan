@@ -5,12 +5,15 @@ if "src" not in sys.path : sys.path.append("src")
 import os
 import subprocess
 import shutil
+import numpy as np
 import nibabel as nib
 from tqdm import tqdm
 from glob import glob
 from datetime import datetime
 from initialization import initialization
 from preprocessing import preprocessing
+from seg.mask_util import binarize_mask
+from seg.ventricles import extract_ventricles
 from util.style import print_header
 from util.general import append_logs
 
@@ -255,8 +258,59 @@ def process_fsl(paths, settings, verbose=True):
 
 
 def seg_ventricles(paths, settings, verbose=True):
+    """
+    This function performs the ventricle segmentation.
+    It builds upon output from FSL BET and FAST.
+    """
 
-    return
+    # If applicable, make segmentation paths and folder
+    if "segDir" not in paths : paths["segDir"] = os.path.join(paths["tmpDataDir"], "segmentation")
+    if "seg_paths" not in paths : paths["seg_paths"] = {}
+
+    if not os.path.isdir(paths["segDir"]) : os.mkdir(paths["segDir"])
+
+    # Generate processing paths (iteratively)
+    seg_paths = []
+
+    for subject, fsl_paths in paths["fsl_paths"].items():
+        # Create subject dict
+        subjectDir = os.path.join(paths["segDir"], subject)
+        if not os.path.isdir(subjectDir) : os.mkdir(subjectDir)
+
+        paths["seg_paths"][subject] = {"dir": subjectDir}
+
+        # Extract fsl path
+        t1w_cor_path = fsl_paths["fast_corr"]
+        csf_pve_path = fsl_paths["fast_csf"]
+
+        # Assemble segmentation paths
+        csf_mask_path = os.path.join(subjectDir, "csf_mask.nii.gz")
+        ventricle_mask_path = os.path.join(subjectDir, "ventricle_mask.nii.gz")
+
+        # Add paths to {paths}
+        paths["seg_paths"][subject]["csf_mask"] = csf_mask_path
+        paths["seg_paths"][subject]["ventricle_mask"] = ventricle_mask_path
+
+        # Add paths to seg_paths
+        seg_paths.append([subject, t1w_cor_path, csf_pve_path, csf_mask_path, ventricle_mask_path])
+    
+    # Now, loop over seg_paths and perform ventricle segmentation
+    # Define iterator
+    if verbose:
+        iterator = tqdm(seg_paths, ascii=True, bar_format='{l_bar}{bar:30}{r_bar}{bar:-30b}')
+    else:
+        iterator = seg_paths
+    
+    # Main loop
+    for sub_paths in iterator:
+        # TODO: Implement already-done check
+
+        # Binarize the pve map to a 0/1 mask
+        binarize_mask(sub_paths[2], sub_paths[3], treshold=0.8)
+        # Generate ventricle mask
+        extract_ventricles(sub_paths[1], sub_paths[3], sub_paths[4])
+
+    return paths, settings
 
 
 def segmentation(paths, settings, verbose=True):
@@ -270,11 +324,12 @@ def segmentation(paths, settings, verbose=True):
     # Check whether module should be run (from config file)
     if settings["runModules"][1] == 0:
         # Skip module
+        _, paths = generate_fsl_paths(paths, settings)
         if verbose : print( "\nSKIPPED:\n" \
                             "'run_modules'[1] parameter == 0.\n" \
                             "Assuming all data is already segmented.\n" \
                             "Skipping segmentation process. " \
-                            "Added expected nifti paths to 'paths'.")
+                            "Added expected paths to 'paths'.")
 
     elif settings["runModules"][1] == 1:   
         # Run module
@@ -298,4 +353,12 @@ def segmentation(paths, settings, verbose=True):
 
 if __name__ == "__main__":
     paths, settings = preprocessing(*initialization())
-    segmentation(paths, settings)
+    paths, settings = segmentation(paths, settings)
+
+    import json
+    with open('paths.json', 'w') as outfile:
+        json.dump(paths, outfile, sort_keys=False, indent=4)
+        outfile.close()
+    with open('settings.json', 'w') as outfile:
+        json.dump(settings, outfile, sort_keys=False, indent=4) 
+        outfile.close()
