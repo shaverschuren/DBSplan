@@ -7,7 +7,7 @@ import warnings
 from glob import glob
 from util.general import check_os, extract_json, check_type
 from util.style import print_result, print_header
-from util.checks import check_freesurfer
+from util.checks import check_freesurfer, check_fsl
 
 
 def check_system(settings):
@@ -20,9 +20,10 @@ def check_system(settings):
     # Initialize success variable
     success = True
 
-    # Check for FreeSurfer
+    # Check for FreeSurfer and FSL
     try:
         check_freesurfer()
+        check_fsl()
     except UserWarning as msg:
         success = False
         print_result(False)
