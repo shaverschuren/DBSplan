@@ -5,6 +5,7 @@ if "src" not in sys.path : sys.path.append("src")
 import os
 import subprocess
 import shutil
+import nibabel as nib
 from tqdm import tqdm
 from glob import glob
 from datetime import datetime
@@ -59,7 +60,16 @@ def generate_fsl_paths(paths, settings):
         path_fast_m = path_fast_base + "_m.nii.gz"
 
         # Add subject paths to {paths} and [fsl_paths]
-        paths["fsl_paths"][subject] = os.path.join(paths["fslDir"], subject)
+        subject_dict = {}
+        subject_dict["dir"] = os.path.join(paths["fslDir"], subject)
+        subject_dict["ori"] = path_ori
+        subject_dict["bet"] = path_bet
+        subject_dict["fast_corr"] = path_fast_corr
+        subject_dict["fast_csf"] = path_fast_csf
+        subject_dict["fast_m"] = path_fast_m
+
+        paths["fsl_paths"][subject] = subject_dict
+
         fsl_paths.append([  subject, path_fast_base, path_t1w, path_ori, 
                             path_bet, path_fast_corr, path_fast_csf, path_fast_m])
 
@@ -145,7 +155,7 @@ def fsl_fast(fsl_paths, paths, settings, reset=True):
     recon_stream.terminate()
 
     # Restructure output files
-    fastDir = os.path.join(paths["fsl_paths"][subject], "fast_raw")
+    fastDir = os.path.join(paths["fsl_paths"][subject]["dir"], "fast_raw")
     if not os.path.isdir(fastDir) : os.mkdir(fastDir)
 
     fast_output = glob(path_fast_base+"_*.nii.gz")
@@ -191,7 +201,7 @@ def process_fsl(paths, settings, verbose=True):
     # Loop over subjects in fsl_paths list
     for subject_paths in iterator:
         # Create subject directory
-        subjectDir = paths["fsl_paths"][subject_paths[0]]
+        subjectDir = paths["fsl_paths"][subject_paths[0]]["dir"]
         if not os.path.isdir(subjectDir) : os.mkdir(subjectDir)
 
         # Check whether results are already there
