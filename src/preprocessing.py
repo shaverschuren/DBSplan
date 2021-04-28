@@ -8,7 +8,7 @@ import shutil
 import subprocess
 from datetime import datetime
 from initialization import initialization
-from ScanSelection import ScanSelection
+from gui.ScanSelection import ScanSelection
 from util.style import print_header, print_result
 
 
