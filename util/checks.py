@@ -13,7 +13,7 @@ def check_fsl():
     error_msg = ""
 
     # Define test commands
-    test_commands = ["flirt", "bet", "fast"]
+    test_commands = ["flirt", "bet"]
 
     # Iteratively run test commands
     for command in test_commands:
