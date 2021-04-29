@@ -19,7 +19,7 @@ def binarize_mask(pve_path, mask_path, treshold=0.5):
     mask_map = np.zeros(np.shape(pve_map))
     mask_map[pve_map < treshold] = 0
     mask_map[pve_map >= treshold] = 1
-    
+
     # Store mask
     mask_img = nib.Nifti1Image(mask_map.astype(np.int16), img_aff, img_hdr)
     nib.save(mask_img, mask_path)

@@ -1,6 +1,6 @@
 import sys
-if "" not in sys.path : sys.path.append("")
-if "src" not in sys.path : sys.path.append("src")
+if "" not in sys.path: sys.path.append("")
+if "src" not in sys.path: sys.path.append("src")
 
 from initialization import initialization
 from preprocessing import preprocessing
@@ -24,6 +24,7 @@ def main():
 
     # MODULE 3 : REGISTRATION
     paths, settings = registration(paths, settings)
+
 
 if __name__ == "__main__":
     main()

@@ -22,7 +22,7 @@ def check_type(var, var_type):
 
     # Check whether the actual type matches the wanted type
     if var_type != act_type:
-        raise TypeError("Variable is not of the appropriate type." \
+        raise TypeError("Variable is not of the appropriate type."
                         f"Should be {var_type}, not {act_type}")
     else:
         return True
@@ -31,8 +31,9 @@ def check_type(var, var_type):
 def check_os():
     """
     This function checks the operating system of the current machine.
-    It outputs a string, being either 'lnx' : Linux, 'win' : Windows, 'mac' : MacOS.
-    Other operating systems are not supported. 
+    It outputs a string, being either
+    'lnx' : Linux, 'win' : Windows, 'mac' : MacOS.
+    Other operating systems are not supported.
     """
 
     if sys.platform.startswith('win32'):
@@ -59,7 +60,6 @@ def extract_json(json_path, verbose=False):
         with open(json_path) as json_data_file:
             data = json.load(json_data_file)
 
-        if verbose : print(data)
+        if verbose: print(data)
 
         return data
-    

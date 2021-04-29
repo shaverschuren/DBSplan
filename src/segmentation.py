@@ -1,6 +1,6 @@
 import sys
-if "" not in sys.path : sys.path.append("")
-if "src" not in sys.path : sys.path.append("src")
+if "" not in sys.path: sys.path.append("")
+if "src" not in sys.path: sys.path.append("src")
 
 import os
 import subprocess
@@ -20,7 +20,7 @@ from util.general import append_logs
 
 def generate_fsl_paths(paths, settings):
     """
-    This function generates an array of strings (paths). 
+    This function generates an array of strings (paths).
     It contains all paths required for the fsl bet/fast process.
     We'll use info from dicts 'paths' and 'settings'.
     """
@@ -28,32 +28,36 @@ def generate_fsl_paths(paths, settings):
     fsl_paths = []
 
     # Create fsl log file
-    if "fsl_logs" not in paths : paths["fsl_logs"] = os.path.join(paths["logsDir"], "fsl_logs.txt")
+    if "fsl_logs" not in paths:
+        paths["fsl_logs"] = os.path.join(paths["logsDir"], "fsl_logs.txt")
 
     # Reset logs if applicable
-    if settings["resetModules"][1] == 1 and os.path.exists(paths["fsl_logs"]) : os.remove(paths["fsl_logs"])
+    if settings["resetModules"][1] == 1 and os.path.exists(paths["fsl_logs"]):
+        os.remove(paths["fsl_logs"])
 
     # Write logs header
     write_mode = ("w" if not os.path.exists(paths["fsl_logs"]) else "a")
 
     now = datetime.now()
     logs_file = open(paths["fsl_logs"], write_mode)
-    logs_file.write(    f"==================== NEW RUN ====================\n\n" \
-                        f"Starting at : {now.strftime('%d/%m/%Y %H:%M:%S')}\n\n")
+    logs_file.write(f"==================== NEW RUN ====================\n\n"
+                    f"Starting at : {now.strftime('%d/%m/%Y %H:%M:%S')}\n\n")
     logs_file.close()
 
     # If applicable, make fsl directory
-    if "fslDir" not in paths : paths["fslDir"] = os.path.join(paths["tmpDataDir"], "fsl") 
-    if not os.path.isdir(paths["fslDir"]) : os.mkdir(paths["fslDir"])
+    if "fslDir" not in paths:
+        paths["fslDir"] = os.path.join(paths["tmpDataDir"], "fsl")
+    if not os.path.isdir(paths["fslDir"]):
+        os.mkdir(paths["fslDir"])
 
     # Create fsl paths struct
-    if "fsl_paths" not in paths : paths["fsl_paths"] = {}
+    if "fsl_paths" not in paths: paths["fsl_paths"] = {}
 
     # Loop over subjects
     for subject, scans in paths["nii_paths"].items():
         # Retrieve T1w nifti path
         path_t1w = scans["MRI_T1W"]
-        
+
         # Create FSL processing paths
         path_ori = os.path.join(paths["fslDir"], subject, "T1w_ori.nii.gz")
         path_bet = os.path.join(paths["fslDir"], subject, "T1w_bet.nii.gz")
@@ -73,15 +77,16 @@ def generate_fsl_paths(paths, settings):
 
         paths["fsl_paths"][subject] = subject_dict
 
-        fsl_paths.append([  subject, path_fast_base, path_t1w, path_ori, 
-                            path_bet, path_fast_corr, path_fast_csf, path_fast_m])
+        fsl_paths.append([subject, path_fast_base, path_t1w, path_ori,
+                          path_bet, path_fast_corr, path_fast_csf,
+                          path_fast_m])
 
     return fsl_paths, paths
 
 
 def fsl_bet(fsl_paths, paths, settings, reset=True):
     """
-    This function runs the FSL BET module for all relevant images, 
+    This function runs the FSL BET module for all relevant images,
     as is described at https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/BET.
     This step is a.o. important for the ventricle segmentation.
     It makes use of the FSL software packages command line.
@@ -93,13 +98,14 @@ def fsl_bet(fsl_paths, paths, settings, reset=True):
     path_bet = fsl_paths[4]
 
     # If applicable, remove any files from previous runs
-    if reset and os.path.exists(path_bet) : os.remove(path_bet)
+    if reset and os.path.exists(path_bet): os.remove(path_bet)
 
     # Assemble command
     command = ["bet", path_ori, path_bet]
 
     # Open stream and pass command
-    recon_stream = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    recon_stream = subprocess.Popen(command, stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE)
     # Read output
     msg, error = recon_stream.communicate()
     # End stream
@@ -107,12 +113,14 @@ def fsl_bet(fsl_paths, paths, settings, reset=True):
 
     # Store output in logs (timed)
     now = datetime.now()
-    img_log =   f"---------------- {now.strftime('%d/%m/%Y %H:%M:%S')} ----------------" \
-                f"\n{command}" \
-                f"\n\nT1w path:\t{path_ori}" \
-                f"\nBET path:\t{path_bet}" \
-                f"\n\n{msg.decode('utf-8')}" \
-                f"\n{error.decode('utf-8')}\n\n"
+    img_log = f"---------------- " \
+              f"{now.strftime('%d/%m/%Y %H:%M:%S')}" \
+              f" ----------------" \
+              f"\n{command}" \
+              f"\n\nT1w path:\t{path_ori}" \
+              f"\nBET path:\t{path_bet}" \
+              f"\n\n{msg.decode('utf-8')}" \
+              f"\n{error.decode('utf-8')}\n\n"
 
     append_logs(img_log, paths["fsl_logs"])
 
@@ -121,7 +129,7 @@ def fsl_bet(fsl_paths, paths, settings, reset=True):
 
 def fsl_fast(fsl_paths, paths, settings, reset=True):
     """
-    This function runs the FSL FAST module for all relevant images, 
+    This function runs the FSL FAST module for all relevant images,
     as is described at https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FAST.
     This step is a.o. important for the ventricle segmentation.
     It makes use of the FSL software packages command line.
@@ -137,21 +145,22 @@ def fsl_fast(fsl_paths, paths, settings, reset=True):
 
     # If applicable, remove any files from previous runs
     if reset:
-        if os.path.exists(path_fast_corr) : os.remove(path_fast_corr)
-        if os.path.exists(path_fast_csf) : os.remove(path_fast_csf)
-        if os.path.exists(path_fast_m) : os.remove(path_fast_m)
+        if os.path.exists(path_fast_corr): os.remove(path_fast_corr)
+        if os.path.exists(path_fast_csf): os.remove(path_fast_csf)
+        if os.path.exists(path_fast_m): os.remove(path_fast_m)
 
     # Assemble command
-    command = [ "fast",                     # main FAST call
-                "--channels=1",             # Number of input channels (=1)
-                "--type=1",                 # Type of input image (1=T1w)
-                f"--out={path_fast_base}",  # Output base path
-                "--class=2",                # Number of tissue-type classes (2 = CSF, other)
-                "-B",                       # Flag --> Output bias-field corrected image
-                path_bet]                   # Input file
+    command = ["fast",                     # main FAST call
+               "--channels=1",             # Number of input channels (=1)
+               "--type=1",                 # Type of input image (1=T1w)
+               f"--out={path_fast_base}",  # Output base path
+               "--class=2",                # Number of tissue-type classes
+               "-B",                       # Flag --> Output bias-corrected img
+               path_bet]                   # Input file
 
     # Open stream and pass command
-    recon_stream = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    recon_stream = subprocess.Popen(command, stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE)
     # Read output
     msg, error = recon_stream.communicate()
     # End stream
@@ -159,26 +168,31 @@ def fsl_fast(fsl_paths, paths, settings, reset=True):
 
     # Restructure output files
     fastDir = os.path.join(paths["fsl_paths"][subject]["dir"], "fast_raw")
-    if not os.path.isdir(fastDir) : os.mkdir(fastDir)
+    if not os.path.isdir(fastDir): os.mkdir(fastDir)
 
-    fast_output = glob(path_fast_base+"_*.nii.gz")
+    fast_output = glob(path_fast_base + "_*.nii.gz")
     for path in fast_output:
         filename = os.path.split(path)[-1]
         os.rename(path, os.path.join(fastDir, filename))
-    
-    shutil.copyfile(os.path.join(fastDir, "fast_restore.nii.gz"), path_fast_corr)
-    shutil.copyfile(os.path.join(fastDir, "fast_pve_0.nii.gz"), path_fast_csf)
-    shutil.copyfile(os.path.join(fastDir, "fast_pve_1.nii.gz"), path_fast_m)
+
+    shutil.copyfile(os.path.join(fastDir, "fast_restore.nii.gz"),
+                    path_fast_corr)
+    shutil.copyfile(os.path.join(fastDir, "fast_pve_0.nii.gz"),
+                    path_fast_csf)
+    shutil.copyfile(os.path.join(fastDir, "fast_pve_1.nii.gz"),
+                    path_fast_m)
 
     # Store output in logs (timed)
     now = datetime.now()
-    img_log =   f"---------------- {now.strftime('%d/%m/%Y %H:%M:%S')} ----------------" \
-                f"\n{command}" \
-                f"\n\nBET path:\t{path_bet}" \
-                f"\nFAST base:\t{path_fast_base}[...]" \
-                f"\n\n{msg.decode('utf-8')}" \
-                f"\n{error.decode('utf-8')}\n\n"
-                
+    img_log = f"---------------- " \
+              f"{now.strftime('%d/%m/%Y %H:%M:%S')}" \
+              f" ----------------" \
+              f"\n{command}" \
+              f"\n\nBET path:\t{path_bet}" \
+              f"\nFAST base:\t{path_fast_base}[...]" \
+              f"\n\n{msg.decode('utf-8')}" \
+              f"\n{error.decode('utf-8')}\n\n"
+
     append_logs(img_log, paths["fsl_logs"])
 
     return paths, settings
@@ -197,7 +211,8 @@ def process_fsl(paths, settings, verbose=True):
 
     # Define iterator
     if verbose:
-        iterator = tqdm(fsl_paths, ascii=True, bar_format='{l_bar}{bar:30}{r_bar}{bar:-30b}')
+        iterator = tqdm(fsl_paths, ascii=True,
+                        bar_format='{l_bar}{bar:30}{r_bar}{bar:-30b}')
     else:
         iterator = fsl_paths
 
@@ -205,10 +220,11 @@ def process_fsl(paths, settings, verbose=True):
     for subject_paths in iterator:
         # Create subject directory
         subjectDir = paths["fsl_paths"][subject_paths[0]]["dir"]
-        if not os.path.isdir(subjectDir) : os.mkdir(subjectDir)
+        if not os.path.isdir(subjectDir): os.mkdir(subjectDir)
 
         # Check whether results are already there
-        output_ok = bool(len(subject_paths[2:]) == len([path for path in subject_paths[2:] if os.path.exists(path)]))
+        ok_paths = [path for path in subject_paths[2:] if os.path.exists(path)]
+        output_ok = bool(len(subject_paths[2:]) == len(ok_paths))
 
         if not output_ok:
             # Copy original T1w scan to FSL folder
@@ -225,11 +241,13 @@ def process_fsl(paths, settings, verbose=True):
                 skipped_img = True
                 # Store output in logs (timed)
                 now = datetime.now()
-                img_log =   f"---------------- {now.strftime('%d/%m/%Y %H:%M:%S')} ----------------" \
-                            f"\n---" \
-                            f"\n\nNIFTI path:\t{subject_paths[1]}" \
-                            f"\nFSL path:\t{subjectDir}" \
-                            + "\n\n" + output + "\n\n"
+                img_log = f"----------------" \
+                          f"{now.strftime('%d/%m/%Y %H:%M:%S')}" \
+                          f" ----------------" \
+                          f"\n---" \
+                          f"\n\nNIFTI path:\t{subject_paths[1]}" \
+                          f"\nFSL path:\t{subjectDir}" \
+                          + "\n\n" + output + "\n\n"
                 append_logs(img_log, paths["fsl_logs"])
 
                 continue
@@ -245,15 +263,16 @@ def process_fsl(paths, settings, verbose=True):
 
             # Raise ValueError
             else:
-                raise ValueError(   "Parameter 'resetModules' should be a list containing only 0's and 1's. " \
-                                    "Please check the config file (config.json).")
+                raise ValueError("Parameter 'resetModules' should be a list"
+                                 "containing only 0's and 1's. "
+                                 "Please check the config file (config.json).")
 
     # If some files were skipped, write message
     if verbose and skipped_img:
-        print(  "Some scans were skipped due to the output being already there.\n" \
-                "If you want to rerun this entire module, please set " \
-                "'resetModules'[1] to 0 in the config.json file.")
-    
+        print("Some scans were skipped due to the output being complete.\n"
+              "If you want to rerun this entire module, please set "
+              "'resetModules'[1] to 0 in the config.json file.")
+
     return paths, settings
 
 
@@ -267,10 +286,12 @@ def seg_ventricles(paths, settings, verbose=True):
     skipped_img = False
 
     # If applicable, make segmentation paths and folder
-    if "segDir" not in paths : paths["segDir"] = os.path.join(paths["tmpDataDir"], "segmentation")
-    if "seg_paths" not in paths : paths["seg_paths"] = {}
+    if "segDir" not in paths:
+        paths["segDir"] = os.path.join(paths["tmpDataDir"], "segmentation")
+    if "seg_paths" not in paths:
+        paths["seg_paths"] = {}
 
-    if not os.path.isdir(paths["segDir"]) : os.mkdir(paths["segDir"])
+    if not os.path.isdir(paths["segDir"]): os.mkdir(paths["segDir"])
 
     # Generate processing paths (iteratively)
     seg_paths = []
@@ -278,7 +299,7 @@ def seg_ventricles(paths, settings, verbose=True):
     for subject, fsl_paths in paths["fsl_paths"].items():
         # Create subject dict
         subjectDir = os.path.join(paths["segDir"], subject)
-        if not os.path.isdir(subjectDir) : os.mkdir(subjectDir)
+        if not os.path.isdir(subjectDir): os.mkdir(subjectDir)
 
         paths["seg_paths"][subject] = {"dir": subjectDir}
 
@@ -295,19 +316,23 @@ def seg_ventricles(paths, settings, verbose=True):
         paths["seg_paths"][subject]["ventricle_mask"] = ventricle_mask_path
 
         # Add paths to seg_paths
-        seg_paths.append([subject, t1w_cor_path, csf_pve_path, csf_mask_path, ventricle_mask_path])
-    
+        seg_paths.append([subject, t1w_cor_path, csf_pve_path,
+                          csf_mask_path, ventricle_mask_path])
+
     # Now, loop over seg_paths and perform ventricle segmentation
     # Define iterator
     if verbose:
-        iterator = tqdm(seg_paths, ascii=True, bar_format='{l_bar}{bar:30}{r_bar}{bar:-30b}')
+        iterator = tqdm(seg_paths, ascii=True,
+                        bar_format='{l_bar}{bar:30}{r_bar}{bar:-30b}')
     else:
         iterator = seg_paths
-    
+
     # Main loop
     for sub_paths in iterator:
         # Check whether output already there
-        output_ok = bool(os.path.exists(sub_paths[3]) and os.path.exists(sub_paths[4]))
+        csf_mask_ok = os.path.exists(sub_paths[3])
+        ven_mask_ok = os.path.exists(sub_paths[4])
+        output_ok = (csf_mask_ok and ven_mask_ok)
 
         # Determine whether to skip subject
         if output_ok:
@@ -318,21 +343,22 @@ def seg_ventricles(paths, settings, verbose=True):
                 # Binarize the pve map to a 0/1 mask
                 binarize_mask(sub_paths[2], sub_paths[3], treshold=0.8)
                 # Generate ventricle mask
-                extract_ventricles(sub_paths[1], sub_paths[3], sub_paths[4]) 
+                extract_ventricles(sub_paths[1], sub_paths[3], sub_paths[4])
             else:
-                raise ValueError(   "Parameter 'resetModules' should be a list containing only 0's and 1's. " \
-                                    "Please check the config file (config.json).")
+                raise ValueError("Parameter 'resetModules' should be a list "
+                                 "containing only 0's and 1's. "
+                                 "Please check the config file (config.json).")
         else:
             # Binarize the pve map to a 0/1 mask
             binarize_mask(sub_paths[2], sub_paths[3], treshold=0.8)
             # Generate ventricle mask
             extract_ventricles(sub_paths[1], sub_paths[3], sub_paths[4])
-    
+
     # If some files were skipped, write message
     if verbose and skipped_img:
-        print(  "Some scans were skipped due to the output being already there.\n" \
-                "If you want to rerun this entire module, please set " \
-                "'resetModules'[1] to 0 in the config.json file.")
+        print("Some scans were skipped due to the output being complete.\n"
+              "If you want to rerun this entire module, please set "
+              "'resetModules'[1] to 0 in the config.json file.")
 
     return paths, settings
 
@@ -343,35 +369,36 @@ def segmentation(paths, settings, verbose=True):
     It calls on other functions to perform specific tasks.
     """
 
-    if verbose : print_header("\n==== MODULE 2 - SEGMENTATION ====")
+    if verbose: print_header("\n==== MODULE 2 - SEGMENTATION ====")
 
     # Check whether module should be run (from config file)
     if settings["runModules"][1] == 0:
         # Skip module
         _, paths = generate_fsl_paths(paths, settings)
-        if verbose : print( "\nSKIPPED:\n" \
-                            "'run_modules'[1] parameter == 0.\n" \
-                            "Assuming all data is already segmented.\n" \
-                            "Skipping segmentation process. " \
-                            "Added expected paths to 'paths'.")
+        if verbose: print("\nSKIPPED:\n"
+                          "'run_modules'[1] parameter == 0.\n"
+                          "Assuming all data is already segmented.\n"
+                          "Skipping segmentation process. "
+                          "Added expected paths to 'paths'.")
 
-    elif settings["runModules"][1] == 1:   
+    elif settings["runModules"][1] == 1:
         # Run module
-        
-        if verbose : print("\nRunning FSL BET/FAST...")
+
+        if verbose: print("\nRunning FSL BET/FAST...")
         paths, settings = process_fsl(paths, settings, verbose)
-        if verbose : print("FSL BET/FAST completed!")
+        if verbose: print("FSL BET/FAST completed!")
 
-        if verbose : print("\nPerforming ventricle segmentation...")
+        if verbose: print("\nPerforming ventricle segmentation...")
         seg_ventricles(paths, settings, verbose)
-        if verbose : print("Ventricle segmentation completed!")
+        if verbose: print("Ventricle segmentation completed!")
 
-        if verbose : print_header("\nSEGMENTATION FINISHED")
+        if verbose: print_header("\nSEGMENTATION FINISHED")
 
     else:
-        raise ValueError(   "parameter run_modules should be a list containing only 0's and 1's. " \
-                            "Please check the config file (config.json).")
-    
+        raise ValueError("parameter run_modules should be a list "
+                         "containing only 0's and 1's. "
+                         "Please check the config file (config.json).")
+
     return paths, settings
 
 

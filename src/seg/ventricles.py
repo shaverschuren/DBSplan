@@ -18,21 +18,22 @@ def find_seed_mask(csf_mask, img_aff, center_coords):
     avg_vox_dim = np.mean((np.array(img_aff).diagonal())[:-1])
 
     # Perform erosion with a ball element (radius approx 4mm)
-    element = morph.ball(int(4 / avg_vox_dim)) 
+    element = morph.ball(int(4 / avg_vox_dim))
     seed_mask = morph.erosion(seed_mask, element)
 
     # Find mask for "near the brain's center"
-    xx, yy, zz = np.meshgrid(   np.arange(np.shape(seed_mask)[0]), 
-                                np.arange(np.shape(seed_mask)[1]), 
-                                np.arange(np.shape(seed_mask)[2]), 
-                                indexing="ij")
+    xx, yy, zz = np.meshgrid(np.arange(np.shape(seed_mask)[0]),
+                             np.arange(np.shape(seed_mask)[1]),
+                             np.arange(np.shape(seed_mask)[2]),
+                             indexing="ij")
 
-    dist2center = np.sqrt(    (xx - center_coords[0]) ** 2 
-                            + (yy - center_coords[1]) ** 2 
-                            + (zz - center_coords[2]) ** 2)
+    xx_offset = xx - center_coords[0]
+    yy_offset = yy - center_coords[1]
+    zz_offset = zz - center_coords[2]
+    dist2center = np.sqrt(xx_offset ** 2 + yy_offset ** 2 + zz_offset ** 2)
 
     center_mask = np.zeros(np.shape(seed_mask))
-    center_mask[dist2center < 20 / avg_vox_dim] = 1 # <20mm from the center is deemed "close"
+    center_mask[dist2center < 20 / avg_vox_dim] = 1  # <20mm from the center
 
     # Remove seed points that are too far from the center
     seed_mask = seed_mask * center_mask
@@ -53,14 +54,15 @@ def region_growing(seed_mask, full_mask, img_aff, element_size=2):
     # Determine avg voxel dimension
     avg_vox_dim = np.mean((np.array(img_aff).diagonal())[:-1])
 
-    # Build morphological structuring element 
+    # Build morphological structuring element
     element = morph.ball(int(element_size / avg_vox_dim))
+    big_element = morph.ball(int(element_size * 1.5 / avg_vox_dim))
     small_element = morph.ball(1)
 
     # Perform openings of full mask
     crude_mask = full_mask
-    crude_mask = morph.opening(crude_mask, morph.ball(int(element_size*1.5 / avg_vox_dim)))
-    full_mask = morph.opening(full_mask, morph.ball(int(element_size / avg_vox_dim)))
+    crude_mask = morph.opening(crude_mask, big_element)
+    full_mask = morph.opening(full_mask, element)
 
     # Perform crude region growing loop
     stop_loop = False
@@ -69,7 +71,7 @@ def region_growing(seed_mask, full_mask, img_aff, element_size=2):
     loop_n = 0
     while not stop_loop:
         # Update input and loop count
-        loop_n += 1 
+        loop_n += 1
         new_input = previous_output
 
         # Perform region growing
