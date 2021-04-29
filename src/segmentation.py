@@ -15,7 +15,7 @@ from preprocessing import preprocessing
 from seg.mask_util import binarize_mask
 from seg.ventricles import extract_ventricles
 from util.style import print_header
-from util.general import append_logs
+from util.general import append_logs, log_dict
 
 
 def generate_fsl_paths(paths, settings):
@@ -398,6 +398,10 @@ def segmentation(paths, settings, verbose=True):
         raise ValueError("parameter run_modules should be a list "
                          "containing only 0's and 1's. "
                          "Please check the config file (config.json).")
+
+    # Log paths and settings
+    log_dict(paths, os.path.join(paths["logsDir"], "paths.json"))
+    log_dict(settings, os.path.join(paths["logsDir"], "settings.json"))
 
     return paths, settings
 

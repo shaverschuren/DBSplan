@@ -10,6 +10,7 @@ from datetime import datetime
 from initialization import initialization
 from gui.ScanSelection import ScanSelection
 from util.style import print_header, print_result
+from util.general import log_dict
 
 
 def generate_process_paths(paths, settings):
@@ -332,6 +333,10 @@ def preprocessing(paths, settings, verbose=True):
         raise ValueError("Parameter 'runModules' should be a list "
                          "containing only 0's and 1's. "
                          "Please check the config file (config.json).")
+
+    # Log paths and settings
+    log_dict(paths, os.path.join(paths["logsDir"], "paths.json"))
+    log_dict(settings, os.path.join(paths["logsDir"], "settings.json"))
 
     return paths, settings
 

@@ -2,6 +2,15 @@ import sys
 import json
 
 
+def log_dict(dict, file, mode="w"):
+    """
+    This function is used for logging a dict.
+    Mainly, we may use it for logging {paths} and {settings}.
+    """
+    with open(file, mode) as f:
+        json.dump(dict, f, indent=4)
+
+
 def append_logs(msg, file, mode="a"):
     """
     This function is used for appending log files.

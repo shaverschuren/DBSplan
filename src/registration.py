@@ -2,11 +2,13 @@ import sys
 if "" not in sys.path: sys.path.append("")
 if "src" not in sys.path: sys.path.append("src")
 
+import os
 import subprocess
 from initialization import initialization
 from preprocessing import preprocessing
 from segmentation import segmentation
 from util.style import print_header
+from util.general import log_dict
 
 
 def registration(paths, settings, verbose=True):
@@ -36,6 +38,10 @@ def registration(paths, settings, verbose=True):
         raise ValueError("parameter run_modules should be a list "
                          "containing only 0's and 1's. "
                          "Please check the config file (config.json).")
+
+    # Log paths and settings
+    log_dict(paths, os.path.join(paths["logsDir"], "paths.json"))
+    log_dict(settings, os.path.join(paths["logsDir"], "settings.json"))
 
     return paths, settings
 

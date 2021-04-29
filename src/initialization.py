@@ -5,7 +5,7 @@ if "src" not in sys.path: sys.path.append("src")
 import os
 import warnings
 from glob import glob
-from util.general import check_os, extract_json, check_type
+from util.general import check_os, extract_json, check_type, log_dict
 from util.style import print_result, print_header
 from util.checks import check_freesurfer, check_fsl
 
@@ -185,6 +185,10 @@ def initialization(config_path="config.json", verbose=True):
         raise UserWarning("The initialization was not successful.\n"
                           "Please check the warning messages above.\n"
                           "Issues were found in:\n" + path_check + sys_check)
+
+    # Log paths and settings
+    log_dict(paths, os.path.join(paths["logsDir"], "paths.json"))
+    log_dict(settings, os.path.join(paths["logsDir"], "settings.json"))
 
     if verbose: print_header("\nINITIALIZATION FINISHED")
 
