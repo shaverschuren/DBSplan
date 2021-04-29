@@ -263,6 +263,9 @@ def seg_ventricles(paths, settings, verbose=True):
     It builds upon output from FSL BET and FAST.
     """
 
+    # Initialize skipped_img variable
+    skipped_img = False
+
     # If applicable, make segmentation paths and folder
     if "segDir" not in paths : paths["segDir"] = os.path.join(paths["tmpDataDir"], "segmentation")
     if "seg_paths" not in paths : paths["seg_paths"] = {}
@@ -303,12 +306,33 @@ def seg_ventricles(paths, settings, verbose=True):
     
     # Main loop
     for sub_paths in iterator:
-        # TODO: Implement already-done check
+        # Check whether output already there
+        output_ok = bool(os.path.exists(sub_paths[3]) and os.path.exists(sub_paths[4]))
 
-        # Binarize the pve map to a 0/1 mask
-        binarize_mask(sub_paths[2], sub_paths[3], treshold=0.8)
-        # Generate ventricle mask
-        extract_ventricles(sub_paths[1], sub_paths[3], sub_paths[4])
+        # Determine whether to skip subject
+        if output_ok:
+            if settings["resetModules"][1] == 0:
+                skipped_img = True
+                continue
+            elif settings["resetModules"][1] == 1:
+                # Binarize the pve map to a 0/1 mask
+                binarize_mask(sub_paths[2], sub_paths[3], treshold=0.8)
+                # Generate ventricle mask
+                extract_ventricles(sub_paths[1], sub_paths[3], sub_paths[4]) 
+            else:
+                raise ValueError(   "Parameter 'resetModules' should be a list containing only 0's and 1's. " \
+                                    "Please check the config file (config.json).")
+        else:
+            # Binarize the pve map to a 0/1 mask
+            binarize_mask(sub_paths[2], sub_paths[3], treshold=0.8)
+            # Generate ventricle mask
+            extract_ventricles(sub_paths[1], sub_paths[3], sub_paths[4])
+    
+    # If some files were skipped, write message
+    if verbose and skipped_img:
+        print(  "Some scans were skipped due to the output being already there.\n" \
+                "If you want to rerun this entire module, please set " \
+                "'resetModules'[1] to 0 in the config.json file.")
 
     return paths, settings
 
@@ -353,12 +377,4 @@ def segmentation(paths, settings, verbose=True):
 
 if __name__ == "__main__":
     paths, settings = preprocessing(*initialization())
-    paths, settings = segmentation(paths, settings)
-
-    import json
-    with open('paths.json', 'w') as outfile:
-        json.dump(paths, outfile, sort_keys=False, indent=4)
-        outfile.close()
-    with open('settings.json', 'w') as outfile:
-        json.dump(settings, outfile, sort_keys=False, indent=4) 
-        outfile.close()
+    segmentation(paths, settings)
