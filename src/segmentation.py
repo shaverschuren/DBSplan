@@ -14,6 +14,7 @@ from initialization import initialization
 from preprocessing import preprocessing
 from seg.mask_util import binarize_mask
 from seg.ventricles import extract_ventricles
+from seg.sulci import extract_sulci
 from util.style import print_header
 from util.general import append_logs, log_dict
 
@@ -363,6 +364,89 @@ def seg_ventricles(paths, settings, verbose=True):
     return paths, settings
 
 
+def seg_sulci(paths, settings, verbose=True):
+    """
+    This function performs the sulcus segmentation.
+    It builds upon output from FSL BET and FAST.
+    """
+
+    # Initialize skipped_img variable
+    skipped_img = False
+
+    # If applicable, make segmentation paths and folder
+    if "segDir" not in paths:
+        paths["segDir"] = os.path.join(paths["tmpDataDir"], "segmentation")
+    if "seg_paths" not in paths:
+        paths["seg_paths"] = {}
+
+    if not os.path.isdir(paths["segDir"]): os.mkdir(paths["segDir"])
+
+    # Generate processing paths (iteratively)
+    seg_paths = []
+
+    for subject, fsl_paths in paths["fsl_paths"].items():
+        # Create subject dict
+        subjectDir = os.path.join(paths["segDir"], subject)
+        if not os.path.isdir(subjectDir): os.mkdir(subjectDir)
+
+        paths["seg_paths"][subject] = {"dir": subjectDir}
+
+        # Extract fsl path
+        t1w_cor_path = fsl_paths["fast_corr"]
+        csf_pve_path = fsl_paths["fast_csf"]
+
+        # Assemble segmentation paths
+        csf_mask_path = os.path.join(subjectDir, "csf_mask.nii.gz")
+        sulcus_mask_path = os.path.join(subjectDir, "sulcus_mask.nii.gz")
+
+        # Add paths to {paths}
+        paths["seg_paths"][subject]["csf_mask"] = csf_mask_path
+        paths["seg_paths"][subject]["sulcus_mask"] = sulcus_mask_path
+
+        # Add paths to seg_paths
+        seg_paths.append([subject, t1w_cor_path, csf_pve_path,
+                          csf_mask_path, sulcus_mask_path])
+
+    # Now, loop over seg_paths and perform sulcus segmentation
+    # Define iterator
+    if verbose:
+        iterator = tqdm(seg_paths, ascii=True,
+                        bar_format='{l_bar}{bar:30}{r_bar}{bar:-30b}')
+    else:
+        iterator = seg_paths
+
+    # Main loop
+    for sub_paths in iterator:
+        # Check whether output already there
+        csf_mask_ok = os.path.exists(sub_paths[3])
+        sul_mask_ok = os.path.exists(sub_paths[4])
+        output_ok = (csf_mask_ok and sul_mask_ok)
+
+        # Determine whether to skip subject
+        if output_ok:
+            if settings["resetModules"][1] == 0:
+                skipped_img = True
+                continue
+            elif settings["resetModules"][1] == 1:
+                # Generate sulcus mask
+                extract_sulci(sub_paths[1], sub_paths[3], sub_paths[4])
+            else:
+                raise ValueError("Parameter 'resetModules' should be a list "
+                                 "containing only 0's and 1's. "
+                                 "Please check the config file (config.json).")
+        else:
+            # Generate sulcus mask
+            extract_sulci(sub_paths[1], sub_paths[3], sub_paths[4])
+
+    # If some files were skipped, write message
+    if verbose and skipped_img:
+        print("Some scans were skipped due to the output being complete.\n"
+              "If you want to rerun this entire module, please set "
+              "'resetModules'[1] to 0 in the config.json file.")
+
+    return paths, settings
+
+
 def segmentation(paths, settings, verbose=True):
     """
     This is the main wrapper function for the segmentation module.
@@ -391,6 +475,10 @@ def segmentation(paths, settings, verbose=True):
         if verbose: print("\nPerforming ventricle segmentation...")
         seg_ventricles(paths, settings, verbose)
         if verbose: print("Ventricle segmentation completed!")
+
+        if verbose: print("\nPerforming sulcus segmentation...")
+        seg_sulci(paths, settings, verbose)
+        if verbose: print("Sulcus segmentation completed!")
 
         if verbose: print_header("\nSEGMENTATION FINISHED")
 
