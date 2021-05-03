@@ -65,7 +65,8 @@ def generate_fsl_paths(paths, settings):
         path_fast_base = os.path.join(paths["fslDir"], subject, "fast")
         path_fast_corr = path_fast_base + "_biasCorr.nii.gz"
         path_fast_csf = path_fast_base + "_csf.nii.gz"
-        path_fast_m = path_fast_base + "_m.nii.gz"
+        path_fast_gm = path_fast_base + "_gm.nii.gz"
+        path_fast_wm = path_fast_base + "_wm.nii.gz"
 
         # Add subject paths to {paths} and [fsl_paths]
         subject_dict = {}
@@ -74,13 +75,14 @@ def generate_fsl_paths(paths, settings):
         subject_dict["bet"] = path_bet
         subject_dict["fast_corr"] = path_fast_corr
         subject_dict["fast_csf"] = path_fast_csf
-        subject_dict["fast_m"] = path_fast_m
+        subject_dict["fast_gm"] = path_fast_gm
+        subject_dict["fast_wm"] = path_fast_wm
 
         paths["fsl_paths"][subject] = subject_dict
 
         fsl_paths.append([subject, path_fast_base, path_t1w, path_ori,
                           path_bet, path_fast_corr, path_fast_csf,
-                          path_fast_m])
+                          path_fast_gm, path_fast_wm])
 
     return fsl_paths, paths
 
@@ -142,20 +144,22 @@ def fsl_fast(fsl_paths, paths, settings, reset=True):
     path_fast_base = fsl_paths[1]
     path_fast_corr = fsl_paths[5]
     path_fast_csf = fsl_paths[6]
-    path_fast_m = fsl_paths[7]
+    path_fast_gm = fsl_paths[7]
+    path_fast_wm = fsl_paths[8]
 
     # If applicable, remove any files from previous runs
     if reset:
         if os.path.exists(path_fast_corr): os.remove(path_fast_corr)
         if os.path.exists(path_fast_csf): os.remove(path_fast_csf)
-        if os.path.exists(path_fast_m): os.remove(path_fast_m)
+        if os.path.exists(path_fast_gm): os.remove(path_fast_gm)
+        if os.path.exists(path_fast_wm): os.remove(path_fast_wm)
 
     # Assemble command
     command = ["fast",                     # main FAST call
                "--channels=1",             # Number of input channels (=1)
                "--type=1",                 # Type of input image (1=T1w)
                f"--out={path_fast_base}",  # Output base path
-               "--class=2",                # Number of tissue-type classes
+               "--class=3",                # Number of tissue-type classes
                "-B",                       # Flag --> Output bias-corrected img
                path_bet]                   # Input file
 
@@ -181,7 +185,9 @@ def fsl_fast(fsl_paths, paths, settings, reset=True):
     shutil.copyfile(os.path.join(fastDir, "fast_pve_0.nii.gz"),
                     path_fast_csf)
     shutil.copyfile(os.path.join(fastDir, "fast_pve_1.nii.gz"),
-                    path_fast_m)
+                    path_fast_gm)
+    shutil.copyfile(os.path.join(fastDir, "fast_pve_2.nii.gz"),
+                    path_fast_wm)
 
     # Store output in logs (timed)
     now = datetime.now()
