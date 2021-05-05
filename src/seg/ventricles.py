@@ -3,6 +3,7 @@ import numpy as np
 import skimage.morphology as morph
 from seg.mask_util import find_center
 from util.nifti import load_nifti
+from util.freesurfer import extract_tissues
 
 
 def find_seed_mask(csf_mask, img_aff, center_coords):
@@ -106,7 +107,7 @@ def region_growing(seed_mask, full_mask, img_aff, element_size=2):
     return processed_mask
 
 
-def extract_ventricles(bet_img_path, csf_mask_path, ventricles_mask_path):
+def extract_ventricles_fsl(bet_img_path, csf_mask_path, ventricles_mask_path):
     """
     This function extracts the ventricles from a CSF mask.
     It uses some morphological tricks for this purpose.
@@ -128,3 +129,17 @@ def extract_ventricles(bet_img_path, csf_mask_path, ventricles_mask_path):
     # Save ventricle mask
     nii_mask = nib.Nifti1Image(ventricle_mask, img_aff, img_hdr)
     nib.save(nii_mask, ventricles_mask_path)
+
+
+def extract_ventricles_fs(aparc_aseg_path, ventricles_mask_path):
+    """
+    This function extracts the ventricles from FreeSurfer output.
+    We simply extract the appropriate label and perform some
+    file format conversions for this purpose.
+    aparc_aseg_path      --> path to aparc+aseg.mgz file
+    ventricles_mask_path --> path to to-be-created ventricles .nii mask.
+    """
+
+    ventricle_labels = [4, 43]
+
+    extract_tissues(aparc_aseg_path, ventricles_mask_path, ventricle_labels)

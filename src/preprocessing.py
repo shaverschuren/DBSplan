@@ -70,7 +70,8 @@ def generate_process_paths(paths, settings):
                         paths["nii_paths"][subject] = {}
                     paths["nii_paths"][subject][scanType] = nii_path
                     # Add fs path to paths dict
-                    paths["fs_paths"][subject] = fs_path
+                    if fs_path is not None:
+                        paths["fs_paths"][subject] = fs_path
                 else:
                     raise ValueError(f"Dicom path '{dcm_path}' doesn't exist.")
             else:
@@ -322,10 +323,17 @@ def preprocessing(paths, settings, verbose=True):
         dcm2nii(process_paths, paths, settings, verbose)
         if verbose: print("dcm2nii conversion completed!")
 
-        # Also, perform a freesurfer file conversion.
-        if verbose: print("\nPerforming FreeSurfer conversion...")
-        nii2fs(process_paths, paths, settings, verbose)
-        if verbose: print("FreeSurfer conversion completed!")
+        # Also, perform a freesurfer file conversion (if applicable).
+        if settings["quick_and_dirty"] == 0:
+            if verbose: print("\nPerforming FreeSurfer conversion...")
+            nii2fs(process_paths, paths, settings, verbose)
+            if verbose: print("FreeSurfer conversion completed!")
+        elif settings["quick_and_dirty"] == 1:
+            if verbose: print("\nFreeSurfer conversion skipped due to "
+                              "'quick_and_dirty' being enabled.")
+        else:
+            raise ValueError("'quick_and_dirty should be either 0 or 1. "
+                             "Check config.json")
 
         if verbose: print_header("\nPREPROCESSING FINISHED")
 

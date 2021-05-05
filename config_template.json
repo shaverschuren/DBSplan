@@ -13,6 +13,8 @@
 
     "clinicalMode": 0,
 
+    "quick_and_dirty": 0,
+
     "runModules": [1, 1, 1, 1],
 
     "resetModules": [0, 0, 0, 0],

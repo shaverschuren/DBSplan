@@ -47,6 +47,13 @@ def extract_settings(config_data, os_str):
         if key not in ["projectDir", "relativePaths"]:
             settings[key] = value
 
+    # Delete some subjects from usedScans if applicable
+    if "usedScans" and "excludedSubjects" in settings:
+        for scanType in settings["usedScans"]:
+            for subject in settings["excludedSubjects"]:
+                if subject in settings["usedScans"][scanType]:
+                    settings["usedScans"][scanType].pop(subject)
+
     # Check for the existence of some needed vars
     # If they're not there, take the default and give a warning.
     if "runModules" not in settings:
@@ -58,6 +65,11 @@ def extract_settings(config_data, os_str):
         settings["pickScans_UI"] = 1
         raise UserWarning("\nusedScans was not defined. Going to UI, "
                           "which still has to be implemented...")
+
+    if "quick_and_dirty" not in settings:
+        settings["quick_and_dirty"] = 0
+        warnings.warn(f"\nquick_and_dirty not defined. "
+                      f"Using {settings['runModules']}.")
 
     return settings
 
