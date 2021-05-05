@@ -5,8 +5,6 @@ if "src" not in sys.path: sys.path.append("src")
 import os
 import subprocess
 import shutil
-import numpy as np
-import nibabel as nib
 from shutil import copyfile
 from tqdm import tqdm
 from glob import glob
