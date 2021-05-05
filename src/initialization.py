@@ -69,7 +69,7 @@ def extract_settings(config_data, os_str):
     if "quick_and_dirty" not in settings:
         settings["quick_and_dirty"] = 0
         warnings.warn(f"\nquick_and_dirty not defined. "
-                      f"Using {settings['runModules']}.")
+                      f"Using {settings['quick_and_dirty']}.")
 
     return settings
 
