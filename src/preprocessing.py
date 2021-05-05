@@ -253,7 +253,7 @@ def nii2fs(process_paths, paths, settings, verbose=True):
                    "-i", nii_path,
                    "-sd", paths["fsDir"],
                    "-3T",
-                   "-autorecon1"]
+                   "-all"]
 
         # Open stream and pass command
         recon_stream = subprocess.Popen(command, stdout=subprocess.PIPE,
