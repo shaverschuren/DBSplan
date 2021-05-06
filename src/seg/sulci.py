@@ -15,8 +15,7 @@ def extract_sulci_fsl(bet_img_path, csf_mask_path, sulci_mask_path):
     [...]
     TODO: Implement this ...
     """
-
-    return
+    raise UserWarning("This function is not yet implemented.")
 
 
 def extract_sulci_fs():
