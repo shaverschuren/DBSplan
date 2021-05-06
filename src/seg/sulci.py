@@ -51,15 +51,10 @@ def extract_sulci_fs(ribbon_path, rh_pial_path, lh_pial_path,
     data, aff, hdr = load_nifti(sulci_mask_path)
 
     # Create binarized data tensor
-    treshold = 1e-2
+    treshold = np.mean(data) + 0.1 * np.std(data)
     data_bin = np.zeros(np.shape(data))
 
     data_bin[data > treshold] = 1
-
-    # --- Perform slight closing to fill gaps ---
-
-    element = morph.ball(1)
-    data_bin = morph.closing(data_bin, element)
 
     # --- Save img ---
 
@@ -163,8 +158,8 @@ def fs_seg_sulci(paths, settings, verbose=True):
         ribbon_path = os.path.join(fs_path, "mri", "ribbon.mgz")
         rh_pial_path = os.path.join(fs_path, "surf", "rh.pial.T1")
         lh_pial_path = os.path.join(fs_path, "surf", "lh.pial.T1")
-        lh_sulc_path = os.path.join(fs_path, "surf", "lh.sulc")
-        rh_sulc_path = os.path.join(fs_path, "surf", "rh.sulc")
+        lh_sulc_path = os.path.join(fs_path, "surf", "lh.curv")
+        rh_sulc_path = os.path.join(fs_path, "surf", "rh.curv")
 
         # Assemble segmentation path
         sulcus_mask_path = os.path.join(subjectDir, "sulcus_mask.nii.gz")
