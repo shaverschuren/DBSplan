@@ -226,10 +226,10 @@ def fsl_seg_ventricles(paths, settings, verbose=True):
 
 def fs_seg_ventricles(paths, settings, verbose=True):
     """
-    This function performs the quick and dirty variation
-    of the ventricle segmentation. It doesn't make use
-    of (slow) FreeSurfer output and uses some morphological tricks
-    to reach the same goal. This is less robust but very fast.
+    This function performs the FreeSurfer-based variation
+    of the ventricle segmentation. For this purpose, it uses
+    the aparc+aseg.mgz output file as a base. We then simply
+    extract the appropriately labeled regions.
     """
 
     # Init skipped_img
