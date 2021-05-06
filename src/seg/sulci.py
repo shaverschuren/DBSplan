@@ -1,12 +1,11 @@
 import os
+import subprocess
 import nibabel as nib
 import numpy as np
 import skimage.morphology as morph
 from shutil import copyfile
 from tqdm import tqdm
-from seg.mask_util import find_center, binarize_mask
 from util.nifti import load_nifti
-from util.freesurfer import extract_tissues, mgz2nii
 
 
 def extract_sulci_fsl(bet_img_path, csf_mask_path, sulci_mask_path):
@@ -18,14 +17,54 @@ def extract_sulci_fsl(bet_img_path, csf_mask_path, sulci_mask_path):
     raise UserWarning("This function is not yet implemented.")
 
 
-def extract_sulci_fs():
+def extract_sulci_fs(ribbon_path, rh_pial_path, lh_pial_path,
+                     rh_sulc_path, lh_sulc_path, sulci_mask_path):
     """
-    This function extracts the sulci from FreeSurfer output
-    [...]
-    TODO: Implement this ...
+    This function extracts the sulci from FreeSurfer output.
     """
 
-    return
+    # --- Project pial surface to volume file ---
+
+    # Assemble command
+    command = ["mri_surf2vol",
+               "--o", sulci_mask_path,
+               "--ribbon", ribbon_path,
+               "--so", rh_pial_path, rh_sulc_path,
+               "--so", lh_pial_path, lh_sulc_path]
+
+    # Open stream and pass command
+    recon_stream = subprocess.Popen(command, stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE)
+    # Read output
+    msg, error = recon_stream.communicate()
+    # End stream
+    recon_stream.terminate()
+
+    if error:
+        raise UserWarning("Fatal error occured during command-line FreeSurfer"
+                          " usage.\nExited with error message:\n"
+                          f"{error.decode('utf-8')}")
+
+    # --- Binarize sulcus mask ---
+
+    # Load nifti file
+    data, aff, hdr = load_nifti(sulci_mask_path)
+
+    # Create binarized data tensor
+    treshold = 1e-2
+    data_bin = np.zeros(np.shape(data))
+
+    data_bin[data > treshold] = 1
+
+    # --- Perform slight closing to fill gaps ---
+
+    element = morph.ball(1)
+    data_bin = morph.closing(data_bin, element)
+
+    # --- Save img ---
+
+    bin_img = nib.Nifti1Image(data_bin, aff, hdr)
+    nib.save(bin_img, sulci_mask_path)
 
 
 def fsl_seg_sulci(paths, settings, verbose=True):
@@ -121,28 +160,22 @@ def fs_seg_sulci(paths, settings, verbose=True):
         paths["seg_paths"][subject] = {"dir": subjectDir}
 
         # Define needed FreeSurfer paths
-        t1w_mgz_path = os.path.join(fs_path, "mri", "T1.mgz")
-        label_mgz_path = os.path.join(fs_path, "mri", "aparc+aseg.mgz")
-
-        # Define nifti conversion paths
-        t1w_nii_path = os.path.join(fs_path, "nifti", "T1.nii.gz")
-        label_nii_path = os.path.join(fs_path, "nifti", "aparc+aseg.nii.gz")
-
-        if not os.path.isdir(os.path.join(fs_path, "nifti")):
-            os.mkdir(os.path.join(fs_path, "nifti"))
+        ribbon_path = os.path.join(fs_path, "mri", "ribbon.mgz")
+        rh_pial_path = os.path.join(fs_path, "surf", "rh.pial.T1")
+        lh_pial_path = os.path.join(fs_path, "surf", "lh.pial.T1")
+        lh_sulc_path = os.path.join(fs_path, "surf", "lh.sulc")
+        rh_sulc_path = os.path.join(fs_path, "surf", "rh.sulc")
 
         # Assemble segmentation path
-        label_seg_path = os.path.join(subjectDir, "fs_aparc+aseg.nii.gz")
-        ventricle_mask_path = os.path.join(subjectDir, "ventricle_mask.nii.gz")
+        sulcus_mask_path = os.path.join(subjectDir, "sulcus_mask.nii.gz")
 
         # Add paths to {paths}
-        paths["seg_paths"][subject]["fs_labels"] = label_seg_path
-        paths["seg_paths"][subject]["ventricle_mask"] = ventricle_mask_path
+        paths["seg_paths"][subject]["sulcus_mask"] = sulcus_mask_path
 
         # Add paths to seg_paths
-        seg_paths.append([subject, t1w_mgz_path, label_mgz_path,
-                          t1w_nii_path, label_nii_path, label_seg_path,
-                          ventricle_mask_path])
+        seg_paths.append([subject, ribbon_path, rh_pial_path, lh_pial_path,
+                          rh_sulc_path, lh_sulc_path,
+                          sulcus_mask_path])
 
     # Now, loop over seg_paths and perform ventricle segmentation
     # Define iterator
@@ -155,9 +188,7 @@ def fs_seg_sulci(paths, settings, verbose=True):
     # Main loop
     for sub_paths in iterator:
         # Check whether output already there
-        fs_label_ok = os.path.exists(sub_paths[5])
-        ven_mask_ok = os.path.exists(sub_paths[6])
-        output_ok = (fs_label_ok and ven_mask_ok)
+        output_ok = os.path.exists(sub_paths[-1])
 
         # Determine whether to skip subject
         if output_ok:
@@ -165,23 +196,17 @@ def fs_seg_sulci(paths, settings, verbose=True):
                 skipped_img = True
                 continue
             elif settings["resetModules"][1] == 1:
-                # Perform some file structure changes.
-                mgz2nii(sub_paths[1], sub_paths[3])   # t1 (mgz-->nii)
-                mgz2nii(sub_paths[2], sub_paths[4])   # aparc+aseg (mgz-->nii)
-                copyfile(sub_paths[4], sub_paths[5])  # aparc+aseg (fs-->seg)
-                # Generate ventricle mask
-                extract_sulci_fs()
+                # Generate sulcus mask
+                extract_sulci_fs(sub_paths[1], sub_paths[2], sub_paths[3],
+                                 sub_paths[4], sub_paths[5], sub_paths[6])
             else:
                 raise ValueError("Parameter 'resetModules' should be a list "
                                  "containing only 0's and 1's. "
                                  "Please check the config file (config.json).")
         else:
-            # Perform some file structure changes.
-            mgz2nii(sub_paths[1], sub_paths[3])       # t1 (mgz-->nii)
-            mgz2nii(sub_paths[2], sub_paths[4])       # aparc+aseg (mgz-->nii)
-            copyfile(sub_paths[4], sub_paths[5])      # aparc+aseg (fs-->seg)
-            # Generate ventricle mask
-            extract_sulci_fs()
+            # Generate sulcus mask
+            extract_sulci_fs(sub_paths[1], sub_paths[2], sub_paths[3],
+                             sub_paths[4], sub_paths[5], sub_paths[6])
 
     return paths, settings, skipped_img
 
