@@ -1,13 +1,18 @@
-import sys
-if "" not in sys.path: sys.path.append("")
-if "src" not in sys.path: sys.path.append("src")
-
+# Path setup
 import os
-import warnings
-from glob import glob
-from util.general import check_os, extract_json, check_type, log_dict
-from util.style import print_result, print_header
-from util.checks import check_freesurfer, check_fsl
+import sys
+
+root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+src = os.path.join(root, "src")
+if root not in sys.path: sys.path.append(root)
+if src not in sys.path: sys.path.append(src)
+
+# File-specific imports
+import warnings                                                         # noqa: E402
+from glob import glob                                                   # noqa: E402
+from util.general import check_os, extract_json, check_type, log_dict   # noqa: E402
+from util.style import print_result, print_header                       # noqa: E402
+from util.checks import check_freesurfer, check_fsl                     # noqa: E402
 
 
 def check_system(settings):

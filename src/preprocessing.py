@@ -1,16 +1,21 @@
-import sys
-if "" not in sys.path: sys.path.append("")
-if "src" not in sys.path: sys.path.append("src")
-
+# Path setup
 import os
-from tqdm import tqdm
-import shutil
-import subprocess
-from datetime import datetime
-from initialization import initialization
-from gui.ScanSelection import ScanSelection
-from util.style import print_header, print_result
-from util.general import log_dict
+import sys
+
+root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+src = os.path.join(root, "src")
+if root not in sys.path: sys.path.append(root)
+if src not in sys.path: sys.path.append(src)
+
+# File-specific imports
+from tqdm import tqdm                               # noqa: E402
+import shutil                                       # noqa: E402
+import subprocess                                   # noqa: E402
+from datetime import datetime                       # noqa: E402
+from initialization import initialization           # noqa: E402
+from gui.ScanSelection import ScanSelection         # noqa: E402
+from util.style import print_header, print_result   # noqa: E402
+from util.general import log_dict                   # noqa: E402
 
 
 def generate_process_paths(paths, settings):

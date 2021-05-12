@@ -1,11 +1,17 @@
+# Path setup
+import os
 import sys
-if "" not in sys.path: sys.path.append("")
-if "src" not in sys.path: sys.path.append("src")
 
-from initialization import initialization
-from preprocessing import preprocessing
-from segmentation import segmentation
-from registration import registration
+root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+src = os.path.join(root, "src")
+if root not in sys.path: sys.path.append(root)
+if src not in sys.path: sys.path.append(src)
+
+# File-specific imports
+from initialization import initialization   # noqa: E402
+from preprocessing import preprocessing     # noqa: E402
+from segmentation import segmentation       # noqa: E402
+from registration import registration       # noqa: E402
 
 
 def main():

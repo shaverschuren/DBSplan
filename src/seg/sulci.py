@@ -2,8 +2,6 @@ import os
 import subprocess
 import nibabel as nib
 import numpy as np
-import skimage.morphology as morph
-from shutil import copyfile
 from tqdm import tqdm
 from util.nifti import load_nifti
 

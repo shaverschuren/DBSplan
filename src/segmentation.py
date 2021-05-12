@@ -1,15 +1,20 @@
-import sys
-if "" not in sys.path: sys.path.append("")
-if "src" not in sys.path: sys.path.append("src")
-
+# Path setup
 import os
-from initialization import initialization
-from preprocessing import preprocessing
-from seg.fsl import generate_fsl_paths, process_fsl
-from seg.ventricles import seg_ventricles
-from seg.sulci import seg_sulci
-from util.style import print_header
-from util.general import log_dict
+import sys
+
+root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+src = os.path.join(root, "src")
+if root not in sys.path: sys.path.append(root)
+if src not in sys.path: sys.path.append(src)
+
+# File-specific imports
+from initialization import initialization               # noqa: E402
+from preprocessing import preprocessing                 # noqa: E402
+from seg.fsl import generate_fsl_paths, process_fsl     # noqa: E402
+from seg.ventricles import seg_ventricles               # noqa: E402
+from seg.sulci import seg_sulci                         # noqa: E402
+from util.style import print_header                     # noqa: E402
+from util.general import log_dict                       # noqa: E402
 
 
 def segmentation(paths, settings, verbose=True):
