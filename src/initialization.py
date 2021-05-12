@@ -20,7 +20,7 @@ def check_system(settings):
     This function checks the system for needed installations.
     Checks include:
     - FreeSurfer
-    - [...]
+    - FSL
     """
     # Initialize success variable
     success = True

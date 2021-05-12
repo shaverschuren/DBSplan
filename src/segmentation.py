@@ -47,7 +47,7 @@ def segmentation(paths, settings, verbose=True):
         if verbose: print("Ventricle segmentation completed!")
 
         if verbose: print("\nPerforming sulcus segmentation...")
-        seg_sulci(paths, settings, verbose)
+        paths, settings = seg_sulci(paths, settings, verbose)
         if verbose: print("Sulcus segmentation completed!")
 
         if verbose: print_header("\nSEGMENTATION FINISHED")
