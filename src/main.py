@@ -19,8 +19,11 @@ def main():
     Main function for the DBSplan software pipeline.
     """
 
+    # Setup config path
+    config_path = os.path.join(root, "config.json")
+
     # Initialize the pipeline
-    paths, settings = initialization()
+    paths, settings = initialization(config_path)
 
     # MODULE 1 : PREPROCESSING
     paths, settings = preprocessing(paths, settings)
