@@ -134,6 +134,10 @@ def setup_paths(config_data):
     # Extract the project directory
     paths = {"projectDir": config_data["projectDir"]}
 
+    # Extract the root code directory
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    paths["root"] = root
+
     # Extract the subdirs used for the pipeline
     for folder in config_data["relativePaths"]:
         relative_path = config_data["relativePaths"][folder]

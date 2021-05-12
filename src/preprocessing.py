@@ -149,13 +149,16 @@ def dcm2nii(process_paths, paths, settings, verbose=True):
 
         # Check OS for command line implementation.
         if settings["OS"] == "win":
-            dcm2nii_path = os.path.join("ext", "MRIcron", "dcm2nii.exe")
+            dcm2nii_path = os.path.join(paths["root"], "ext",
+                                        "MRIcron", "dcm2nii.exe")
             quote = "\""
         elif settings["OS"] == "lnx":
-            dcm2nii_path = os.path.join("ext", "MRIcron", "dcm2nii-lx64")
+            dcm2nii_path = os.path.join(paths["root"], "ext",
+                                        "MRIcron", "dcm2nii-lx64")
             quote = "\""
         elif settings["OS"] == "mac":
-            dcm2nii_path = os.path.join("ext", "MRIcron", "dcm2nii-osx")
+            dcm2nii_path = os.path.join(paths["root"], "ext",
+                                        "MRIcron", "dcm2nii-osx")
             quote = "\'\'"
         else:
             raise UserWarning("Operating system not supported "
