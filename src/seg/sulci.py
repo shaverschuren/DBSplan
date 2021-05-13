@@ -34,7 +34,7 @@ def extract_sulci_fs(seg_paths):
             "ribbon": seg_paths["ribbon"],
             "rh_surf": seg_paths["rh_curv"],
             "lh_surf": seg_paths["lh_curv"],
-            "threshold": 0.1}
+            "threshold": 0.2}
 
     # --- Initialize main mask ---
     data, aff, hdr = load_nifti(seg_paths["ribbon"])
@@ -88,10 +88,6 @@ def extract_sulci_fs(seg_paths):
 
     # --- Perform dilation (but only CSF) ---
 
-    # # Register FSL-generated CSF mask to FreeSurfer labels
-    # flirt_registration(seg_paths["csf"], seg_paths["T1"],
-    #                    seg_paths["csf_coreg"], dof=6)
-
     # Load FSL FAST-generated CSF mask
     csf_mask, aff_csf, _ = load_nifti(seg_paths["csf"])
 
@@ -113,6 +109,14 @@ def extract_sulci_fs(seg_paths):
 
     # Append original mask with dilated mask
     mask_as_np[dilated_mask == 1] = 1
+
+    # Remove ventricles
+    ventricle_mask, aff_ven, _ = load_nifti(seg_paths["ventricles"])
+    aff_translation = (np.linalg.inv(aff_ven)).dot(aff)
+    ventricle_mask = affine_transform(ventricle_mask, aff_translation,
+                                      output_shape=np.shape(data))
+
+    mask_as_np[ventricle_mask > 0.5] = 0
 
     # --- Save mask img ---
 
@@ -210,7 +214,8 @@ def fs_seg_sulci(paths, settings, verbose=True):
         subjectDir = os.path.join(paths["segDir"], subject)
         if not os.path.isdir(subjectDir): os.mkdir(subjectDir)
 
-        paths["seg_paths"][subject] = {"dir": subjectDir}
+        if subject not in paths["seg_paths"]:
+            paths["seg_paths"][subject] = {"dir": subjectDir}
 
         # Define needed FreeSurfer paths
         T1_path = os.path.join(fs_path, "nifti", "T1.nii.gz")
@@ -224,6 +229,8 @@ def fs_seg_sulci(paths, settings, verbose=True):
 
         fsl_csf_path = os.path.join(paths["fsl_paths"][subject]["fast_csf"])
         csf_coreg_path = os.path.join(subjectDir, "fast_csf_coreg.nii.gz")
+
+        ventricle_mask_path = paths["seg_paths"][subject]["ventricle_mask"]
 
         # Assemble segmentation path
         sulcus_mask_path = os.path.join(subjectDir, "sulcus_mask.nii.gz")
@@ -243,6 +250,7 @@ def fs_seg_sulci(paths, settings, verbose=True):
                         "lh_sulc": lh_sulc_path,
                         "csf": fsl_csf_path,
                         "csf_coreg": csf_coreg_path,
+                        "ventricles": ventricle_mask_path,
                         "sulcus_mask": sulcus_mask_path}
 
         seg_paths.append(subject_dict)

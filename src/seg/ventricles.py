@@ -243,7 +243,8 @@ def fs_seg_ventricles(paths, settings, verbose=True):
         subjectDir = os.path.join(paths["segDir"], subject)
         if not os.path.isdir(subjectDir): os.mkdir(subjectDir)
 
-        paths["seg_paths"][subject] = {"dir": subjectDir}
+        if subject not in paths["seg_paths"]:
+            paths["seg_paths"][subject] = {"dir": subjectDir}
 
         # Define needed FreeSurfer paths
         t1w_mgz_path = os.path.join(fs_path, "mri", "T1.mgz")
