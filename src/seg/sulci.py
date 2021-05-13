@@ -2,7 +2,11 @@ import os
 import subprocess
 import nibabel as nib
 import numpy as np
+import skimage.morphology as morph
+from scipy.ndimage import affine_transform
+from PIL import Image
 from tqdm import tqdm
+from util.fsl import flirt_registration
 from util.nifti import load_nifti
 
 
@@ -15,49 +19,105 @@ def extract_sulci_fsl(bet_img_path, csf_mask_path, sulci_mask_path):
     raise UserWarning("This function is not yet implemented.")
 
 
-def extract_sulci_fs(ribbon_path, rh_pial_path, lh_pial_path,
-                     rh_sulc_path, lh_sulc_path, sulci_mask_path):
+def extract_sulci_fs(seg_paths):
     """
     This function extracts the sulci from FreeSurfer output.
     """
 
-    # --- Project pial surface to volume file ---
+    # --- Extract appropriate paths for sulc and curv ---
+    sulc = {"nii": seg_paths["sulcus_mask"].replace("sulcus_mask", "sulc_vol"),
+            "ribbon": seg_paths["ribbon"],
+            "rh_surf": seg_paths["rh_sulc"],
+            "lh_surf": seg_paths["lh_sulc"],
+            "threshold": -3.0}
+    curv = {"nii": seg_paths["sulcus_mask"].replace("sulcus_mask", "curv_vol"),
+            "ribbon": seg_paths["ribbon"],
+            "rh_surf": seg_paths["rh_curv"],
+            "lh_surf": seg_paths["lh_curv"],
+            "threshold": 0.1}
 
-    # Assemble command
-    command = ["mri_surf2vol",
-               "--o", sulci_mask_path,
-               "--ribbon", ribbon_path,
-               "--so", rh_pial_path, rh_sulc_path,
-               "--so", lh_pial_path, lh_sulc_path]
+    # --- Initialize main mask ---
+    data, aff, hdr = load_nifti(seg_paths["ribbon"])
+    mask_as_np = np.zeros(np.shape(data))
 
-    # Open stream and pass command
-    recon_stream = subprocess.Popen(command, stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE)
-    # Read output
-    msg, error = recon_stream.communicate()
-    # End stream
-    recon_stream.terminate()
+    for surf in [sulc, curv]:
 
-    if error:
-        raise UserWarning("Fatal error occured during command-line FreeSurfer"
-                          " usage.\nExited with error message:\n"
-                          f"{error.decode('utf-8')}")
+        # --- Project pial surfaces to volume file ---
 
-    # --- Binarize sulcus mask ---
+        # Assemble command
+        command = ["mri_surf2vol",
+                   "--o", surf["nii"],
+                   "--ribbon", surf["ribbon"],
+                   "--so", seg_paths["rh_pial"], surf["rh_surf"],
+                   "--so", seg_paths["lh_pial"], surf["lh_surf"]]
 
-    # Load nifti file
-    data, aff, hdr = load_nifti(sulci_mask_path)
+        # Open stream and pass command
+        recon_stream = subprocess.Popen(command, stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE)
+        # Read output
+        msg, error = recon_stream.communicate()
+        # End stream
+        recon_stream.terminate()
 
-    # Create binarized data tensor
-    treshold = np.mean(data) + 0.1 * np.std(data)
-    data_bin = np.zeros(np.shape(data))
+        if error:
+            raise UserWarning("Fatal error occured during command-line "
+                              "FreeSurfer usage."
+                              "\nExited with error message:\n"
+                              f"{error.decode('utf-8')}")
 
-    data_bin[data > treshold] = 1
+        # --- Binarize masks ---
 
-    # --- Save img ---
+        # Load nifti file
+        data, _, _ = load_nifti(surf["nii"])
 
-    bin_img = nib.Nifti1Image(data_bin, aff, hdr)
-    nib.save(bin_img, sulci_mask_path)
+        # Calculate treshold
+        treshold = np.mean(data) + surf["threshold"] * np.std(data)
+
+        # Update mask
+        mask_as_np[data > treshold] = 1
+        mask_as_np[data == 0] = 0
+
+    # --- Perform morphological closing
+
+    # Find proper element size
+    avg_vox_dim = np.mean((np.array(aff).diagonal())[:-1])
+    close_element = morph.ball(int(1 / avg_vox_dim))  # Element radius +- 1 mm
+
+    # Perform closing
+    mask_as_np = morph.closing(mask_as_np, close_element)
+
+    # --- Perform dilation (but only CSF) ---
+
+    # # Register FSL-generated CSF mask to FreeSurfer labels
+    # flirt_registration(seg_paths["csf"], seg_paths["T1"],
+    #                    seg_paths["csf_coreg"], dof=6)
+
+    # Load FSL FAST-generated CSF mask
+    csf_mask, aff_csf, _ = load_nifti(seg_paths["csf"])
+
+    # Translate CSF mask to FreeSurfer arrays
+    aff_translation = (np.linalg.inv(aff_csf)).dot(aff)
+    csf_mask = affine_transform(csf_mask, aff_translation,
+                                output_shape=np.shape(data))
+
+    # Rebinarize csf_mask
+    csf_mask[csf_mask < 0.5 * np.max(csf_mask)] = 0
+    csf_mask[csf_mask >= 0.5 * np.max(csf_mask)] = 1
+
+    # Perform dilation
+    dil_element = morph.ball(int(2 / avg_vox_dim))  # Element radius +- 2 mm
+    dilated_mask = morph.dilation(mask_as_np, dil_element)
+
+    # Delete non-CSF dilation
+    dilated_mask[csf_mask == 0] = 0
+
+    # Append original mask with dilated mask
+    mask_as_np[dilated_mask == 1] = 1
+
+    # --- Save mask img ---
+
+    mask_img = nib.Nifti1Image(mask_as_np, aff, hdr)
+    nib.save(mask_img, seg_paths["sulcus_mask"])
 
 
 def fsl_seg_sulci(paths, settings, verbose=True):
@@ -153,11 +213,17 @@ def fs_seg_sulci(paths, settings, verbose=True):
         paths["seg_paths"][subject] = {"dir": subjectDir}
 
         # Define needed FreeSurfer paths
+        T1_path = os.path.join(fs_path, "nifti", "T1.nii.gz")
         ribbon_path = os.path.join(fs_path, "mri", "ribbon.mgz")
         rh_pial_path = os.path.join(fs_path, "surf", "rh.pial.T1")
         lh_pial_path = os.path.join(fs_path, "surf", "lh.pial.T1")
-        lh_sulc_path = os.path.join(fs_path, "surf", "lh.curv")
-        rh_sulc_path = os.path.join(fs_path, "surf", "rh.curv")
+        lh_curv_path = os.path.join(fs_path, "surf", "lh.curv")
+        rh_curv_path = os.path.join(fs_path, "surf", "rh.curv")
+        lh_sulc_path = os.path.join(fs_path, "surf", "lh.sulc")
+        rh_sulc_path = os.path.join(fs_path, "surf", "rh.sulc")
+
+        fsl_csf_path = os.path.join(paths["fsl_paths"][subject]["fast_csf"])
+        csf_coreg_path = os.path.join(subjectDir, "fast_csf_coreg.nii.gz")
 
         # Assemble segmentation path
         sulcus_mask_path = os.path.join(subjectDir, "sulcus_mask.nii.gz")
@@ -166,9 +232,20 @@ def fs_seg_sulci(paths, settings, verbose=True):
         paths["seg_paths"][subject]["sulcus_mask"] = sulcus_mask_path
 
         # Add paths to seg_paths
-        seg_paths.append([subject, ribbon_path, rh_pial_path, lh_pial_path,
-                          rh_sulc_path, lh_sulc_path,
-                          sulcus_mask_path])
+        subject_dict = {"subject": subject,
+                        "T1": T1_path,
+                        "ribbon": ribbon_path,
+                        "rh_pial": rh_pial_path,
+                        "lh_pial": lh_pial_path,
+                        "rh_curv": rh_curv_path,
+                        "lh_curv": lh_curv_path,
+                        "rh_sulc": rh_sulc_path,
+                        "lh_sulc": lh_sulc_path,
+                        "csf": fsl_csf_path,
+                        "csf_coreg": csf_coreg_path,
+                        "sulcus_mask": sulcus_mask_path}
+
+        seg_paths.append(subject_dict)
 
     # Now, loop over seg_paths and perform ventricle segmentation
     # Define iterator
@@ -181,7 +258,7 @@ def fs_seg_sulci(paths, settings, verbose=True):
     # Main loop
     for sub_paths in iterator:
         # Check whether output already there
-        output_ok = os.path.exists(sub_paths[-1])
+        output_ok = os.path.exists(sub_paths["sulcus_mask"])
 
         # Determine whether to skip subject
         if output_ok:
@@ -190,16 +267,14 @@ def fs_seg_sulci(paths, settings, verbose=True):
                 continue
             elif settings["resetModules"][1] == 1:
                 # Generate sulcus mask
-                extract_sulci_fs(sub_paths[1], sub_paths[2], sub_paths[3],
-                                 sub_paths[4], sub_paths[5], sub_paths[6])
+                extract_sulci_fs(sub_paths)
             else:
                 raise ValueError("Parameter 'resetModules' should be a list "
                                  "containing only 0's and 1's. "
                                  "Please check the config file (config.json).")
         else:
             # Generate sulcus mask
-            extract_sulci_fs(sub_paths[1], sub_paths[2], sub_paths[3],
-                             sub_paths[4], sub_paths[5], sub_paths[6])
+            extract_sulci_fs(sub_paths)
 
     return paths, settings, skipped_img
 
