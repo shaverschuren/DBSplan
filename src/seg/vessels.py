@@ -1,6 +1,9 @@
 import os
+import nibabel as nib
 from tqdm import tqdm
 from skimage.filters import frangi
+from util.nifti import load_nifti
+from util.fsl import flirt_registration
 
 
 def extract_vessels(seg_paths):
@@ -10,7 +13,28 @@ def extract_vessels(seg_paths):
     to help in this process.
     """
 
-    print("TODO: Perform vessel segmentation ...")
+    print("TODO: Implement MRI coregistration before this step!"
+          "\nFLIRT already implemented in util.fsl.flirt_registration")
+
+    # Extract subject info
+    subject = seg_paths["subject"]
+    mask_path = seg_paths["vessel_mask"]
+
+    # Extract relevant images
+    T1w_gado, ori_aff, ori_hdr = load_nifti(seg_paths["T1-gado"])
+    T1w_bet, _, _ = load_nifti(seg_paths["bet"])
+    csf_mask, _, _ = load_nifti(seg_paths["csf"])
+
+    # # Clean up T1w-gado image
+    # T1w_gado[T1w_bet > 1e-2] = 0   # Remove non-brain
+    # T1w_gado[csf_mask > 1e-2] = 0  # Remove CSF
+
+    # Frangi filter T1w-gado image
+    raw_mask = frangi(T1w_gado)
+
+    # Save ventricle mask
+    nii_mask = nib.Nifti1Image(raw_mask, ori_aff, ori_hdr)
+    nib.save(nii_mask, mask_path)
 
     return
 
@@ -51,7 +75,7 @@ def seg_vessels(paths, settings, verbose=True):
         fsl_csf_path = paths["fsl_paths"][subject]["fast_csf"]
 
         # Assemble segmentation path
-        vessel_mask_path = os.path.join(subjectDir, "sulcus_mask.nii.gz")
+        vessel_mask_path = os.path.join(subjectDir, "vessel_mask.nii.gz")
 
         # Add paths to {paths}
         paths["seg_paths"][subject]["vessel_mask"] = vessel_mask_path
