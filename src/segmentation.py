@@ -13,6 +13,7 @@ from preprocessing import preprocessing                 # noqa: E402
 from seg.fsl import generate_fsl_paths, process_fsl     # noqa: E402
 from seg.ventricles import seg_ventricles               # noqa: E402
 from seg.sulci import seg_sulci                         # noqa: E402
+from seg.vessels import seg_vessels                     # noqa: E402
 from util.style import print_header                     # noqa: E402
 from util.general import log_dict                       # noqa: E402
 
@@ -49,6 +50,10 @@ def segmentation(paths, settings, verbose=True):
         if verbose: print("\nPerforming sulcus segmentation...")
         paths, settings = seg_sulci(paths, settings, verbose)
         if verbose: print("Sulcus segmentation completed!")
+
+        if verbose: print("\nPerforming vessel segmentation...")
+        paths, settings = seg_vessels(paths, settings, verbose)
+        if verbose: print("Vessel segmentation completed!")
 
         if verbose: print_header("\nSEGMENTATION FINISHED")
 
