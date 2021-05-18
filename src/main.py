@@ -8,10 +8,11 @@ if root not in sys.path: sys.path.append(root)
 if src not in sys.path: sys.path.append(src)
 
 # File-specific imports
-from initialization import initialization   # noqa: E402
-from preprocessing import preprocessing     # noqa: E402
-from segmentation import segmentation       # noqa: E402
-from registration import registration       # noqa: E402
+from initialization import initialization           # noqa: E402
+from preprocessing import preprocessing             # noqa: E402
+from registration_mri import registration_mri       # noqa: E402
+from segmentation import segmentation               # noqa: E402
+from registration_ct import registration_ct         # noqa: E402
 
 
 def main():
@@ -28,11 +29,14 @@ def main():
     # MODULE 1 : PREPROCESSING
     paths, settings = preprocessing(paths, settings)
 
-    # MODULE 2 : SEGMENTATION
+    # MODULE 2 : MRI COREGISTRATION
+    paths, settings = registration_mri(paths, settings)
+
+    # MODULE 3 : SEGMENTATION
     paths, settings = segmentation(paths, settings)
 
-    # MODULE 3 : REGISTRATION
-    paths, settings = registration(paths, settings)
+    # MODULE 4 : CT COREGISTRATION
+    paths, settings = registration_ct(paths, settings)
 
 
 if __name__ == "__main__":

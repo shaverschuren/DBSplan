@@ -202,10 +202,10 @@ def fsl_seg_ventricles(paths, settings, verbose=True):
 
         # Determine whether to skip subject
         if output_ok:
-            if settings["resetModules"][1] == 0:
+            if settings["resetModules"][2] == 0:
                 skipped_img = True
                 continue
-            elif settings["resetModules"][1] == 1:
+            elif settings["resetModules"][2] == 1:
                 # Binarize the pve map to a 0/1 mask
                 binarize_mask(sub_paths[2], sub_paths[3], treshold=0.8)
                 # Generate ventricle mask
@@ -287,10 +287,10 @@ def fs_seg_ventricles(paths, settings, verbose=True):
 
         # Determine whether to skip subject
         if output_ok:
-            if settings["resetModules"][1] == 0:
+            if settings["resetModules"][2] == 0:
                 skipped_img = True
                 continue
-            elif settings["resetModules"][1] == 1:
+            elif settings["resetModules"][2] == 1:
                 # Perform some file structure changes.
                 mgz2nii(sub_paths[1], sub_paths[3])   # t1 (mgz-->nii)
                 mgz2nii(sub_paths[2], sub_paths[4])   # aparc+aseg (mgz-->nii)
@@ -344,6 +344,6 @@ def seg_ventricles(paths, settings, verbose=True):
     if verbose and skipped_img:
         print("Some scans were skipped due to the output being complete.\n"
               "If you want to rerun this entire module, please set "
-              "'resetModules'[1] to 0 in the config.json file.")
+              "'resetModules'[2] to 0 in the config.json file.")
 
     return paths, settings

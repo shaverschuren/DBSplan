@@ -10,6 +10,7 @@ if src not in sys.path: sys.path.append(src)
 # File-specific imports
 from initialization import initialization               # noqa: E402
 from preprocessing import preprocessing                 # noqa: E402
+from registration_mri import registration_mri           # noqa: E402
 from seg.fsl import generate_fsl_paths, process_fsl     # noqa: E402
 from seg.ventricles import seg_ventricles               # noqa: E402
 from seg.sulci import seg_sulci                         # noqa: E402
@@ -27,16 +28,16 @@ def segmentation(paths, settings, verbose=True):
     if verbose: print_header("\n==== MODULE 2 - SEGMENTATION ====")
 
     # Check whether module should be run (from config file)
-    if settings["runModules"][1] == 0:
+    if settings["runModules"][2] == 0:
         # Skip module
         _, paths = generate_fsl_paths(paths, settings)
         if verbose: print("\nSKIPPED:\n"
-                          "'run_modules'[1] parameter == 0.\n"
+                          "'run_modules'[2] parameter == 0.\n"
                           "Assuming all data is already segmented.\n"
                           "Skipping segmentation process. "
                           "Added expected paths to 'paths'.")
 
-    elif settings["runModules"][1] == 1:
+    elif settings["runModules"][2] == 1:
         # Run module
 
         if verbose: print("\nRunning FSL BET/FAST...")
@@ -70,5 +71,5 @@ def segmentation(paths, settings, verbose=True):
 
 
 if __name__ == "__main__":
-    paths, settings = preprocessing(*initialization())
+    paths, settings = registration_mri(*preprocessing(*initialization()))
     segmentation(paths, settings)

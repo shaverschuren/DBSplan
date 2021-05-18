@@ -105,10 +105,10 @@ def seg_vessels(paths, settings, verbose=True):
 
         # Determine whether to skip subject
         if output_ok:
-            if settings["resetModules"][1] == 0:
+            if settings["resetModules"][2] == 0:
                 skipped_img = True
                 continue
-            elif settings["resetModules"][1] == 1:
+            elif settings["resetModules"][2] == 1:
                 # Generate sulcus mask
                 extract_vessels(sub_paths)
             else:
@@ -123,6 +123,6 @@ def seg_vessels(paths, settings, verbose=True):
     if verbose and skipped_img:
         print("Some scans were skipped due to the output being complete.\n"
               "If you want to rerun this entire module, please set "
-              "'resetModules'[1] to 0 in the config.json file.")
+              "'resetModules'[2] to 0 in the config.json file.")
 
     return paths, settings

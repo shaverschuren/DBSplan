@@ -4,9 +4,7 @@ import nibabel as nib
 import numpy as np
 import skimage.morphology as morph
 from scipy.ndimage import affine_transform
-from PIL import Image
 from tqdm import tqdm
-from util.fsl import flirt_registration
 from util.nifti import load_nifti
 
 
@@ -178,10 +176,10 @@ def fsl_seg_sulci(paths, settings, verbose=True):
 
         # Determine whether to skip subject
         if output_ok:
-            if settings["resetModules"][1] == 0:
+            if settings["resetModules"][2] == 0:
                 skipped_img = True
                 continue
-            elif settings["resetModules"][1] == 1:
+            elif settings["resetModules"][2] == 1:
                 # Generate sulcus mask
                 extract_sulci_fsl(sub_paths[1], sub_paths[3], sub_paths[4])
             else:
@@ -270,10 +268,10 @@ def fs_seg_sulci(paths, settings, verbose=True):
 
         # Determine whether to skip subject
         if output_ok:
-            if settings["resetModules"][1] == 0:
+            if settings["resetModules"][2] == 0:
                 skipped_img = True
                 continue
-            elif settings["resetModules"][1] == 1:
+            elif settings["resetModules"][2] == 1:
                 # Generate sulcus mask
                 extract_sulci_fs(sub_paths)
             else:
@@ -316,6 +314,6 @@ def seg_sulci(paths, settings, verbose=True):
     if verbose and skipped_img:
         print("Some scans were skipped due to the output being complete.\n"
               "If you want to rerun this entire module, please set "
-              "'resetModules'[1] to 0 in the config.json file.")
+              "'resetModules'[2] to 0 in the config.json file.")
 
     return paths, settings

@@ -8,31 +8,32 @@ if root not in sys.path: sys.path.append(root)
 if src not in sys.path: sys.path.append(src)
 
 # File-specific imports
-from initialization import initialization   # noqa: E402
-from preprocessing import preprocessing     # noqa: E402
-from segmentation import segmentation       # noqa: E402
-from util.style import print_header         # noqa: E402
-from util.general import log_dict           # noqa: E402
+from initialization import initialization       # noqa: E402
+from preprocessing import preprocessing         # noqa: E402
+from registration_mri import registration_mri   # noqa: E402
+from segmentation import segmentation           # noqa: E402
+from util.style import print_header             # noqa: E402
+from util.general import log_dict               # noqa: E402
 
 
-def registration(paths, settings, verbose=True):
+def registration_ct(paths, settings, verbose=True):
     """
     This is the main wrapper function for the registration module.
     It calls on other functions to perform specific tasks.
     """
 
-    if verbose: print_header("\n==== MODULE 3 - REGISTRATION ====")
+    if verbose: print_header("\n==== MODULE 4 - CT CO-REGISTRATION ====")
 
     # Check whether module should be run (from config file)
-    if settings["runModules"][2] == 0:
+    if settings["runModules"][3] == 0:
         # Skip module
         if verbose: print("\nSKIPPED:\n"
-                          "'run_modules'[2] parameter == 0.\n"
+                          "'run_modules'[4] parameter == 0.\n"
                           "Assuming all data is already registered.\n"
                           "Skipping registration process. "
                           "Added expected nifti paths to 'paths'.")
 
-    elif settings["runModules"][2] == 1:
+    elif settings["runModules"][3] == 1:
         # Run module
         # TODO: Implement registration module
 
@@ -51,5 +52,6 @@ def registration(paths, settings, verbose=True):
 
 
 if __name__ == "__main__":
-    paths, settings = segmentation(*preprocessing(*initialization()))
-    registration(paths, settings)
+    paths, settings = \
+        segmentation(*registration_mri(*preprocessing(*initialization())))
+    registration_ct(paths, settings)

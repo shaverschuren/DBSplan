@@ -230,7 +230,7 @@ def process_fsl(paths, settings, verbose=True):
             paths, settings = fsl_fast(subject_paths, paths, settings)
         else:
             # Skip this subject
-            if settings["resetModules"][1] == 0:
+            if settings["resetModules"][2] == 0:
                 command = "---"
                 output = "Output files are already there. Skipping..."
                 skipped_img = True
@@ -248,7 +248,7 @@ def process_fsl(paths, settings, verbose=True):
                 continue
 
             # Rerun this subject
-            elif settings["resetModules"][1] == 1:
+            elif settings["resetModules"][2] == 1:
                 # Copy original T1w scan to FSL folder
                 shutil.copyfile(subject_paths[2], subject_paths[3])
                 # Run FSL BET
@@ -266,6 +266,6 @@ def process_fsl(paths, settings, verbose=True):
     if verbose and skipped_img:
         print("Some scans were skipped due to the output being complete.\n"
               "If you want to rerun this entire module, please set "
-              "'resetModules'[1] to 0 in the config.json file.")
+              "'resetModules'[2] to 0 in the config.json file.")
 
     return paths, settings
