@@ -1,9 +1,10 @@
 import os
+import numpy as np
 import nibabel as nib
 from tqdm import tqdm
+from scipy.ndimage import affine_transform
 from skimage.filters import frangi
 from util.nifti import load_nifti
-from util.fsl import flirt_registration
 
 
 def extract_vessels(seg_paths):
@@ -13,27 +14,39 @@ def extract_vessels(seg_paths):
     to help in this process.
     """
 
-    # Extract subject info
-    subject = seg_paths["subject"]
-    mask_path = seg_paths["vessel_mask"]
-
     # Extract relevant images
     T1w_gado, ori_aff, ori_hdr = load_nifti(seg_paths["T1-gado"])
-    T1w_bet, _, _ = load_nifti(seg_paths["bet"])
-    csf_mask, _, _ = load_nifti(seg_paths["csf"])
+    T1w_bet, bet_aff, _ = load_nifti(seg_paths["bet"])
+    csf_mask, csf_aff, _ = load_nifti(seg_paths["csf"])
 
-    # # Clean up T1w-gado image
-    T1w_gado[T1w_bet > 1e-2] = 0   # Remove non-brain
-    T1w_gado[csf_mask > 1e-2] = 0  # Remove CSF
+    # Transform CSF/BET masks to T1w-gado array space
+    bet_translation = (np.linalg.inv(bet_aff)).dot(ori_aff)
+    csf_translation = (np.linalg.inv(csf_aff)).dot(csf_aff)
+
+    T1w_bet = affine_transform(T1w_bet, bet_translation,
+                               output_shape=np.shape(T1w_gado))
+    csf_mask = affine_transform(csf_mask, csf_translation,
+                                output_shape=np.shape(T1w_gado))
+
+    # Define Frangi parameters
+    avg_vox_dim = np.mean((np.array(ori_aff).diagonal())[:-1])
+
+    scale_range = np.array([0.1, 1.5]) / avg_vox_dim     # range = 0.1, 1 [mm]
+    step_size = (scale_range[1] - scale_range[0]) / 10  # always use 10 steps
+
+    sigmas = np.arange(*scale_range, step_size)
 
     # Frangi filter T1w-gado image
-    raw_mask = frangi(T1w_gado)
+    raw_mask = frangi(T1w_gado, sigmas, black_ridges=False)
 
-    # Save ventricle mask
+    # Clean up mask
+    vessel_mask = raw_mask
+    vessel_mask[T1w_bet < 1e-2] = 0   # Remove non-brain
+    vessel_mask[csf_mask > 1e-2] = 0  # Remove CSF
+
+    # Save vessel mask
     nii_mask = nib.Nifti1Image(raw_mask, ori_aff, ori_hdr)
-    nib.save(nii_mask, mask_path)
-
-    return
+    nib.save(nii_mask, seg_paths["vessel_mask"])
 
 
 def seg_vessels(paths, settings, verbose=True):
