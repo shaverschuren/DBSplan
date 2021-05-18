@@ -13,9 +13,6 @@ def extract_vessels(seg_paths):
     to help in this process.
     """
 
-    print("TODO: Implement MRI coregistration before this step!"
-          "\nFLIRT already implemented in util.fsl.flirt_registration")
-
     # Extract subject info
     subject = seg_paths["subject"]
     mask_path = seg_paths["vessel_mask"]
@@ -26,8 +23,8 @@ def extract_vessels(seg_paths):
     csf_mask, _, _ = load_nifti(seg_paths["csf"])
 
     # # Clean up T1w-gado image
-    # T1w_gado[T1w_bet > 1e-2] = 0   # Remove non-brain
-    # T1w_gado[csf_mask > 1e-2] = 0  # Remove CSF
+    T1w_gado[T1w_bet > 1e-2] = 0   # Remove non-brain
+    T1w_gado[csf_mask > 1e-2] = 0  # Remove CSF
 
     # Frangi filter T1w-gado image
     raw_mask = frangi(T1w_gado)
@@ -60,7 +57,7 @@ def seg_vessels(paths, settings, verbose=True):
     # Generate processing paths (iteratively)
     seg_paths = []
 
-    for subject, scans_nii in paths["nii_paths"].items():
+    for subject in paths["nii_paths"]:
         # Create subject dict
         subjectDir = os.path.join(paths["segDir"], subject)
         if not os.path.isdir(subjectDir): os.mkdir(subjectDir)
@@ -69,8 +66,8 @@ def seg_vessels(paths, settings, verbose=True):
             paths["seg_paths"][subject] = {"dir": subjectDir}
 
         # Define needed paths (originals + FSL-processed)
-        T1_path = scans_nii["MRI_T1W"]
-        T1_gado_path = scans_nii["MRI_T1W_GADO"]
+        T1_path = paths["nii_paths"][subject]["MRI_T1W"]
+        T1_gado_path = paths["mrreg_paths"][subject]["gado_coreg"]
         fsl_bet_path = paths["fsl_paths"][subject]["bet"]
         fsl_csf_path = paths["fsl_paths"][subject]["fast_csf"]
 

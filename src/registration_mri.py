@@ -112,7 +112,7 @@ def registration_mri(paths, settings, verbose=True):
     It calls on other functions to perform specific tasks.
     """
 
-    if verbose: print_header("\n==== MODULE 2 - MRI CO-REGISTRATION ====")
+    if verbose: print_header("\n==== MODULE 2 - MRI CO-REGISTRATION ====\n")
 
     # Check whether module should be run (from config file)
     if settings["runModules"][1] == 0:
