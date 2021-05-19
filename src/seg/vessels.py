@@ -1,6 +1,5 @@
 import os
 import itk
-import argparse
 import numpy as np
 import nibabel as nib
 from tqdm import tqdm
