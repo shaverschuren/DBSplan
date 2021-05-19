@@ -1,13 +1,124 @@
 import os
+import itk
+import argparse
 import numpy as np
 import nibabel as nib
 from tqdm import tqdm
 from scipy.ndimage import affine_transform
-from skimage.filters import frangi
 from util.nifti import load_nifti
 
 
-def extract_vessels(seg_paths):
+def levelset_segmentation(image: np.ndarray,
+                          affine_matrix: np.ndarray) -> np.ndarray:
+    """
+    This function implements the *LevelSet* vessel segmentation
+    method, as is described by Neumann et al., 2019
+    (doi: https://doi.org/10.1016/j.cmpb.2019.105037).
+    We will be implementing this method in Python via the ITK
+    software package. The process consists of several steps:
+    - Firstly, we generate a Hessian-based vesselness map, for which
+      we use the vesselness filters implemented in ITK.
+    - As this image will contain a significant amount of false positive
+      voxels, we now threshold this image at (mean + 2 std).
+    - This thresholded map is now used as a collection of seed
+      points for a FastMarching method, as is also implemented in ITK.
+    - Now, we finally implement an active contour segmentation algorithm
+      we call the LevelSet step. This step extends the segmentation map
+      found with the FastMarching method to append some of the smaller details.
+    """
+
+    # Determine image scale
+    avg_vox_dim = np.mean((affine_matrix.diagonal())[:-1])
+
+    # Import image to itk
+    img_itk = itk.GetImageFromArray(image)
+
+    # --- Hessian-based vesselness map ---
+    # Here, we make use of the 3D multiscale Hessian-based
+    # vesselness filter by Antiga et al., as is described in:
+    # https://itk.org/Doxygen/html/classitk_1_1MultiScaleHessianBasedMeasureImageFilter.html
+    # https://itk.org/ITKExamples/src/Nonunit/Review/SegmentBloodVesselsWithMultiScaleHessianBasedMeasure/Documentation.html
+
+    # Set input image
+    input_img = img_itk
+
+    # Set-up parameters
+    vesselnessArgs = {}
+
+    vesselnessArgs["sigmaMin"] = 0.05 / avg_vox_dim
+    vesselnessArgs["sigmaMax"] = 0.5 / avg_vox_dim
+    vesselnessArgs["numSteps"] = 10
+
+    vesselnessArgs["alpha"] = 0.1       # 0.1
+    vesselnessArgs["beta"] = 0.1        # 0.1
+    vesselnessArgs["gamma"] = 0.1       # unknown
+
+    # Set-up filters
+    ImageType = type(input_img)
+    Dimension = input_img.GetImageDimension()
+
+    HessianPixelType = itk.SymmetricSecondRankTensor[itk.D, Dimension]
+    HessianImageType = itk.Image[HessianPixelType, Dimension]
+
+    objectness_filter = itk.HessianToObjectnessMeasureImageFilter[
+        HessianImageType, ImageType
+    ].New()
+    objectness_filter.SetBrightObject(False)
+    objectness_filter.SetScaleObjectnessMeasure(False)
+    objectness_filter.SetAlpha(vesselnessArgs["alpha"])
+    objectness_filter.SetBeta(vesselnessArgs["beta"])
+    objectness_filter.SetGamma(vesselnessArgs["gamma"])
+
+    multi_scale_filter = itk.MultiScaleHessianBasedMeasureImageFilter[
+        ImageType, HessianImageType, ImageType
+    ].New()
+    multi_scale_filter.SetInput(input_img)
+    multi_scale_filter.SetHessianToMeasureFilter(objectness_filter)
+    multi_scale_filter.SetSigmaStepMethodToLogarithmic()
+    multi_scale_filter.SetSigmaMinimum(vesselnessArgs["sigmaMin"])
+    multi_scale_filter.SetSigmaMaximum(vesselnessArgs["sigmaMax"])
+    multi_scale_filter.SetNumberOfSigmaSteps(vesselnessArgs["numSteps"])
+
+    OutputPixelType = itk.UC
+    OutputImageType = itk.Image[OutputPixelType, Dimension]
+
+    rescale_filter = \
+        itk.RescaleIntensityImageFilter[ImageType, OutputImageType].New()
+    rescale_filter.SetInput(multi_scale_filter)
+
+    # Perform actual vesselness filtering
+    vesselness_img = rescale_filter.GetOutput()
+
+    # --- Threshold image at (mean + 2 std) ---
+    # We'll threshold the image at the mean + 2 * the standard deviation.
+    # We use the numpy library for this purpose.
+
+    # Import vesselness image to numpy
+    vesselness_as_np = itk.GetArrayFromImage(vesselness_img)
+    np.moveaxis(vesselness_as_np, [0, 1, 2], [2, 1, 0])
+
+    # Determine threshold
+    threshold = np.mean(vesselness_as_np) + 2 * np.std(vesselness_as_np)
+
+    # Threshold image
+    vesselness_as_np[vesselness_as_np < threshold] = 0.
+    vesselness_as_np[vesselness_as_np >= threshold] = 1.
+
+    # Export vesselness image back to itk
+    thresholded_img = itk.GetImageFromArray(vesselness_as_np)
+
+    # --- FastMarching segmentation ---
+    # Here, we implement the FastMarching segmentation algorithm,
+    # as is described in [...].
+
+    # Export to numpy
+    mask = itk.GetArrayFromImage(thresholded_img)
+    mask = np.moveaxis(mask, [0, 1, 2], [2, 1, 0])
+
+    return mask
+
+
+def extract_vessels(seg_paths: dict):
     """
     This function performs the actual segmentation part of the
     vessel segmentation. It uses some Frangi-filter based tricks
@@ -28,16 +139,11 @@ def extract_vessels(seg_paths):
     csf_mask = affine_transform(csf_mask, csf_translation,
                                 output_shape=np.shape(T1w_gado))
 
-    # Define Frangi parameters
-    avg_vox_dim = np.mean((np.array(ori_aff).diagonal())[:-1])
+    # Remove non-brain from T1CE (gado) image
+    T1w_gado[T1w_bet < 1e-2] = 0
 
-    scale_range = np.array([0.1, 1.5]) / avg_vox_dim     # range = 0.1, 1 [mm]
-    step_size = (scale_range[1] - scale_range[0]) / 10  # always use 10 steps
-
-    sigmas = np.arange(*scale_range, step_size)
-
-    # Frangi filter T1w-gado image
-    raw_mask = frangi(T1w_gado, sigmas, black_ridges=False)
+    # LevelSet vessel extraction
+    raw_mask = levelset_segmentation(T1w_gado, ori_aff)
 
     # Clean up mask
     vessel_mask = raw_mask
@@ -49,7 +155,7 @@ def extract_vessels(seg_paths):
     nib.save(nii_mask, seg_paths["vessel_mask"])
 
 
-def seg_vessels(paths, settings, verbose=True):
+def seg_vessels(paths: dict, settings: dict, verbose: bool = True):
     """
     This function performs the path management/administratory
     part of the vessel segmentation. It calls upon extract_vessels()
