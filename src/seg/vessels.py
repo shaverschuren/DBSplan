@@ -15,7 +15,9 @@ def levelset_segmentation(image: np.ndarray,
     (doi: https://doi.org/10.1016/j.cmpb.2019.105037).
     We will be implementing this method in Python via the ITK
     software package. The process consists of several steps:
-    - Firstly, we generate a Hessian-based vesselness map, for which
+    - Firstly, we apply an edge-preserving anisotropic diffusion
+      filtering algorithm to the input image.
+    - Then, we generate a Hessian-based vesselness map, for which
       we use the vesselness filters implemented in ITK.
     - As this image will contain a significant amount of false positive
       voxels, we now threshold this image at (mean + 2 std).
@@ -31,6 +33,9 @@ def levelset_segmentation(image: np.ndarray,
 
     # Import image to itk
     img_itk = itk.GetImageFromArray(image)
+
+    # --- Anisotropic diffusion smoothing ---
+    # TODO: Implement this!
 
     # --- Hessian-based vesselness map ---
     # Here, we make use of the 3D multiscale Hessian-based
