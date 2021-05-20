@@ -44,7 +44,7 @@ def extract_tissues(aparc_aseg_path: str, mask_path: str,
 
     # Check tissue_labels parameter
     if type(tissue_labels) == list:
-        labels_list: list = list(*tissue_labels)
+        labels_list: list = list([*tissue_labels])
     elif type(tissue_labels) in [str, int]:
         labels_list: list = list([tissue_labels])
     else:
