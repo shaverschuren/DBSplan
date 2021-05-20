@@ -117,6 +117,10 @@ def extract_sulci_fs(seg_paths: dict):
 
     mask_as_np[ventricle_mask > 0.5] = 0
 
+    # --- Perform final (small) closing ---
+
+    mask_as_np = morph.closing(mask_as_np, close_element)
+
     # --- Save mask img ---
 
     mask_img = nib.Nifti1Image(mask_as_np, aff, hdr)
