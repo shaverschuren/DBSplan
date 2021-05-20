@@ -7,6 +7,128 @@ from scipy.ndimage import affine_transform
 from util.nifti import load_nifti
 
 
+def anisotropic_diffusion_smoothing(image: itk.Image,
+                                    timeStep: float = 0.05,
+                                    nIter: int = 5,
+                                    conductance: float = 9.0) -> itk.Image:
+    """
+    Here, we perform an anisotropic diffusion smoothing algorithm.
+    Hereby, we remove noise from the image while still maintaining the edges.
+    Documentation as described in:
+    https://itk.org/ITKExamples/src/Filtering/AnisotropicSmoothing/ComputeCurvatureAnisotropicDiffusion/Documentation.html
+    """
+
+    # Cast image to itk.F
+    image_F = image.astype(itk.F)
+
+    # Setup image parameters
+    InputPixelType = itk.F
+    OutputPixelType = itk.F
+    Dimension = image.GetImageDimension()
+
+    InputImageType = itk.Image[InputPixelType, Dimension]
+    OutputImageType = itk.Image[OutputPixelType, Dimension]
+
+    # Perform filtering
+    smoothed_img = itk.curvature_anisotropic_diffusion_image_filter(
+        image_F, number_of_iterations=nIter, time_step=timeStep,
+        conductance_parameter=conductance,
+        ttype=[InputImageType, OutputImageType]
+    )
+
+    return smoothed_img
+
+
+def hessian_vesselness(image: itk.Image, voxDim: float,
+                       sigmaRange: list = [0.05, 0.5], nSteps: int = 10,
+                       alpha: float = 0.1, beta: float = 0.1,
+                       gamma: float = 0.1) -> itk.Image:
+    """
+    Here, we make use of the 3D multiscale Hessian-based
+    vesselness filter by Antiga et al., as is described in:
+    https://itk.org/Doxygen/html/classitk_1_1MultiScaleHessianBasedMeasureImageFilter.html
+    https://itk.org/ITKExamples/src/Nonunit/Review/SegmentBloodVesselsWithMultiScaleHessianBasedMeasure/Documentation.html
+    """
+
+    # Cast image to itk.F
+    image_F = image.astype(itk.F)
+
+    # Set-up parameters
+    sigmaMin = sigmaRange[0] / voxDim
+    sigmaMax = sigmaRange[1] / voxDim
+
+    # Setup image parameters
+    PixelType = itk.F
+    Dimension = image_F.GetImageDimension()
+
+    ImageType = itk.Image[PixelType, Dimension]
+
+    # Set-up Hessian image type
+    HessianPixelType = itk.SymmetricSecondRankTensor[itk.D, Dimension]
+    HessianImageType = itk.Image[HessianPixelType, Dimension]
+
+    # Set-up Hessian-to-objectness filter
+    objectness_filter = itk.HessianToObjectnessMeasureImageFilter[
+        HessianImageType, ImageType].New()
+    objectness_filter.SetBrightObject(True)
+    objectness_filter.SetScaleObjectnessMeasure(False)
+    objectness_filter.SetAlpha(alpha)
+    objectness_filter.SetBeta(beta)
+    objectness_filter.SetGamma(gamma)
+
+    # Set-up the Multi-scale Hessian filter
+    multi_scale_filter = itk.MultiScaleHessianBasedMeasureImageFilter[
+        ImageType, HessianImageType, ImageType].New()
+    multi_scale_filter.SetInput(image_F)
+    multi_scale_filter.SetHessianToMeasureFilter(objectness_filter)
+    multi_scale_filter.SetSigmaMinimum(sigmaMin)
+    multi_scale_filter.SetSigmaMaximum(sigmaMax)
+    multi_scale_filter.SetNumberOfSigmaSteps(nSteps)
+
+    # Obtain output
+    multi_scale_filter.Update()
+    vesselness_img = multi_scale_filter.GetOutput()
+
+    return vesselness_img
+
+
+def vesselness_thresholding(image: itk.Image,
+                            threshold: float = 2.0,
+                            nonzeros: bool = False) -> itk.Image:
+    """
+    This function thresholds the vesselness map.
+    The threshold is set to the mean +/- a certain times (param: threshold)
+    the std.
+    """
+
+    # Import vesselness image to numpy
+    vesselness_as_np = itk.array_from_image(image)
+    np.moveaxis(vesselness_as_np, [0, 1, 2], [2, 1, 0])
+
+    # Determine threshold
+    if nonzeros:
+        mean = np.mean(np.nonzero(vesselness_as_np))
+        std = np.std(np.nonzero(vesselness_as_np))
+    else:
+        mean = np.mean(vesselness_as_np)
+        std = np.std(vesselness_as_np)
+
+    abs_threshold = mean + threshold * std
+
+    print(np.min(vesselness_as_np),
+          np.max(vesselness_as_np),
+          mean, std, abs_threshold)
+
+    # Threshold image
+    vesselness_as_np[vesselness_as_np < abs_threshold] = 0.
+    vesselness_as_np[vesselness_as_np >= abs_threshold] = 1.
+
+    # Export vesselness image back to itk
+    image_out = itk.image_from_array(vesselness_as_np)
+
+    return image_out
+
+
 def levelset_segmentation(image: np.ndarray,
                           affine_matrix: np.ndarray) -> np.ndarray:
     """
@@ -32,84 +154,17 @@ def levelset_segmentation(image: np.ndarray,
     avg_vox_dim = np.mean((affine_matrix.diagonal())[:-1])
 
     # Import image to itk
-    img_itk = itk.GetImageFromArray(image)
+    img_itk = (itk.GetImageFromArray(image))
+    image_in = img_itk.astype(itk.F)
 
     # --- Anisotropic diffusion smoothing ---
-    # TODO: Implement this!
-    # https://itk.org/ITKExamples/src/Filtering/AnisotropicSmoothing/ComputeCurvatureAnisotropicDiffusion/Documentation.html
+    smoothed_img = anisotropic_diffusion_smoothing(image_in)
 
     # --- Hessian-based vesselness map ---
-    # Here, we make use of the 3D multiscale Hessian-based
-    # vesselness filter by Antiga et al., as is described in:
-    # https://itk.org/Doxygen/html/classitk_1_1MultiScaleHessianBasedMeasureImageFilter.html
-    # https://itk.org/ITKExamples/src/Nonunit/Review/SegmentBloodVesselsWithMultiScaleHessianBasedMeasure/Documentation.html
-
-    # Set input image
-    input_img = img_itk
-
-    # Set-up parameters
-    vesselnessArgs = {}
-
-    vesselnessArgs["sigmaMin"] = 0.05 / avg_vox_dim
-    vesselnessArgs["sigmaMax"] = 0.5 / avg_vox_dim
-    vesselnessArgs["numSteps"] = 10
-
-    vesselnessArgs["alpha"] = 0.1       # 0.1
-    vesselnessArgs["beta"] = 0.1        # 0.1
-    vesselnessArgs["gamma"] = 0.1       # unknown
-
-    # Set-up filters
-    ImageType = type(input_img)
-    Dimension = input_img.GetImageDimension()
-
-    HessianPixelType = itk.SymmetricSecondRankTensor[itk.D, Dimension]
-    HessianImageType = itk.Image[HessianPixelType, Dimension]
-
-    objectness_filter = itk.HessianToObjectnessMeasureImageFilter[
-        HessianImageType, ImageType
-    ].New()
-    objectness_filter.SetBrightObject(False)
-    objectness_filter.SetScaleObjectnessMeasure(False)
-    objectness_filter.SetAlpha(vesselnessArgs["alpha"])
-    objectness_filter.SetBeta(vesselnessArgs["beta"])
-    objectness_filter.SetGamma(vesselnessArgs["gamma"])
-
-    multi_scale_filter = itk.MultiScaleHessianBasedMeasureImageFilter[
-        ImageType, HessianImageType, ImageType
-    ].New()
-    multi_scale_filter.SetInput(input_img)
-    multi_scale_filter.SetHessianToMeasureFilter(objectness_filter)
-    multi_scale_filter.SetSigmaMinimum(vesselnessArgs["sigmaMin"])
-    multi_scale_filter.SetSigmaMaximum(vesselnessArgs["sigmaMax"])
-    multi_scale_filter.SetNumberOfSigmaSteps(vesselnessArgs["numSteps"])
-
-    OutputPixelType = itk.UC
-    OutputImageType = itk.Image[OutputPixelType, Dimension]
-
-    rescale_filter = \
-        itk.RescaleIntensityImageFilter[ImageType, OutputImageType].New()
-    rescale_filter.SetInput(multi_scale_filter)
-
-    # Perform actual vesselness filtering
-    vesselness_img = rescale_filter.GetOutput()
+    vesselness_img = hessian_vesselness(smoothed_img, avg_vox_dim)
 
     # --- Threshold image at (mean + 2 std) ---
-    # We'll threshold the image at the mean + 2 * the standard deviation.
-    # We use the numpy library for this purpose.
-
-    # Import vesselness image to numpy
-    vesselness_as_np = itk.GetArrayFromImage(vesselness_img)
-    np.moveaxis(vesselness_as_np, [0, 1, 2], [2, 1, 0])
-
-    # Determine threshold
-    threshold = np.mean(vesselness_as_np) + 2 * np.std(vesselness_as_np)
-
-    # Threshold image
-    vesselness_as_np[vesselness_as_np < threshold] = 0.
-    vesselness_as_np[vesselness_as_np >= threshold] = 1.
-
-    # Export vesselness image back to itk
-    thresholded_img = itk.GetImageFromArray(vesselness_as_np)
+    thresholded_img = vesselness_thresholding(vesselness_img)
 
     # --- FastMarching segmentation ---
     # Here, we implement the FastMarching segmentation algorithm,
