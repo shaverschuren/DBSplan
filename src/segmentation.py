@@ -19,7 +19,8 @@ from util.style import print_header                     # noqa: E402
 from util.general import log_dict                       # noqa: E402
 
 
-def segmentation(paths, settings, verbose=True):
+def segmentation(paths: dict, settings: dict, verbose: bool = True) \
+        -> tuple[dict, dict]:
     """
     This is the main wrapper function for the segmentation module.
     It calls on other functions to perform specific tasks.

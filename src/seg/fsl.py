@@ -7,7 +7,7 @@ from datetime import datetime
 from util.general import append_logs
 
 
-def generate_fsl_paths(paths, settings):
+def generate_fsl_paths(paths: dict, settings: dict) -> tuple[list, dict]:
     """
     This function generates an array of strings (paths).
     It contains all paths required for the fsl bet/fast process.
@@ -75,7 +75,8 @@ def generate_fsl_paths(paths, settings):
     return fsl_paths, paths
 
 
-def fsl_bet(fsl_paths, paths, settings, reset=True):
+def fsl_bet(fsl_paths: list, paths: dict, settings: dict,
+            reset: bool = True) -> tuple[dict, dict]:
     """
     This function runs the FSL BET module for all relevant images,
     as is described at https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/BET.
@@ -118,7 +119,8 @@ def fsl_bet(fsl_paths, paths, settings, reset=True):
     return paths, settings
 
 
-def fsl_fast(fsl_paths, paths, settings, reset=True):
+def fsl_fast(fsl_paths: list, paths: dict, settings: dict,
+             reset: bool = True) -> tuple[dict, dict]:
     """
     This function runs the FSL FAST module for all relevant images,
     as is described at https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FAST.
@@ -193,7 +195,8 @@ def fsl_fast(fsl_paths, paths, settings, reset=True):
     return paths, settings
 
 
-def process_fsl(paths, settings, verbose=True):
+def process_fsl(paths: dict, settings: dict,
+                verbose: bool = True) -> tuple[dict, dict]:
     """
     Main function for the fsl processing steps.
     """

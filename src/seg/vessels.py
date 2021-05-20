@@ -36,6 +36,7 @@ def levelset_segmentation(image: np.ndarray,
 
     # --- Anisotropic diffusion smoothing ---
     # TODO: Implement this!
+    # https://itk.org/ITKExamples/src/Filtering/AnisotropicSmoothing/ComputeCurvatureAnisotropicDiffusion/Documentation.html
 
     # --- Hessian-based vesselness map ---
     # Here, we make use of the 3D multiscale Hessian-based
@@ -78,7 +79,6 @@ def levelset_segmentation(image: np.ndarray,
     ].New()
     multi_scale_filter.SetInput(input_img)
     multi_scale_filter.SetHessianToMeasureFilter(objectness_filter)
-    multi_scale_filter.SetSigmaStepMethodToLogarithmic()
     multi_scale_filter.SetSigmaMinimum(vesselnessArgs["sigmaMin"])
     multi_scale_filter.SetSigmaMaximum(vesselnessArgs["sigmaMax"])
     multi_scale_filter.SetNumberOfSigmaSteps(vesselnessArgs["numSteps"])

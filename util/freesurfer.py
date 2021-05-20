@@ -1,8 +1,9 @@
 import os
 import subprocess
+from typing import Union
 
 
-def mgz2nii(mgz_path, nii_path):
+def mgz2nii(mgz_path: str, nii_path: str):
     """
     This function performs an mgz to nii conversion.
     It uses the FreeSurfer software package for this
@@ -31,7 +32,8 @@ def mgz2nii(mgz_path, nii_path):
                           f"{error.decode('utf-8')}")
 
 
-def extract_tissues(aparc_aseg_path, mask_path, tissue_labels):
+def extract_tissues(aparc_aseg_path: str, mask_path: str,
+                    tissue_labels: Union[list, str, int]):
     """
     This function extracts tissues from the aparc+aseg.mgz file
     and outputs the binary mask to a given file in nifti format.
@@ -42,9 +44,9 @@ def extract_tissues(aparc_aseg_path, mask_path, tissue_labels):
 
     # Check tissue_labels parameter
     if type(tissue_labels) == list:
-        pass
+        labels_list: list = list(*tissue_labels)
     elif type(tissue_labels) in [str, int]:
-        tissue_labels = [tissue_labels]
+        labels_list: list = list([tissue_labels])
     else:
         raise TypeError("The value of 'tissue_labels' must be either"
                         " a list, a string or an integer.")
@@ -62,7 +64,7 @@ def extract_tissues(aparc_aseg_path, mask_path, tissue_labels):
                "--i", aparc_aseg_path,
                "--o", mask_mgz_path]
 
-    for label in tissue_labels:
+    for label in labels_list:
         extension = ["--match", str(label)]
         command.extend(extension)
 

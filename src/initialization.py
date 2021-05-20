@@ -15,7 +15,7 @@ from util.style import print_result, print_header                       # noqa: 
 from util.checks import check_freesurfer, check_fsl                     # noqa: E402
 
 
-def check_system(settings):
+def check_system(settings: dict) -> bool:
     """
     This function checks the system for needed installations.
     Checks include:
@@ -37,7 +37,7 @@ def check_system(settings):
     return success
 
 
-def extract_settings(config_data, os_str):
+def extract_settings(config_data: dict, os_str: str) -> dict:
     """
     This function extracts the settings used for the pipeline
     from the config.json file.
@@ -79,7 +79,7 @@ def extract_settings(config_data, os_str):
     return settings
 
 
-def check_paths(paths):
+def check_paths(paths: dict) -> bool:
     """
     This function takes a dict of all paths and checks their validity.
     It raises warnings for non-existent paths.
@@ -123,7 +123,7 @@ def check_paths(paths):
     return result
 
 
-def setup_paths(config_data):
+def setup_paths(config_data: dict) -> tuple[dict, bool]:
     """
     This function takes in the config data from the config.json file and
     spits out all relevant paths for the pipeline as a struct.
@@ -163,7 +163,8 @@ def setup_paths(config_data):
     return paths, correct_bool
 
 
-def initialization(config_path="config.json", verbose=True):
+def initialization(config_path: str = "config.json", verbose: bool = True) \
+        -> tuple[dict, dict]:
     """
     This function is the main initialization function for the DBSplan pipeline.
     It takes the path of the config file as a parameter.

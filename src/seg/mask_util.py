@@ -3,7 +3,7 @@ import nibabel as nib
 from scipy import ndimage
 
 
-def binarize_mask(pve_path, mask_path, treshold=0.5):
+def binarize_mask(pve_path: str, mask_path: str, treshold: float = 0.5):
     """
     This function binarizes pve maps.
     """
@@ -24,10 +24,8 @@ def binarize_mask(pve_path, mask_path, treshold=0.5):
     mask_img = nib.Nifti1Image(mask_map.astype(np.int16), img_aff, img_hdr)
     nib.save(mask_img, mask_path)
 
-    return
 
-
-def find_center(img_as_np, treshold=1e-2):
+def find_center(img_as_np: np.ndarray, treshold: float = 1e-2):
     """
     This function finds the center coordinates
     of an image (bet) or binarized mask.

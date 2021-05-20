@@ -16,7 +16,7 @@ from util.style import print_header         # noqa: E402
 from util.general import log_dict           # noqa: E402
 
 
-def setup_reg_paths(paths, settings):
+def setup_reg_paths(paths: dict, settings: dict) -> tuple[dict, dict]:
     """
     This function sets up the appropriate paths for the
     MRI coregistration module. It gets run even if the module
@@ -48,7 +48,7 @@ def setup_reg_paths(paths, settings):
     return paths, settings
 
 
-def coreg_mri(paths, settings, verbose=True):
+def coreg_mri(paths: dict, settings: dict, verbose: bool = True):
     """
     This function performs the actual coregistration of
     the MRI scans. It uses the paths defined in setup_reg_paths
@@ -106,7 +106,8 @@ def coreg_mri(paths, settings, verbose=True):
               "'resetModules'[1] to 0 in the config.json file.")
 
 
-def registration_mri(paths, settings, verbose=True):
+def registration_mri(paths: dict, settings: dict, verbose: bool = True) \
+        -> tuple[dict, dict]:
     """
     This is the main wrapper function for the mri registration module.
     It calls on other functions to perform specific tasks.

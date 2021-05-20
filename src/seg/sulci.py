@@ -8,7 +8,8 @@ from tqdm import tqdm
 from util.nifti import load_nifti
 
 
-def extract_sulci_fsl(bet_img_path, csf_mask_path, sulci_mask_path):
+def extract_sulci_fsl(bet_img_path: str, csf_mask_path: str,
+                      sulci_mask_path: str):
     """
     This function extracts the sulci from a CSF mask.
     [...]
@@ -17,7 +18,7 @@ def extract_sulci_fsl(bet_img_path, csf_mask_path, sulci_mask_path):
     raise UserWarning("This function is not yet implemented.")
 
 
-def extract_sulci_fs(seg_paths):
+def extract_sulci_fs(seg_paths: dict):
     """
     This function extracts the sulci from FreeSurfer output.
     """
@@ -122,7 +123,8 @@ def extract_sulci_fs(seg_paths):
     nib.save(mask_img, seg_paths["sulcus_mask"])
 
 
-def fsl_seg_sulci(paths, settings, verbose=True):
+def fsl_seg_sulci(paths: dict, settings: dict, verbose: bool = True) \
+        -> tuple[dict, dict, bool]:
     """
     This function performs the quick and dirty variation
     of the sulcus segmentation. It doesn't make use
@@ -193,7 +195,8 @@ def fsl_seg_sulci(paths, settings, verbose=True):
     return paths, settings, skipped_img
 
 
-def fs_seg_sulci(paths, settings, verbose=True):
+def fs_seg_sulci(paths: dict, settings: dict, verbose: bool = True) \
+        -> tuple[dict, dict, bool]:
     """
     This function performs the quick and dirty variation
     of the sulcus segmentation. It doesn't make use
@@ -285,7 +288,8 @@ def fs_seg_sulci(paths, settings, verbose=True):
     return paths, settings, skipped_img
 
 
-def seg_sulci(paths, settings, verbose=True):
+def seg_sulci(paths: dict, settings: dict, verbose: bool = True) \
+        -> tuple[dict, dict]:
     """
     This function performs the sulcus segmentation.
     It builds upon output from FSL BET and FAST.

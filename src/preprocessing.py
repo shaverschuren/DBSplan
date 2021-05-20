@@ -18,7 +18,7 @@ from util.style import print_header, print_result   # noqa: E402
 from util.general import log_dict                   # noqa: E402
 
 
-def generate_process_paths(paths, settings):
+def generate_process_paths(paths: dict, settings: dict) -> tuple[list, dict]:
     """
     This function generates an array of strings (paths).
     It contains all paths required for the preprocessing process.
@@ -85,7 +85,8 @@ def generate_process_paths(paths, settings):
     return process_paths, paths
 
 
-def dcm2nii(process_paths, paths, settings, verbose=True):
+def dcm2nii(process_paths: list, paths: dict, settings: dict,
+            verbose: bool = True):
     """
     This function performs the actual dicom to nifti conversion.
     It makes use of the external program dcm2nii for this purpose.
@@ -200,7 +201,8 @@ def dcm2nii(process_paths, paths, settings, verbose=True):
               "'resetModules'[0] to 0 in the config.json file.")
 
 
-def nii2fs(process_paths, paths, settings, verbose=True):
+def nii2fs(process_paths: list, paths: dict, settings: dict,
+           verbose: bool = True):
     """
     This function performs a dicom to freesurfer conversion.
     It makes use of the command line freesurfer application.
@@ -298,7 +300,8 @@ def nii2fs(process_paths, paths, settings, verbose=True):
               "'resetModules'[0] to 0 in the config.json file.")
 
 
-def preprocessing(paths, settings, verbose=True):
+def preprocessing(paths: dict, settings: dict, verbose: bool = True) \
+        -> tuple[dict, dict]:
     """
     This function is the main function for the preprocessing step.
     It calls on other functions to perform some tasks, such as:

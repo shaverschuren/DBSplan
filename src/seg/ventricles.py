@@ -2,6 +2,7 @@ import os
 import nibabel as nib
 import numpy as np
 import skimage.morphology as morph
+from typing import Union
 from shutil import copyfile
 from tqdm import tqdm
 from seg.mask_util import find_center, binarize_mask
@@ -9,7 +10,8 @@ from util.nifti import load_nifti
 from util.freesurfer import extract_tissues, mgz2nii
 
 
-def find_seed_mask(csf_mask, img_aff, center_coords):
+def find_seed_mask(csf_mask: np.ndarray, img_aff: np.ndarray,
+                   center_coords: Union[tuple, list]) -> np.ndarray:
     """
     This function finds seed points for the ventricles.
     These may later be used for the region growing algorithm.
@@ -45,7 +47,8 @@ def find_seed_mask(csf_mask, img_aff, center_coords):
     return seed_mask
 
 
-def region_growing(seed_mask, full_mask, img_aff, element_size=2):
+def region_growing(seed_mask: np.ndarray, full_mask: np.ndarray,
+                   img_aff: np.ndarray, element_size: int = 2) -> np.ndarray:
     """
     This function performs a region growing algorithm.
     It makes use of a seed mask and a full mask.
@@ -110,7 +113,8 @@ def region_growing(seed_mask, full_mask, img_aff, element_size=2):
     return processed_mask
 
 
-def extract_ventricles_fsl(bet_img_path, csf_mask_path, ventricles_mask_path):
+def extract_ventricles_fsl(bet_img_path: str, csf_mask_path: str,
+                           ventricles_mask_path: str):
     """
     This function extracts the ventricles from a CSF mask.
     It uses some morphological tricks for this purpose.
@@ -134,7 +138,7 @@ def extract_ventricles_fsl(bet_img_path, csf_mask_path, ventricles_mask_path):
     nib.save(nii_mask, ventricles_mask_path)
 
 
-def extract_ventricles_fs(aparc_aseg_path, ventricles_mask_path):
+def extract_ventricles_fs(aparc_aseg_path: str, ventricles_mask_path: str):
     """
     This function extracts the ventricles from FreeSurfer output.
     We simply extract the appropriate label and perform some
@@ -148,7 +152,8 @@ def extract_ventricles_fs(aparc_aseg_path, ventricles_mask_path):
     extract_tissues(aparc_aseg_path, ventricles_mask_path, ventricle_labels)
 
 
-def fsl_seg_ventricles(paths, settings, verbose=True):
+def fsl_seg_ventricles(paths: dict, settings: dict, verbose: bool = True) \
+        -> tuple[dict, dict, bool]:
     """
     This function performs the quick and dirty variation
     of the ventricle segmentation. It doesn't make use
@@ -224,7 +229,8 @@ def fsl_seg_ventricles(paths, settings, verbose=True):
     return paths, settings, skipped_img
 
 
-def fs_seg_ventricles(paths, settings, verbose=True):
+def fs_seg_ventricles(paths: dict, settings: dict, verbose: bool = True) \
+        -> tuple[dict, dict, bool]:
     """
     This function performs the FreeSurfer-based variation
     of the ventricle segmentation. For this purpose, it uses
@@ -312,7 +318,8 @@ def fs_seg_ventricles(paths, settings, verbose=True):
     return paths, settings, skipped_img
 
 
-def seg_ventricles(paths, settings, verbose=True):
+def seg_ventricles(paths: dict, settings: dict, verbose: bool = True) \
+        -> tuple[dict, dict]:
     """
     This function performs the ventricle segmentation.
     It has two variations, one of which is the FreeSurfer
