@@ -149,6 +149,87 @@ def vesselness_thresholding(image: itk.Image, threshold: float = 1.5,
     return image_out
 
 
+def fastmarching_segmentation(image: itk.Image, seed_mask: itk.Image,
+                              affine_matrix: np.ndarray,
+                              nii_header: nib.nifti1.Nifti1Header,
+                              logsDir: str,
+                              gradientMagnitudeSigma: float = 0.3,
+                              sigmoidAlpha: float = 0.1,
+                              sigmoidBeta: float = 0.1,
+                              timeThreshold: int = 100,
+                              stoppingTime: int = 100,
+                              smoothInput: bool = False,
+                              backupInterResults: bool = True) -> itk.Image:
+    """
+    Here, we implement the fastmarching segmentation (ITK),
+    as is documented (for C++) at:
+    https://itk.org/Doxygen/html/itkFastMarchingImageFilter_8h_source.html
+    """
+
+    # Cast image to itk.F
+    image_F = image.astype(itk.F)
+
+    # If applicable, apply smoothing to input
+    if smoothInput:
+        smoothed_image = anisotropic_diffusion_smoothing(image_F)
+    else:
+        smoothed_image = image_F
+
+    # Calculate gradient magnitude image (used later as speed map)
+    gradientMagnitude_image = \
+        itk.gradient_magnitude_recursive_gaussian_image_filter(
+            smoothed_image, sigma=gradientMagnitudeSigma
+        )
+
+    if backupInterResults:
+        backup_result(gradientMagnitude_image, affine_matrix, nii_header,
+                      os.path.join(logsDir, "4_1_gradient_magnitude.nii.gz"))
+
+    # Calculate speed map by applying sigmoid filter to gradMag-image
+    speedMap_image = itk.sigmoid_image_filter(
+        gradientMagnitude_image,
+        output_minimum=0.0, output_maximum=1.0,
+        alpha=sigmoidAlpha, beta=sigmoidBeta
+    )
+
+    if backupInterResults:
+        backup_result(speedMap_image, affine_matrix, nii_header,
+                      os.path.join(logsDir, "4_2_speed_map_sigmoid.nii.gz"))
+
+    # Generate appropriate seed mask format (image to list of points)
+    if backupInterResults:
+        backup_result(seed_mask, affine_matrix, nii_header,
+                      os.path.join(logsDir, "4_3_seed_mask.nii.gz"))
+
+    ImageType = itk.Image[itk.F, image.GetImageDimension()]
+    adaptor = itk.FastMarchingImageToNodePairContainerAdaptor[
+        ImageType, ImageType, ImageType
+    ].New()
+
+    adaptor.SetTrialImage(seed_mask)
+    adaptor.SetTrialValue(1.0)
+    adaptor.Update()
+
+    TrialPoints = adaptor.GetTrialPoints()
+
+    # Perform FastMarching
+    # TODO: TrialPoints is not valid as of now.
+    #       Will have to fix!
+    fastMarching_image = itk.fast_marching_image_filter(
+        speedMap_image, trial_points=TrialPoints,
+        stopping_value=stoppingTime
+    )
+
+    # Threshold FastMarching output
+    image_out = itk.binary_threshold_image_filter(
+        fastMarching_image,
+        lower_threshold=0.0, upper_threshold=timeThreshold,
+        outside_value=0.0, inside_value=1.0
+    )
+
+    return image_out
+
+
 def levelset_segmentation(image: np.ndarray,
                           affine_matrix: np.ndarray,
                           nii_header: nib.nifti1.Nifti1Header,
@@ -183,7 +264,6 @@ def levelset_segmentation(image: np.ndarray,
 
     # Apply filter
     smoothed_img = anisotropic_diffusion_smoothing(image_in)
-
     # Backup image
     backup_result(smoothed_img, affine_matrix, nii_header,
                   os.path.join(logsDir, "1_anisotropic_diff_smoothing.nii.gz"))
@@ -192,7 +272,6 @@ def levelset_segmentation(image: np.ndarray,
 
     # Apply filter
     vesselness_img = hessian_vesselness(smoothed_img, avg_vox_dim)
-
     # Backup image
     backup_result(vesselness_img, affine_matrix, nii_header,
                   os.path.join(logsDir, "2_hessian_based_vesselness.nii.gz"))
@@ -201,14 +280,19 @@ def levelset_segmentation(image: np.ndarray,
 
     # Apply filter
     thresholded_img = vesselness_thresholding(vesselness_img)
-
     # Backup image
     backup_result(thresholded_img, affine_matrix, nii_header,
                   os.path.join(logsDir, "3_thresholded_vesselness.nii.gz"))
 
     # --- FastMarching segmentation ---
-    # Here, we implement the FastMarching segmentation algorithm,
-    # as is described in [...].
+
+    # Apply filter
+    fastmarching_img = fastmarching_segmentation(
+        smoothed_img, thresholded_img, affine_matrix, nii_header, logsDir
+    )
+    # Backup image
+    backup_result(fastmarching_img, affine_matrix, nii_header,
+                  os.path.join(logsDir, "4_fastmarching_segmentation.nii.gz"))
 
     # Export to numpy
     mask = itk.GetArrayFromImage(thresholded_img)
