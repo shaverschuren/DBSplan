@@ -153,9 +153,9 @@ def fastmarching_segmentation(image: itk.Image, seed_mask: itk.Image,
                               affine_matrix: np.ndarray,
                               nii_header: nib.nifti1.Nifti1Header,
                               logsDir: str,
-                              gradientMagnitudeSigma: float = 0.3,
-                              sigmoidAlpha: float = 0.1,
-                              sigmoidBeta: float = 0.1,
+                              gradientMagnitudeSigma: float = 0.01,
+                              sigmoidAlpha: float = -15,
+                              sigmoidBeta: float = 60.0,
                               timeThreshold: int = 100,
                               stoppingTime: int = 100,
                               smoothInput: bool = False,
@@ -166,8 +166,12 @@ def fastmarching_segmentation(image: itk.Image, seed_mask: itk.Image,
     https://itk.org/Doxygen/html/itkFastMarchingImageFilter_8h_source.html
     """
 
+    # Determine voxel size
+    avg_vox_dim = np.mean((affine_matrix.diagonal())[:-1])
+
     # Cast image to itk.F
     image_F = image.astype(itk.F)
+    ImageType = itk.Image[itk.F, image.GetImageDimension()]
 
     # If applicable, apply smoothing to input
     if smoothInput:
@@ -178,7 +182,7 @@ def fastmarching_segmentation(image: itk.Image, seed_mask: itk.Image,
     # Calculate gradient magnitude image (used later as speed map)
     gradientMagnitude_image = \
         itk.gradient_magnitude_recursive_gaussian_image_filter(
-            smoothed_image, sigma=gradientMagnitudeSigma
+            smoothed_image, sigma=gradientMagnitudeSigma / avg_vox_dim
         )
 
     if backupInterResults:
@@ -201,23 +205,31 @@ def fastmarching_segmentation(image: itk.Image, seed_mask: itk.Image,
         backup_result(seed_mask, affine_matrix, nii_header,
                       os.path.join(logsDir, "4_3_seed_mask.nii.gz"))
 
-    ImageType = itk.Image[itk.F, image.GetImageDimension()]
-    adaptor = itk.FastMarchingImageToNodePairContainerAdaptor[
-        ImageType, ImageType, ImageType
-    ].New()
+    seed_idx = np.nonzero(np.asarray(seed_mask))
 
-    adaptor.SetTrialImage(seed_mask)
-    adaptor.SetTrialValue(1.0)
-    adaptor.Update()
+    NodeType = itk.LevelSetNode.F3
+    NodeContainer = itk.VectorContainer[itk.UI, NodeType]
+    SeedPoints = NodeContainer.New()
+    SeedPoints.Initialize()
 
-    TrialPoints = adaptor.GetTrialPoints()
+    for i in range(np.shape(seed_idx)[1]):
+        id_x = int(seed_idx[0][i])
+        id_y = int(seed_idx[1][i])
+        id_z = int(seed_idx[2][i])
+
+        node = NodeType()
+        node.SetIndex((id_x, id_y, id_z))
+        node.SetValue(0.0)
+
+        SeedPoints.InsertElement(i, node)
 
     # Perform FastMarching
-    # TODO: TrialPoints is not valid as of now.
-    #       Will have to fix!
+    # https://www.orfeo-toolbox.org/SoftwareGuide/SoftwareGuidech16.html
+
     fastMarching_image = itk.fast_marching_image_filter(
-        speedMap_image, trial_points=TrialPoints,
-        stopping_value=stoppingTime
+        speedMap_image, trial_points=SeedPoints,
+        stopping_value=stoppingTime,
+        ttype=[ImageType, ImageType]
     )
 
     # Threshold FastMarching output
