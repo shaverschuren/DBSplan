@@ -2,7 +2,7 @@ import sys
 import json
 
 
-def log_dict(dict, file, mode="w"):
+def log_dict(dict: dict, file: str, mode: str = "w"):
     """
     This function is used for logging a dict.
     Mainly, we may use it for logging {paths} and {settings}.
@@ -11,7 +11,7 @@ def log_dict(dict, file, mode="w"):
         json.dump(dict, f, indent=4)
 
 
-def append_logs(msg, file, mode="a"):
+def append_logs(msg: str, file: str, mode: str = "a"):
     """
     This function is used for appending log files.
     """
@@ -37,7 +37,7 @@ def check_type(var, var_type):
         return True
 
 
-def check_os():
+def check_os() -> str:
     """
     This function checks the operating system of the current machine.
     It outputs a string, being either
@@ -57,7 +57,7 @@ def check_os():
     return os_str
 
 
-def extract_json(json_path, verbose=False):
+def extract_json(json_path: str, verbose: bool = False):
     """
     This function is used for extracting data from .json files.
     Primarily, it is used for extracting config file data.

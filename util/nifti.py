@@ -1,8 +1,10 @@
+import numpy as np
 import nibabel as nib
 import subprocess
 
 
-def load_nifti(path):
+def load_nifti(path: str) \
+        -> tuple[np.ndarray, np.ndarray, nib.nifti1.Nifti1Header]:
     """
     This function loads a nifti image using
     the nibabel library.
@@ -17,7 +19,7 @@ def load_nifti(path):
     return data, img_aff, img_hdr
 
 
-def mgz2nii(mgz_path, nii_path):
+def mgz2nii(mgz_path: str, nii_path: str):
     """
     This function performs an mgz to nii conversion.
     It uses the FreeSurfer software package for this

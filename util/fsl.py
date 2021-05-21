@@ -1,9 +1,8 @@
-import os
 import subprocess
 
 
-def flirt_registration(in_path, ref_path, out_path,
-                       init_path=None, omat_path=None, dof=6):
+def flirt_registration(in_path: str, ref_path: str, out_path: str,
+                       init_path=None, omat_path=None, dof: int = 6):
     """
     This function performs a simple affine registration with
     'dof' degrees of freedom of an image at 'in_path' to an image

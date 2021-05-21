@@ -11,7 +11,7 @@ class print_style:
     END = '\033[0m'
 
 
-def print_result(succeeded=True):
+def print_result(succeeded: bool = True):
 
     if succeeded:
         print("\033[92mOK\033[0m")
@@ -23,5 +23,5 @@ def print_result(succeeded=True):
     return
 
 
-def print_header(message):
+def print_header(message: str):
     print(print_style.BOLD + message + print_style.END)
