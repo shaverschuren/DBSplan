@@ -1,5 +1,6 @@
 import os
 import itk
+import warnings
 import numpy as np
 import nibabel as nib
 from tqdm import tqdm
@@ -7,10 +8,27 @@ from scipy.ndimage import affine_transform
 from util.nifti import load_nifti
 
 
+def backup_result(image: itk.image, aff: np.ndarray,
+                  nii_header: nib.nifti1.Nifti1Header, filename: str):
+    """
+    This function may be used to back-up intermediate results
+    of the segmentation processing pipeline.
+    """
+
+    # Create nibabel image object
+    nii_backup = nib.Nifti1Image(
+        np.moveaxis(np.asarray(image), [0, 1, 2], [2, 1, 0]),
+        aff, nii_header
+    )
+
+    # Save image
+    nib.save(nii_backup, filename)
+
+
 def anisotropic_diffusion_smoothing(image: itk.Image,
                                     timeStep: float = 0.05,
-                                    nIter: int = 5,
-                                    conductance: float = 9.0) -> itk.Image:
+                                    nIter: int = 3,
+                                    conductance: float = 5.0) -> itk.Image:
     """
     Here, we perform an anisotropic diffusion smoothing algorithm.
     Hereby, we remove noise from the image while still maintaining the edges.
@@ -40,7 +58,7 @@ def anisotropic_diffusion_smoothing(image: itk.Image,
 
 
 def hessian_vesselness(image: itk.Image, voxDim: float,
-                       sigmaRange: list = [0.05, 0.5], nSteps: int = 10,
+                       sigmaRange: list = [0.2, 2.0], nSteps: int = 10,
                        alpha: float = 0.1, beta: float = 0.1,
                        gamma: float = 0.1) -> itk.Image:
     """
@@ -92,9 +110,8 @@ def hessian_vesselness(image: itk.Image, voxDim: float,
     return vesselness_img
 
 
-def vesselness_thresholding(image: itk.Image,
-                            threshold: float = 2.0,
-                            nonzeros: bool = False) -> itk.Image:
+def vesselness_thresholding(image: itk.Image, threshold: float = 1.5,
+                            nonzeros: bool = True) -> itk.Image:
     """
     This function thresholds the vesselness map.
     The threshold is set to the mean +/- a certain times (param: threshold)
@@ -107,17 +124,20 @@ def vesselness_thresholding(image: itk.Image,
 
     # Determine threshold
     if nonzeros:
-        mean = np.mean(np.nonzero(vesselness_as_np))
-        std = np.std(np.nonzero(vesselness_as_np))
+        mean = np.mean(vesselness_as_np[vesselness_as_np > 1e-4])
+        std = np.std(vesselness_as_np[vesselness_as_np > 1e-4])
     else:
         mean = np.mean(vesselness_as_np)
         std = np.std(vesselness_as_np)
 
     abs_threshold = mean + threshold * std
 
-    print(np.min(vesselness_as_np),
-          np.max(vesselness_as_np),
-          mean, std, abs_threshold)
+    # Check whether threshold is appropriate
+    if abs_threshold > np.max(vesselness_as_np):
+        warnings.warn("The vesselness threshold is higher than "
+                      "the maximal vesselness value:\n"
+                      f"{abs_threshold:.2f} > {np.max(vesselness_as_np):.2f}"
+                      "\nPlease adjust the threshold manually.")
 
     # Threshold image
     vesselness_as_np[vesselness_as_np < abs_threshold] = 0.
@@ -130,7 +150,9 @@ def vesselness_thresholding(image: itk.Image,
 
 
 def levelset_segmentation(image: np.ndarray,
-                          affine_matrix: np.ndarray) -> np.ndarray:
+                          affine_matrix: np.ndarray,
+                          nii_header: nib.nifti1.Nifti1Header,
+                          logsDir: str) -> np.ndarray:
     """
     This function implements the *LevelSet* vessel segmentation
     method, as is described by Neumann et al., 2019
@@ -158,13 +180,31 @@ def levelset_segmentation(image: np.ndarray,
     image_in = img_itk.astype(itk.F)
 
     # --- Anisotropic diffusion smoothing ---
+
+    # Apply filter
     smoothed_img = anisotropic_diffusion_smoothing(image_in)
 
+    # Backup image
+    backup_result(smoothed_img, affine_matrix, nii_header,
+                  os.path.join(logsDir, "1_anisotropic_diff_smoothing.nii.gz"))
+
     # --- Hessian-based vesselness map ---
+
+    # Apply filter
     vesselness_img = hessian_vesselness(smoothed_img, avg_vox_dim)
 
-    # --- Threshold image at (mean + 2 std) ---
+    # Backup image
+    backup_result(vesselness_img, affine_matrix, nii_header,
+                  os.path.join(logsDir, "2_hessian_based_vesselness.nii.gz"))
+
+    # --- Threshold image at (mean + 1.5 * std) ---
+
+    # Apply filter
     thresholded_img = vesselness_thresholding(vesselness_img)
+
+    # Backup image
+    backup_result(thresholded_img, affine_matrix, nii_header,
+                  os.path.join(logsDir, "3_thresholded_vesselness.nii.gz"))
 
     # --- FastMarching segmentation ---
     # Here, we implement the FastMarching segmentation algorithm,
@@ -184,6 +224,9 @@ def extract_vessels(seg_paths: dict):
     to help in this process.
     """
 
+    # Create back-up directory (for intermediate results)
+    logsDir = seg_paths["backupDir"]
+
     # Extract relevant images
     T1w_gado, ori_aff, ori_hdr = load_nifti(seg_paths["T1-gado"])
     T1w_bet, bet_aff, _ = load_nifti(seg_paths["bet"])
@@ -202,16 +245,16 @@ def extract_vessels(seg_paths: dict):
     T1w_gado[T1w_bet < 1e-2] = 0
 
     # LevelSet vessel extraction
-    raw_mask = levelset_segmentation(T1w_gado, ori_aff)
+    raw_mask = levelset_segmentation(T1w_gado, ori_aff, ori_hdr, logsDir)
 
     # Clean up mask
     vessel_mask = raw_mask
     vessel_mask[T1w_bet < 1e-2] = 0   # Remove non-brain
-    vessel_mask[csf_mask > 1e-2] = 0  # Remove CSF
+    # vessel_mask[csf_mask > 1e-2] = 0  # Remove CSF
 
     # Save vessel mask
     nii_mask = nib.Nifti1Image(raw_mask, ori_aff, ori_hdr)
-    nib.save(nii_mask, seg_paths["vessel_mask"])
+    # nib.save(nii_mask, seg_paths["vessel_mask"])
 
 
 def seg_vessels(paths: dict, settings: dict, verbose: bool = True):
@@ -240,6 +283,11 @@ def seg_vessels(paths: dict, settings: dict, verbose: bool = True):
         subjectDir = os.path.join(paths["segDir"], subject)
         if not os.path.isdir(subjectDir): os.mkdir(subjectDir)
 
+        # Create backup dict
+        backupDir = os.path.join(subjectDir, "vessel_debug")
+        if not os.path.isdir(backupDir): os.mkdir(backupDir)
+
+        # Create subject dict in paths dict
         if subject not in paths["seg_paths"]:
             paths["seg_paths"][subject] = {"dir": subjectDir}
 
@@ -261,7 +309,8 @@ def seg_vessels(paths: dict, settings: dict, verbose: bool = True):
                         "T1-gado": T1_gado_path,
                         "bet": fsl_bet_path,
                         "csf": fsl_csf_path,
-                        "vessel_mask": vessel_mask_path}
+                        "vessel_mask": vessel_mask_path,
+                        "backupDir": backupDir}
 
         seg_paths.append(subject_dict)
 
