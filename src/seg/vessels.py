@@ -3,6 +3,7 @@ import itk
 import warnings
 import numpy as np
 import nibabel as nib
+from typing import Optional
 from tqdm import tqdm
 from scipy.ndimage import affine_transform
 from util.nifti import load_nifti
@@ -58,9 +59,10 @@ def anisotropic_diffusion_smoothing(image: itk.Image,
 
 
 def hessian_vesselness(image: itk.Image, voxDim: float,
-                       sigmaRange: list = [0.2, 2.0], nSteps: int = 10,
-                       alpha: float = 0.1, beta: float = 0.1,
-                       gamma: float = 0.1) -> itk.Image:
+                       sigmaRange: list = [0.1, 1.0], nSteps: int = 10,
+                       alpha: Optional[float] = 0.5,
+                       beta: Optional[float] = 0.5,
+                       gamma: Optional[float] = 20.0) -> itk.Image:
     """
     Here, we make use of the 3D multiscale Hessian-based
     vesselness filter by Antiga et al., as is described in:
@@ -71,15 +73,15 @@ def hessian_vesselness(image: itk.Image, voxDim: float,
     # Cast image to itk.F
     image_F = image.astype(itk.F)
 
-    # Set-up parameters
-    sigmaMin = sigmaRange[0] / voxDim
-    sigmaMax = sigmaRange[1] / voxDim
-
     # Setup image parameters
     PixelType = itk.F
     Dimension = image_F.GetImageDimension()
 
     ImageType = itk.Image[PixelType, Dimension]
+
+    # Set-up parameters
+    sigmaMin = sigmaRange[0] / voxDim
+    sigmaMax = sigmaRange[1] / voxDim
 
     # Set-up Hessian image type
     HessianPixelType = itk.SymmetricSecondRankTensor[itk.D, Dimension]
@@ -90,9 +92,9 @@ def hessian_vesselness(image: itk.Image, voxDim: float,
         HessianImageType, ImageType].New()
     objectness_filter.SetBrightObject(True)
     objectness_filter.SetScaleObjectnessMeasure(False)
-    objectness_filter.SetAlpha(alpha)
-    objectness_filter.SetBeta(beta)
-    objectness_filter.SetGamma(gamma)
+    if alpha: objectness_filter.SetAlpha(alpha)
+    if beta: objectness_filter.SetBeta(beta)
+    if gamma: objectness_filter.SetGamma(gamma)
 
     # Set-up the Multi-scale Hessian filter
     multi_scale_filter = itk.MultiScaleHessianBasedMeasureImageFilter[
@@ -154,10 +156,10 @@ def fastmarching_segmentation(image: itk.Image, seed_mask: itk.Image,
                               nii_header: nib.nifti1.Nifti1Header,
                               logsDir: str,
                               gradientMagnitudeSigma: float = 0.01,
-                              sigmoidAlpha: float = -15,
+                              sigmoidAlpha: float = -15.0,
                               sigmoidBeta: float = 60.0,
                               timeThreshold: int = 100,
-                              stoppingTime: int = 100,
+                              stoppingTime: int = 10,
                               smoothInput: bool = False,
                               backupInterResults: bool = True) -> itk.Image:
     """
@@ -196,6 +198,14 @@ def fastmarching_segmentation(image: itk.Image, seed_mask: itk.Image,
         alpha=sigmoidAlpha, beta=sigmoidBeta
     )
 
+    # Set speed in non-brain to 0
+    speedMap_np = np.asarray(speedMap_image)
+    image_np = np.asarray(image_F)
+
+    speedMap_np[image_np < 1e-2 * np.mean(image_np)] = 0.
+
+    speedMap_image = itk.GetImageFromArray(speedMap_np)
+
     if backupInterResults:
         backup_result(speedMap_image, affine_matrix, nii_header,
                       os.path.join(logsDir, "4_2_speed_map_sigmoid.nii.gz"))
@@ -213,9 +223,9 @@ def fastmarching_segmentation(image: itk.Image, seed_mask: itk.Image,
     SeedPoints.Initialize()
 
     for i in range(np.shape(seed_idx)[1]):
-        id_x = int(seed_idx[0][i])
+        id_x = int(seed_idx[2][i])
         id_y = int(seed_idx[1][i])
-        id_z = int(seed_idx[2][i])
+        id_z = int(seed_idx[0][i])
 
         node = NodeType()
         node.SetIndex((id_x, id_y, id_z))
