@@ -155,12 +155,13 @@ def fastmarching_segmentation(image: itk.Image, seed_mask: itk.Image,
                               affine_matrix: np.ndarray,
                               nii_header: nib.nifti1.Nifti1Header,
                               logsDir: str,
-                              gradientMagnitudeSigma: float = 0.01,
+                              gradientMagnitudeSigma: float = 1e-2,
                               sigmoidAlpha: float = -15.0,
                               sigmoidBeta: float = 60.0,
-                              timeThreshold: int = 100,
-                              stoppingTime: int = 10,
+                              timeThreshold: int = 5,
+                              stoppingTime: int = 5,
                               smoothInput: bool = False,
+                              useGradientMagnitudeAsSpeed: bool = False,
                               backupInterResults: bool = True) -> itk.Image:
     """
     Here, we implement the fastmarching segmentation (ITK),
@@ -192,11 +193,20 @@ def fastmarching_segmentation(image: itk.Image, seed_mask: itk.Image,
                       os.path.join(logsDir, "4_1_gradient_magnitude.nii.gz"))
 
     # Calculate speed map by applying sigmoid filter to gradMag-image
-    speedMap_image = itk.sigmoid_image_filter(
-        gradientMagnitude_image,
-        output_minimum=0.0, output_maximum=1.0,
-        alpha=sigmoidAlpha, beta=sigmoidBeta
-    )
+    # or intensity image. Work in progress...
+    # TODO: Threshold gradient magnitude and use as no go-zones?
+    if useGradientMagnitudeAsSpeed:
+        speedMap_image = itk.sigmoid_image_filter(
+            gradientMagnitude_image,
+            output_minimum=0.0, output_maximum=1.0,
+            alpha=sigmoidAlpha, beta=sigmoidBeta
+        )
+    else:
+        speedMap_image = itk.sigmoid_image_filter(
+            smoothed_image,
+            output_minimum=0.0, output_maximum=1.0,
+            alpha=67.0, beta=500
+        )
 
     # Set speed in non-brain to 0
     speedMap_np = np.asarray(speedMap_image)
