@@ -9,7 +9,7 @@ from scipy.ndimage import affine_transform
 from util.nifti import load_nifti
 
 
-def backup_result(image: itk.image, aff: np.ndarray,
+def backup_result(image: itk.Image, aff: np.ndarray,
                   nii_header: nib.nifti1.Nifti1Header, filename: str):
     """
     This function may be used to back-up intermediate results
@@ -27,8 +27,8 @@ def backup_result(image: itk.image, aff: np.ndarray,
 
 
 def determine_intensity_sigmoid_params(
-        intensity_image: itk.image,
-        vessel_mask: itk.image) -> tuple[float, float]:
+        intensity_image: itk.Image,
+        vessel_mask: itk.Image) -> tuple[float, float]:
     """
     This function determines the appropriate alpha and beta
     for a sigmoid function. This sigmoid function should map
