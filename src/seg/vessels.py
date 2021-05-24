@@ -26,6 +26,36 @@ def backup_result(image: itk.image, aff: np.ndarray,
     nib.save(nii_backup, filename)
 
 
+def determine_intensity_sigmoid_params(
+        intensity_image: itk.image,
+        vessel_mask: itk.image) -> tuple[float, float]:
+    """
+    This function determines the appropriate alpha and beta
+    for a sigmoid function. This sigmoid function should map
+    vessel intensities to 1.0, while mapping everything else
+    to 0.0. We may later use this as a sort-of speed map for
+    a fast marching algorithm.
+    """
+
+    # Import images to numpy
+    intensity_array = np.asarray(intensity_image)
+    mask_array = np.asarray(vessel_mask)
+
+    # Obtain intensity values for vessel and non-vessel
+    vessel_array = intensity_array[mask_array != 0.0]
+    nonvessel_array = intensity_array[mask_array == 0.0]
+
+    # Calculate average intensities for vessel and non-vessel
+    K1 = np.mean(vessel_array)
+    K2 = np.mean(nonvessel_array[nonvessel_array != 0.0])
+
+    # Calculate alpha and beta
+    alpha = (K1 - K2) / 6
+    beta = (K1 + K2) / 2
+
+    return alpha, beta
+
+
 def anisotropic_diffusion_smoothing(image: itk.Image,
                                     timeStep: float = 0.05,
                                     nIter: int = 3,
@@ -156,8 +186,8 @@ def fastmarching_segmentation(image: itk.Image, seed_mask: itk.Image,
                               nii_header: nib.nifti1.Nifti1Header,
                               logsDir: str,
                               gradientMagnitudeSigma: float = 1e-2,
-                              sigmoidAlpha: float = -15.0,
-                              sigmoidBeta: float = 60.0,
+                              sigmoidAlpha: Optional[float] = None,
+                              sigmoidBeta: Optional[float] = None,
                               timeThreshold: int = 5,
                               stoppingTime: int = 5,
                               smoothInput: bool = False,
@@ -202,10 +232,16 @@ def fastmarching_segmentation(image: itk.Image, seed_mask: itk.Image,
             alpha=sigmoidAlpha, beta=sigmoidBeta
         )
     else:
+        # Calculate alpha, beta
+        if not sigmoidAlpha or not sigmoidBeta:
+            sigmoidAlpha, sigmoidBeta = \
+                determine_intensity_sigmoid_params(smoothed_image, seed_mask)
+
+        # Calculate speed map from intensities
         speedMap_image = itk.sigmoid_image_filter(
             smoothed_image,
             output_minimum=0.0, output_maximum=1.0,
-            alpha=67.0, beta=500
+            alpha=sigmoidAlpha, beta=sigmoidBeta
         )
 
     # Set speed in non-brain to 0
