@@ -1,3 +1,6 @@
+"""Utility module for style-related functionality"""
+
+
 class print_style:
     PURPLE = '\033[95m'
     CYAN = '\033[96m'

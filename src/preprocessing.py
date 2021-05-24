@@ -1,3 +1,12 @@
+"""DBSplan - Preprocessing module
+
+This module performs several tasks, which may all
+be called from the `preprocessing` function:
+- Create appropriate processing paths
+- Run dcm2niix (https://www.nitrc.org/plugins/mwiki/index.php/dcm2nii:MainPage)
+- Run FreeSurfer (https://surfer.nmr.mgh.harvard.edu/)
+"""
+
 # Path setup
 import os
 import sys

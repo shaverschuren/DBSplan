@@ -1,3 +1,11 @@
+"""DBSplan - CT Registration module
+
+This module performs the CT coregistration process.
+Here, we register all MRI scans and segmentation results to
+the pre-operative CT image.
+It may be called from the `registration_ct` function.
+"""
+
 # Path setup
 import os
 import sys

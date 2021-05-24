@@ -1,3 +1,9 @@
+"""DBSplan - MRI Registration module
+
+This module performs the MRI coregistration process.
+It may be called from the `registration_mri` function.
+"""
+
 # Path setup
 import os
 import sys

@@ -1,3 +1,5 @@
+"""Utility module for basic FSL-related functions"""
+
 import subprocess
 
 

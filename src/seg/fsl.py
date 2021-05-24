@@ -1,3 +1,5 @@
+"""Segmentation-related module for FSL processing"""
+
 import os
 import subprocess
 import shutil

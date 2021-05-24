@@ -1,3 +1,14 @@
+"""DBSplan - Initialization module
+
+This module performs several tasks, which may all
+be called from the `initialization` function:
+- Determine the OS of this device.
+- Extract settings and paths from the `config.json` file.
+- Setup settings dictionary .
+- Setup paths dictionary and check their validity.
+- Check the system for proper installs of FSL and FreeSurfer.
+"""
+
 # Path setup
 import os
 import sys

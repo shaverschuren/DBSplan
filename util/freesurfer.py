@@ -1,3 +1,5 @@
+"""Utility module for basic FreeSurfer-related functions"""
+
 import os
 import subprocess
 from typing import Union

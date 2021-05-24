@@ -1,3 +1,5 @@
+"""Utility module for system checks"""
+
 import subprocess
 
 

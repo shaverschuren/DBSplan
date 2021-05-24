@@ -1,3 +1,5 @@
+"""Sulcus segmentation"""
+
 import os
 import subprocess
 import nibabel as nib

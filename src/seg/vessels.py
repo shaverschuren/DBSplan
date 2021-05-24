@@ -1,3 +1,5 @@
+"""Vessel segmentation"""
+
 import os
 import itk
 import warnings

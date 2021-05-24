@@ -1,3 +1,5 @@
+"""Utility module for Nifti-related functions"""
+
 import numpy as np
 import nibabel as nib
 import subprocess

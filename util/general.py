@@ -1,3 +1,5 @@
+"""Utility module for general functions"""
+
 import sys
 import json
 

@@ -1,3 +1,14 @@
+"""DBSplan - Segmentation module
+
+This module performs several tasks, which may all
+be called from the `segmentation` function. Specific
+tasks are imported from the `seg` module.
+- Run FSL processing (https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/)
+- Segment ventricles -> seg.ventricles
+- Segment sulci -> seg.sulci
+- Segment vessels -> seg.vessels
+"""
+
 # Path setup
 import os
 import sys

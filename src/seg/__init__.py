@@ -1,1 +1,1 @@
-# Module for backend segmentation / mask manipulation
+"""Module for backend segmentation / mask manipulation"""
