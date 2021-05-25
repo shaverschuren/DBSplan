@@ -218,8 +218,8 @@ def fastmarching_segmentation(image: itk.Image, seed_mask: itk.Image,
                               intSigmoidBeta: Optional[float] = None,
                               edgeSigmoidAlpha: Optional[float] = None,
                               edgeSigmoidBeta: Optional[float] = None,
-                              timeThreshold: int = 10,
-                              stoppingTime: int = 10,
+                              timeThreshold: int = 20,
+                              stoppingTime: int = 20,
                               smoothInput: bool = False,
                               useOnlyGradientMagnitudeAsSpeed: bool = False,
                               backupInterResults: bool = True) -> itk.Image:
@@ -285,12 +285,10 @@ def fastmarching_segmentation(image: itk.Image, seed_mask: itk.Image,
         )
 
         # Multiply intensity and Laplacian images to find
-        # the final speed map. Take square root for normalisation
-        speedMap_image = itk.sqrt_image_filter(
-            itk.multiply_image_filter(
-                intensitySigmoid_image, laplacianSigmoid_image
+        # the final speed map
+        speedMap_image = itk.multiply_image_filter(
+            intensitySigmoid_image, laplacianSigmoid_image
             )
-        )
 
     # Set speed in non-brain to 0
     speedMap_np = np.asarray(speedMap_image)
