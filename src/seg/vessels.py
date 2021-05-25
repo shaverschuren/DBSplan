@@ -1,11 +1,11 @@
 """Vessel segmentation"""
 
 import os
-import itk
 import warnings
+from typing import Optional
+import itk
 import numpy as np
 import nibabel as nib
-from typing import Optional
 from tqdm import tqdm
 from scipy.ndimage import affine_transform
 from util.nifti import load_nifti
@@ -50,6 +50,33 @@ def determine_intensity_sigmoid_params(
     # Calculate average intensities for vessel and non-vessel
     K1 = np.mean(vessel_array)
     K2 = np.mean(nonvessel_array[nonvessel_array != 0.0])
+
+    # Calculate alpha and beta
+    alpha = (K1 - K2) / 6
+    beta = (K1 + K2) / 2
+
+    return alpha, beta
+
+
+def determine_edge_sigmoid_params(laplacian_image: itk.Image) \
+        -> tuple[float, float]:
+    """
+    This function determines the appropriate alpha and beta
+    for a sigmoid function. This sigmoid function should map
+    regions of constant intensity to 1.0, while mapping regions
+    with high intensity gradients to 0.0.
+    """
+
+    # Import image to numpy
+    image_array = np.asarray(laplacian_image)
+
+    # Obtain max and min values
+    max_edgeness = np.percentile(image_array, 95)
+    min_edgeness = np.percentile(image_array, 5)
+
+    # Calculate average intensities for vessel and non-vessel
+    K1 = min_edgeness
+    K2 = max_edgeness
 
     # Calculate alpha and beta
     alpha = (K1 - K2) / 6
@@ -187,13 +214,14 @@ def fastmarching_segmentation(image: itk.Image, seed_mask: itk.Image,
                               affine_matrix: np.ndarray,
                               nii_header: nib.nifti1.Nifti1Header,
                               logsDir: str,
-                              gradientMagnitudeSigma: float = 1e-2,
-                              sigmoidAlpha: Optional[float] = None,
-                              sigmoidBeta: Optional[float] = None,
-                              timeThreshold: int = 5,
-                              stoppingTime: int = 5,
+                              intSigmoidAlpha: Optional[float] = None,
+                              intSigmoidBeta: Optional[float] = None,
+                              edgeSigmoidAlpha: Optional[float] = None,
+                              edgeSigmoidBeta: Optional[float] = None,
+                              timeThreshold: int = 10,
+                              stoppingTime: int = 10,
                               smoothInput: bool = False,
-                              useGradientMagnitudeAsSpeed: bool = False,
+                              useOnlyGradientMagnitudeAsSpeed: bool = False,
                               backupInterResults: bool = True) -> itk.Image:
     """
     Here, we implement the fastmarching segmentation (ITK),
@@ -214,36 +242,54 @@ def fastmarching_segmentation(image: itk.Image, seed_mask: itk.Image,
     else:
         smoothed_image = image_F
 
-    # Calculate gradient magnitude image (used later as speed map)
-    gradientMagnitude_image = \
-        itk.gradient_magnitude_recursive_gaussian_image_filter(
-            smoothed_image, sigma=gradientMagnitudeSigma / avg_vox_dim
+    # Calculate Laplacian of the image (used later as part of speed map)
+    laplacianEdge_image = \
+        itk.laplacian_image_filter(
+            smoothed_image
         )
 
     if backupInterResults:
-        backup_result(gradientMagnitude_image, affine_matrix, nii_header,
+        backup_result(laplacianEdge_image, affine_matrix, nii_header,
                       os.path.join(logsDir, "4_1_gradient_magnitude.nii.gz"))
 
     # Calculate speed map by applying sigmoid filter to gradMag-image
-    # or intensity image. Work in progress...
-    # TODO: Threshold gradient magnitude and use as no go-zones?
-    if useGradientMagnitudeAsSpeed:
+    # and intensity image
+    if useOnlyGradientMagnitudeAsSpeed:
         speedMap_image = itk.sigmoid_image_filter(
-            gradientMagnitude_image,
+            laplacianEdge_image,
             output_minimum=0.0, output_maximum=1.0,
-            alpha=sigmoidAlpha, beta=sigmoidBeta
+            alpha=edgeSigmoidAlpha, beta=edgeSigmoidBeta
         )
     else:
-        # Calculate alpha, beta
-        if not sigmoidAlpha or not sigmoidBeta:
-            sigmoidAlpha, sigmoidBeta = \
+        # Calculate alpha, beta for both edges and intensity maps
+        if not intSigmoidAlpha or not intSigmoidBeta:
+            intSigmoidAlpha, intSigmoidBeta = \
                 determine_intensity_sigmoid_params(smoothed_image, seed_mask)
 
-        # Calculate speed map from intensities
-        speedMap_image = itk.sigmoid_image_filter(
+        if not edgeSigmoidAlpha or not edgeSigmoidBeta:
+            edgeSigmoidAlpha, edgeSigmoidBeta = \
+                determine_edge_sigmoid_params(laplacianEdge_image)
+
+        # Calculate sigmoid for intensities
+        intensitySigmoid_image = itk.sigmoid_image_filter(
             smoothed_image,
             output_minimum=0.0, output_maximum=1.0,
-            alpha=sigmoidAlpha, beta=sigmoidBeta
+            alpha=intSigmoidAlpha, beta=intSigmoidBeta
+        )
+
+        # Calculate sigmoid for Laplacian edge detection
+        laplacianSigmoid_image = itk.sigmoid_image_filter(
+            laplacianEdge_image,
+            output_minimum=0.0, output_maximum=1.0,
+            alpha=edgeSigmoidAlpha, beta=edgeSigmoidBeta
+        )
+
+        # Multiply intensity and Laplacian images to find
+        # the final speed map. Take square root for normalisation
+        speedMap_image = itk.sqrt_image_filter(
+            itk.multiply_image_filter(
+                intensitySigmoid_image, laplacianSigmoid_image
+            )
         )
 
     # Set speed in non-brain to 0
