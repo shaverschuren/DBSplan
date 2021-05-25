@@ -149,7 +149,7 @@ def extract_ventricles_fs(aparc_aseg_path: str, ventricles_mask_path: str):
     ventricles_mask_path --> path to to-be-created ventricles .nii mask.
     """
 
-    ventricle_labels = [4, 43]
+    ventricle_labels = [4, 5, 43, 44]
 
     extract_tissues(aparc_aseg_path, ventricles_mask_path, ventricle_labels)
 
