@@ -288,7 +288,7 @@ def fastmarching_segmentation(image: itk.Image, seed_mask: itk.Image,
         # the final speed map
         speedMap_image = itk.multiply_image_filter(
             intensitySigmoid_image, laplacianSigmoid_image
-            )
+        )
 
     # Set speed in non-brain to 0
     speedMap_np = np.asarray(speedMap_image)
