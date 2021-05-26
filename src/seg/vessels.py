@@ -1,7 +1,6 @@
 """Vessel segmentation"""
 
 import os
-import warnings
 from typing import Optional
 import itk
 import numpy as np

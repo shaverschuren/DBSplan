@@ -3,9 +3,10 @@
 import os
 import subprocess
 import shutil
-from tqdm import tqdm
+from typing import Optional
 from glob import glob
 from datetime import datetime
+from tqdm import tqdm
 from util.general import append_logs
 
 
@@ -78,7 +79,8 @@ def generate_fsl_paths(paths: dict, settings: dict) -> tuple[list, dict]:
 
 
 def fsl_bet(fsl_paths: list, paths: dict, settings: dict,
-            reset: bool = True) -> tuple[dict, dict]:
+            reset: bool = True, fractional_intensity: Optional[float] = 0.2,
+            vertical_gradient: Optional[float] = -0.1) -> tuple[dict, dict]:
     """
     This function runs the FSL BET module for all relevant images,
     as is described at https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/BET.
@@ -87,7 +89,6 @@ def fsl_bet(fsl_paths: list, paths: dict, settings: dict,
     """
 
     # Extract relevant info
-    subject = fsl_paths[0]
     path_ori = fsl_paths[3]
     path_bet = fsl_paths[4]
 
@@ -95,7 +96,12 @@ def fsl_bet(fsl_paths: list, paths: dict, settings: dict,
     if reset and os.path.exists(path_bet): os.remove(path_bet)
 
     # Assemble command
-    command = ["bet", path_ori, path_bet]
+    command = ["bet", path_ori, path_bet, "-R"]
+
+    if fractional_intensity:
+        command.extend(["-f", str(fractional_intensity)])
+    if vertical_gradient:
+        command.extend(["-g", str(vertical_gradient)])
 
     # Open stream and pass command
     recon_stream = subprocess.Popen(command, stdout=subprocess.PIPE,
@@ -104,6 +110,11 @@ def fsl_bet(fsl_paths: list, paths: dict, settings: dict,
     msg, error = recon_stream.communicate()
     # End stream
     recon_stream.terminate()
+
+    if error:
+        raise UserWarning(
+            f"FSL broke with error message:\n{error.decode('utf-8')}"
+        )
 
     # Store output in logs (timed)
     now = datetime.now()
@@ -162,6 +173,11 @@ def fsl_fast(fsl_paths: list, paths: dict, settings: dict,
     msg, error = recon_stream.communicate()
     # End stream
     recon_stream.terminate()
+
+    if error:
+        raise UserWarning(
+            f"FSL broke with error message:\n{error.decode('utf-8')}"
+        )
 
     # Restructure output files
     fastDir = os.path.join(paths["fsl_paths"][subject]["dir"], "fast_raw")
@@ -236,7 +252,6 @@ def process_fsl(paths: dict, settings: dict,
         else:
             # Skip this subject
             if settings["resetModules"][2] == 0:
-                command = "---"
                 output = "Output files are already there. Skipping..."
                 skipped_img = True
                 # Store output in logs (timed)
