@@ -171,12 +171,11 @@ def hessian_vesselness(image: itk.Image, voxDim: float,
     return vesselness_img
 
 
-def vesselness_thresholding(image: itk.Image, threshold: float = 1.5,
+def vesselness_thresholding(image: itk.Image, percentile: float = 95.,
                             nonzeros: bool = True) -> itk.Image:
     """
     This function thresholds the vesselness map.
-    The threshold is set to the mean +/- a certain times (param: threshold)
-    the std.
+    The threshold is set to a certain percentile (param)
     """
 
     # Import vesselness image to numpy
@@ -185,20 +184,11 @@ def vesselness_thresholding(image: itk.Image, threshold: float = 1.5,
 
     # Determine threshold
     if nonzeros:
-        mean = np.mean(vesselness_as_np[vesselness_as_np > 1e-4])
-        std = np.std(vesselness_as_np[vesselness_as_np > 1e-4])
+        abs_threshold = \
+            np.percentile(vesselness_as_np[vesselness_as_np > 1e-4],
+                          percentile)
     else:
-        mean = np.mean(vesselness_as_np)
-        std = np.std(vesselness_as_np)
-
-    abs_threshold = mean + threshold * std
-
-    # Check whether threshold is appropriate
-    if abs_threshold > np.max(vesselness_as_np):
-        warnings.warn("The vesselness threshold is higher than "
-                      "the maximal vesselness value:\n"
-                      f"{abs_threshold:.2f} > {np.max(vesselness_as_np):.2f}"
-                      "\nPlease adjust the threshold manually.")
+        abs_threshold = np.percentile(vesselness_as_np, percentile)
 
     # Threshold image
     vesselness_as_np[vesselness_as_np < abs_threshold] = 0.
