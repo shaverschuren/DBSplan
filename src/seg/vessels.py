@@ -330,7 +330,7 @@ def fastmarching_segmentation(image: itk.Image, seed_mask: itk.Image,
         outside_value=0.0, inside_value=1.0
     )
 
-    return image_out, speedMap_image
+    return image_out, laplacianSigmoid_image
 
 
 def levelset_segmentation(seed_image: itk.Image,
@@ -355,11 +355,12 @@ def levelset_segmentation(seed_image: itk.Image,
     )
 
     # Threshold image
-    image_out = itk.binary_threshold_image_filter(
-        levelSet_image,
-        lower_threshold=0.0,
-        outside_value=0.0, inside_value=1.0
-    )
+    # image_out = itk.binary_threshold_image_filter(
+    #     levelSet_image,
+    #     lower_threshold=0.0,
+    #     outside_value=0.0, inside_value=1.0
+    # )
+    image_out = levelSet_image
 
     return image_out
 
