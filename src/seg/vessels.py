@@ -330,13 +330,45 @@ def fastmarching_segmentation(image: itk.Image, seed_mask: itk.Image,
         outside_value=0.0, inside_value=1.0
     )
 
+    return image_out, laplacianSigmoid_image
+
+
+def levelset_segmentation(seed_image: itk.Image,
+                          feature_image: itk.Image) -> itk.Image:
+    """
+    Here, we implement the levelset segmentation (ITK),
+    as is documented (for C++) at:
+    https://itk.org/Doxygen/html/classitk_1_1GeodesicActiveContourLevelSetImageFilter.html
+    """
+
+    # Cast images to itk.F
+    seed_image_F = seed_image.astype(itk.F)
+    feature_image_F = feature_image.astype(itk.F)
+    ImageType = itk.Image[itk.F, seed_image.GetImageDimension()]
+
+    # Calculate initial level set
+    initial_level_set = seed_image_F
+
+    # Apply geodesic active contour level-set filter
+    levelSet_image = itk.geodesic_active_contour_level_set_image_filter(
+        initial_level_set, feature_image_F, derivative_sigma=0.01
+    )
+
+    # Threshold image
+    # image_out = itk.binary_threshold_image_filter(
+    #     levelSet_image,
+    #     lower_threshold=0.0,
+    #     outside_value=0.0, inside_value=1.0
+    # )
+    image_out = levelSet_image
+
     return image_out
 
 
-def levelset_segmentation(image: np.ndarray,
-                          affine_matrix: np.ndarray,
-                          nii_header: nib.nifti1.Nifti1Header,
-                          logsDir: str) -> np.ndarray:
+def neumann_segmentation(image: np.ndarray,
+                         affine_matrix: np.ndarray,
+                         nii_header: nib.nifti1.Nifti1Header,
+                         logsDir: str) -> np.ndarray:
     """
     This function implements the *LevelSet* vessel segmentation
     method, as is described by Neumann et al., 2019
@@ -390,12 +422,22 @@ def levelset_segmentation(image: np.ndarray,
     # --- FastMarching segmentation ---
 
     # Apply filter
-    fastmarching_img = fastmarching_segmentation(
+    fastmarching_img, speed_img = fastmarching_segmentation(
         smoothed_img, thresholded_img, affine_matrix, nii_header, logsDir
     )
     # Backup image
     backup_result(fastmarching_img, affine_matrix, nii_header,
                   os.path.join(logsDir, "4_fastmarching_segmentation.nii.gz"))
+
+    # --- LevelSet segmentation ---
+
+    # Apply filter
+    levelset_img = levelset_segmentation(
+        fastmarching_img, speed_img
+    )
+    # Backup image
+    backup_result(levelset_img, affine_matrix, nii_header,
+                  os.path.join(logsDir, "5_levelset_segmentation.nii.gz"))
 
     # Export to numpy
     mask = itk.GetArrayFromImage(thresholded_img)
@@ -432,7 +474,7 @@ def extract_vessels(seg_paths: dict):
     T1w_gado[T1w_bet < 1e-2] = 0
 
     # LevelSet vessel extraction
-    raw_mask = levelset_segmentation(T1w_gado, ori_aff, ori_hdr, logsDir)
+    raw_mask = neumann_segmentation(T1w_gado, ori_aff, ori_hdr, logsDir)
 
     # Clean up mask
     vessel_mask = raw_mask
