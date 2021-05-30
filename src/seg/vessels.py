@@ -117,7 +117,7 @@ def anisotropic_diffusion_smoothing(image: itk.Image,
 
 
 def hessian_vesselness(image: itk.Image, voxDim: float,
-                       sigmaRange: list = [0.1, 1.0], nSteps: int = 10,
+                       sigmaRange: tuple = (0.1, 1.0), nSteps: int = 10,
                        alpha: Optional[float] = 0.5,
                        beta: Optional[float] = 0.5,
                        gamma: Optional[float] = 20.0) -> itk.Image:
