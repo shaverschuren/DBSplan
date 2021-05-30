@@ -1,3 +1,10 @@
+"""DBSplan - Main module
+
+This module simply runs through the entire
+DBSplan pipeline. One may call it by running `main`.
+Settings are provided in the `config.json` file.
+"""
+
 # Path setup
 import os
 import sys
