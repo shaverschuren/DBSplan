@@ -52,10 +52,6 @@ def finalize_segmentation(paths: dict, settings: dict, verbose: bool = True) \
     # Loop through all subjects
     for subject, subject_paths in paths["seg_paths"].items():
 
-        # Define final mask path
-        mask_path = os.path.join(subject_paths["dir"], "final_mask.nii.gz")
-        paths["seg_paths"][subject]["final_mask"] = mask_path
-
         # Now, check whether all relevant files are there
         dict_ok = all(
             (item in subject_paths) for item in required_paths
@@ -73,6 +69,10 @@ def finalize_segmentation(paths: dict, settings: dict, verbose: bool = True) \
                 "e.g. by removing tmpDir/segmentation or by setting "
                 "resetModules[2] to 1 in the config.json file."
             )
+
+        # Define final mask path
+        mask_path = os.path.join(subject_paths["dir"], "final_mask.nii.gz")
+        paths["seg_paths"][subject]["final_mask"] = mask_path
 
         # If it doesn't already exist, combine masks
         if not os.path.exists(mask_path):
@@ -112,12 +112,12 @@ def finalize_segmentation(paths: dict, settings: dict, verbose: bool = True) \
                 )
 
             # Combine masks
-            final_mask[ventricle_mask != 0.0] = 1.0
-            final_mask[sulcus_mask != 0.0] = 1.0
-            final_mask[vessel_mask != 0.0] = 1.0
+            final_mask[ventricle_mask > 1e-2] = 1.0
+            final_mask[sulcus_mask > 1e-2] = 1.0
+            final_mask[vessel_mask > 1e-2] = 1.0
 
             # Save final mask
-            nii_mask = nib.Nifti1Image(vessel_mask, vess_aff, hdr)
+            nii_mask = nib.Nifti1Image(final_mask, vent_aff, hdr)
             nib.save(nii_mask, mask_path)
 
     return paths, settings
