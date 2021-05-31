@@ -112,9 +112,9 @@ def finalize_segmentation(paths: dict, settings: dict, verbose: bool = True) \
                 )
 
             # Combine masks
-            final_mask[ventricle_mask > 1e-2] = 1.0
-            final_mask[sulcus_mask > 1e-2] = 1.0
-            final_mask[vessel_mask > 1e-2] = 1.0
+            final_mask[ventricle_mask > 1e-1] = 1.0
+            final_mask[sulcus_mask > 1e-1] = 1.0
+            final_mask[vessel_mask > 1e-1] = 1.0
 
             # Save final mask
             nii_mask = nib.Nifti1Image(final_mask, vent_aff, hdr)
