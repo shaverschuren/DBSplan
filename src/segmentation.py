@@ -53,7 +53,11 @@ def finalize_segmentation(paths: dict, settings: dict, verbose: bool = True) \
     # Loop through all subjects
     for subject, subject_paths in paths["seg_paths"].items():
 
-        # Firstly, check whether all relevant files are there
+        # Define final mask path
+        mask_path = os.path.join(subject_paths["dir"], "final_mask.nii.gz")
+        paths["seg_paths"][subject]["final_mask"] = mask_path
+
+        # Now, check whether all relevant files are there
         dict_ok = all([
             (item in subject_paths) for item in required_paths
         ])
@@ -71,49 +75,47 @@ def finalize_segmentation(paths: dict, settings: dict, verbose: bool = True) \
                 "resetModules[2] to 1 in the config.json file."
             )
 
-        # Now, load all partial masks
-        ventricle_mask, vent_aff, hdr = \
-            load_nifti(subject_paths["ventricle_mask"])
-        sulcus_mask, sulc_aff, _ = \
-            load_nifti(subject_paths["sulcus_mask"])
-        vessel_mask, vess_aff, _ = \
-            load_nifti(subject_paths["vessel_mask"])
+        # If it doesn't already exist, combine masks
+        if not os.path.exists(mask_path):
+            # Now, load all partial masks
+            ventricle_mask, vent_aff, hdr = \
+                load_nifti(subject_paths["ventricle_mask"])
+            sulcus_mask, sulc_aff, _ = \
+                load_nifti(subject_paths["sulcus_mask"])
+            vessel_mask, vess_aff, _ = \
+                load_nifti(subject_paths["vessel_mask"])
 
-        # Transform all masks to appropriate space
-        sulc_translation = (np.linalg.inv(sulc_aff)).dot(vent_aff)
-        vess_translation = (np.linalg.inv(vess_aff)).dot(vent_aff)
+            # Transform all masks to appropriate space
+            sulc_translation = (np.linalg.inv(sulc_aff)).dot(vent_aff)
+            vess_translation = (np.linalg.inv(vess_aff)).dot(vent_aff)
 
-        sulcus_mask = affine_transform(sulcus_mask, sulc_translation,
-                                       output_shape=np.shape(ventricle_mask))
-        vessel_mask = affine_transform(vessel_mask, vess_translation,
-                                       output_shape=np.shape(ventricle_mask))
+            sulcus_mask = affine_transform(sulcus_mask, sulc_translation,
+                                        output_shape=np.shape(ventricle_mask))
+            vessel_mask = affine_transform(vessel_mask, vess_translation,
+                                        output_shape=np.shape(ventricle_mask))
 
-        shapes_ok = (
-            (np.shape(ventricle_mask) == np.shape(sulcus_mask)) and
-            (np.shape(sulcus_mask) == np.shape(vessel_mask))
-        )
-        if shapes_ok:
-            final_mask = np.zeros(np.shape(ventricle_mask))
-        else:
-            raise ValueError(
-                "The ventricle, sulcus and vessel masks are not the same size!"
-                f"\nVentricle mask: {np.shape(ventricle_mask)}"
-                f"\nSulcus mask:    {np.shape(sulcus_mask)}"
-                f"\nVessel mask:    {np.shape(vessel_mask)}"
+            shapes_ok = (
+                (np.shape(ventricle_mask) == np.shape(sulcus_mask)) and
+                (np.shape(sulcus_mask) == np.shape(vessel_mask))
             )
+            if shapes_ok:
+                final_mask = np.zeros(np.shape(ventricle_mask))
+            else:
+                raise ValueError(
+                    "The ventricle, sulcus and vessel masks are not the same size!"
+                    f"\nVentricle mask: {np.shape(ventricle_mask)}"
+                    f"\nSulcus mask:    {np.shape(sulcus_mask)}"
+                    f"\nVessel mask:    {np.shape(vessel_mask)}"
+                )
 
-        # Combine masks
-        final_mask[ventricle_mask != 0.0] = 1.0
-        final_mask[sulcus_mask != 0.0] = 1.0
-        final_mask[vessel_mask != 0.0] = 1.0
+            # Combine masks
+            final_mask[ventricle_mask != 0.0] = 1.0
+            final_mask[sulcus_mask != 0.0] = 1.0
+            final_mask[vessel_mask != 0.0] = 1.0
 
-        # Manage final mask path
-        mask_path = os.path.join(subject_paths["dir"], "final_mask.nii.gz")
-        paths["seg_paths"][subject]["final_mask"] = mask_path
-
-        # Save final mask
-        nii_mask = nib.Nifti1Image(vessel_mask, vess_aff, hdr)
-        nib.save(nii_mask, mask_path)
+            # Save final mask
+            nii_mask = nib.Nifti1Image(vessel_mask, vess_aff, hdr)
+            nib.save(nii_mask, mask_path)
 
     return paths, settings
 
