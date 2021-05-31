@@ -169,6 +169,12 @@ def setup_paths(config_data: dict) -> tuple[dict, bool]:
         else:
             pass
 
+    # Create temp directory in tempDir
+    temp_path = os.path.join(paths["tmpDataDir"], "temp")
+    paths["temp"] = temp_path
+    if not os.path.exists(temp_path): os.mkdir(temp_path)
+
+    # Check paths
     correct_bool = check_paths(paths)
 
     return paths, correct_bool

@@ -26,12 +26,12 @@ def extract_sulci_fs(seg_paths: dict):
     """
 
     # --- Extract appropriate paths for sulc and curv ---
-    sulc = {"nii": seg_paths["sulcus_mask"].replace("sulcus_mask", "sulc_vol"),
+    sulc = {"nii": seg_paths["sulc_vol"],
             "ribbon": seg_paths["ribbon"],
             "rh_surf": seg_paths["rh_sulc"],
             "lh_surf": seg_paths["lh_sulc"],
             "threshold": -3.0}
-    curv = {"nii": seg_paths["sulcus_mask"].replace("sulcus_mask", "curv_vol"),
+    curv = {"nii": seg_paths["curv_vol"],
             "ribbon": seg_paths["ribbon"],
             "rh_surf": seg_paths["rh_curv"],
             "lh_surf": seg_paths["lh_curv"],
@@ -145,18 +145,25 @@ def fsl_seg_sulci(paths: dict, settings: dict, verbose: bool = True) \
     seg_paths = []
 
     for subject, fsl_paths in paths["fsl_paths"].items():
-        # Create subject dict
+        # Create subject dir and raw subject dir
         subjectDir = os.path.join(paths["segDir"], subject)
         if not os.path.isdir(subjectDir): os.mkdir(subjectDir)
 
-        paths["seg_paths"][subject] = {"dir": subjectDir}
+        rawDir = os.path.join(subjectDir, "raw")
+        if not os.path.isdir(rawDir): os.mkdir(rawDir)
+
+        if subject not in paths["seg_paths"]:
+            paths["seg_paths"][subject] = {
+                "dir": subjectDir,
+                "raw": rawDir
+            }
 
         # Extract fsl path
         t1w_cor_path = fsl_paths["fast_corr"]
         csf_pve_path = fsl_paths["fast_csf"]
 
         # Assemble segmentation paths
-        csf_mask_path = os.path.join(subjectDir, "csf_mask.nii.gz")
+        csf_mask_path = os.path.join(rawDir, "csf_mask.nii.gz")
         sulcus_mask_path = os.path.join(subjectDir, "sulcus_mask.nii.gz")
 
         # Add paths to {paths}
@@ -217,12 +224,18 @@ def fs_seg_sulci(paths: dict, settings: dict, verbose: bool = True) \
     seg_paths = []
 
     for subject, fs_path in paths["fs_paths"].items():
-        # Create subject dict
+        # Create subject dir and raw subject dir
         subjectDir = os.path.join(paths["segDir"], subject)
         if not os.path.isdir(subjectDir): os.mkdir(subjectDir)
 
+        rawDir = os.path.join(subjectDir, "raw")
+        if not os.path.isdir(rawDir): os.mkdir(rawDir)
+
         if subject not in paths["seg_paths"]:
-            paths["seg_paths"][subject] = {"dir": subjectDir}
+            paths["seg_paths"][subject] = {
+                "dir": subjectDir,
+                "raw": rawDir
+            }
 
         # Define needed FreeSurfer paths
         T1_path = os.path.join(fs_path, "nifti", "T1.nii.gz")
@@ -235,7 +248,7 @@ def fs_seg_sulci(paths: dict, settings: dict, verbose: bool = True) \
         rh_sulc_path = os.path.join(fs_path, "surf", "rh.sulc")
 
         fsl_csf_path = os.path.join(paths["fsl_paths"][subject]["fast_csf"])
-        csf_coreg_path = os.path.join(subjectDir, "fast_csf_coreg.nii.gz")
+        csf_coreg_path = os.path.join(rawDir, "fast_csf_coreg.nii.gz")
 
         ventricle_mask_path = paths["seg_paths"][subject]["ventricle_mask"]
 
@@ -258,7 +271,9 @@ def fs_seg_sulci(paths: dict, settings: dict, verbose: bool = True) \
                         "csf": fsl_csf_path,
                         "csf_coreg": csf_coreg_path,
                         "ventricles": ventricle_mask_path,
-                        "sulcus_mask": sulcus_mask_path}
+                        "sulcus_mask": sulcus_mask_path,
+                        "sulc_vol": os.path.join(rawDir, "sulc_vol.nii.gz"),
+                        "curv_vol": os.path.join(rawDir, "curv_vol.nii.gz")}
 
         seg_paths.append(subject_dict)
 

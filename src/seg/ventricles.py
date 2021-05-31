@@ -170,18 +170,25 @@ def fsl_seg_ventricles(paths: dict, settings: dict, verbose: bool = True) \
     seg_paths = []
 
     for subject, fsl_paths in paths["fsl_paths"].items():
-        # Create subject dict
+        # Create subject dir and raw subject dir
         subjectDir = os.path.join(paths["segDir"], subject)
         if not os.path.isdir(subjectDir): os.mkdir(subjectDir)
 
-        paths["seg_paths"][subject] = {"dir": subjectDir}
+        rawDir = os.path.join(subjectDir, "raw")
+        if not os.path.isdir(rawDir): os.mkdir(rawDir)
+
+        if subject not in paths["seg_paths"]:
+            paths["seg_paths"][subject] = {
+                "dir": subjectDir,
+                "raw": rawDir
+            }
 
         # Extract fsl path
         t1w_cor_path = fsl_paths["fast_corr"]
         csf_pve_path = fsl_paths["fast_csf"]
 
         # Assemble segmentation paths
-        csf_mask_path = os.path.join(subjectDir, "csf_mask.nii.gz")
+        csf_mask_path = os.path.join(rawDir, "csf_mask.nii.gz")
         ventricle_mask_path = os.path.join(subjectDir, "ventricle_mask.nii.gz")
 
         # Add paths to {paths}
@@ -247,12 +254,18 @@ def fs_seg_ventricles(paths: dict, settings: dict, verbose: bool = True) \
     seg_paths = []
 
     for subject, fs_path in paths["fs_paths"].items():
-        # Create subject dict
+        # Create subject dir and raw subject dir
         subjectDir = os.path.join(paths["segDir"], subject)
         if not os.path.isdir(subjectDir): os.mkdir(subjectDir)
 
+        rawDir = os.path.join(subjectDir, "raw")
+        if not os.path.isdir(rawDir): os.mkdir(rawDir)
+
         if subject not in paths["seg_paths"]:
-            paths["seg_paths"][subject] = {"dir": subjectDir}
+            paths["seg_paths"][subject] = {
+                "dir": subjectDir,
+                "raw": rawDir
+            }
 
         # Define needed FreeSurfer paths
         t1w_mgz_path = os.path.join(fs_path, "mri", "T1.mgz")
@@ -266,7 +279,7 @@ def fs_seg_ventricles(paths: dict, settings: dict, verbose: bool = True) \
             os.mkdir(os.path.join(fs_path, "nifti"))
 
         # Assemble segmentation path
-        label_seg_path = os.path.join(subjectDir, "fs_aparc+aseg.nii.gz")
+        label_seg_path = os.path.join(rawDir, "fs_aparc+aseg.nii.gz")
         ventricle_mask_path = os.path.join(subjectDir, "ventricle_mask.nii.gz")
 
         # Add paths to {paths}

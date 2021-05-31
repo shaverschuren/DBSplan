@@ -468,7 +468,7 @@ def extract_vessels(seg_paths: dict):
 
     # Transform CSF/BET masks to T1w-gado array space
     bet_translation = (np.linalg.inv(bet_aff)).dot(ori_aff)
-    csf_translation = (np.linalg.inv(csf_aff)).dot(csf_aff)
+    csf_translation = (np.linalg.inv(csf_aff)).dot(ori_aff)
 
     T1w_bet = affine_transform(T1w_bet, bet_translation,
                                output_shape=np.shape(T1w_gado))
@@ -519,17 +519,22 @@ def seg_vessels(paths: dict, settings: dict, verbose: bool = True):
     seg_paths = []
 
     for subject in paths["nii_paths"]:
-        # Create subject dict
+        # Create subject dir and raw subject dir
         subjectDir = os.path.join(paths["segDir"], subject)
         if not os.path.isdir(subjectDir): os.mkdir(subjectDir)
 
-        # Create backup dict
-        backupDir = os.path.join(subjectDir, "vessel_debug")
-        if not os.path.isdir(backupDir): os.mkdir(backupDir)
+        rawDir = os.path.join(subjectDir, "raw")
+        if not os.path.isdir(rawDir): os.mkdir(rawDir)
 
-        # Create subject dict in paths dict
         if subject not in paths["seg_paths"]:
-            paths["seg_paths"][subject] = {"dir": subjectDir}
+            paths["seg_paths"][subject] = {
+                "dir": subjectDir,
+                "raw": rawDir
+            }
+
+        # Create backup dict
+        backupDir = os.path.join(rawDir, "vessel_debug")
+        if not os.path.isdir(backupDir): os.mkdir(backupDir)
 
         # Define needed paths (originals + FSL-processed)
         T1_path = paths["nii_paths"][subject]["MRI_T1W"]
