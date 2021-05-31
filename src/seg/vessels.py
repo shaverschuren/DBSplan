@@ -5,6 +5,7 @@ from typing import Optional
 import itk
 import numpy as np
 import nibabel as nib
+import skimage.morphology as morph
 from tqdm import tqdm
 from scipy.ndimage import affine_transform
 from util.nifti import load_nifti
@@ -207,8 +208,8 @@ def fastmarching_segmentation(image: itk.Image, seed_mask: itk.Image,
                               intSigmoidBeta: Optional[float] = None,
                               edgeSigmoidAlpha: Optional[float] = None,
                               edgeSigmoidBeta: Optional[float] = None,
-                              timeThreshold: int = 20,
-                              stoppingTime: int = 20,
+                              timeThreshold: int = 30,
+                              stoppingTime: int = 30,
                               smoothInput: bool = False,
                               useOnlyGradientMagnitudeAsSpeed: bool = False,
                               backupInterResults: bool = True) -> itk.Image:
@@ -344,23 +345,27 @@ def levelset_segmentation(seed_image: itk.Image,
     # Cast images to itk.F
     seed_image_F = seed_image.astype(itk.F)
     feature_image_F = feature_image.astype(itk.F)
-    ImageType = itk.Image[itk.F, seed_image.GetImageDimension()]
 
     # Calculate initial level set
-    initial_level_set = seed_image_F
+    initial_level_set = itk.binary_threshold_image_filter(
+        seed_image_F,
+        lower_threshold=0.1,
+        outside_value=1.0, inside_value=-1.0
+    )
 
     # Apply geodesic active contour level-set filter
     levelSet_image = itk.geodesic_active_contour_level_set_image_filter(
-        initial_level_set, feature_image_F, derivative_sigma=0.01
+        initial_level_set, feature_image_F,
+        number_of_iterations=20, propagation_scaling=-0.5,
+        advection_scaling=1.0, curvature_scaling=1.0
     )
 
     # Threshold image
-    # image_out = itk.binary_threshold_image_filter(
-    #     levelSet_image,
-    #     lower_threshold=0.0,
-    #     outside_value=0.0, inside_value=1.0
-    # )
-    image_out = levelSet_image
+    image_out = itk.binary_threshold_image_filter(
+        levelSet_image,
+        lower_threshold=0.0,
+        outside_value=1.0, inside_value=0.0
+    )
 
     return image_out
 
@@ -429,18 +434,18 @@ def neumann_segmentation(image: np.ndarray,
     backup_result(fastmarching_img, affine_matrix, nii_header,
                   os.path.join(logsDir, "4_fastmarching_segmentation.nii.gz"))
 
-    # --- LevelSet segmentation ---
+    # # --- LevelSet segmentation ---
 
-    # Apply filter
-    levelset_img = levelset_segmentation(
-        fastmarching_img, speed_img
-    )
-    # Backup image
-    backup_result(levelset_img, affine_matrix, nii_header,
-                  os.path.join(logsDir, "5_levelset_segmentation.nii.gz"))
+    # # Apply filter
+    # levelset_img = levelset_segmentation(
+    #     fastmarching_img, speed_img
+    # )
+    # # Backup image
+    # backup_result(levelset_img, affine_matrix, nii_header,
+    #               os.path.join(logsDir, "5_levelset_segmentation.nii.gz"))
 
     # Export to numpy
-    mask = itk.GetArrayFromImage(thresholded_img)
+    mask = itk.GetArrayFromImage(fastmarching_img)
     mask = np.moveaxis(mask, [0, 1, 2], [2, 1, 0])
 
     return mask
@@ -479,11 +484,17 @@ def extract_vessels(seg_paths: dict):
     # Clean up mask
     vessel_mask = raw_mask
     vessel_mask[T1w_bet < 1e-2] = 0   # Remove non-brain
-    # vessel_mask[csf_mask > 1e-2] = 0  # Remove CSF
+
+    # Prepare morphological operations
+    avg_vox_dim = np.mean((ori_aff.diagonal())[:-1])
+
+    # Perform closing
+    element = morph.ball(int(2 / avg_vox_dim))
+    vessel_mask = morph.closing(vessel_mask, element)
 
     # Save vessel mask
-    nii_mask = nib.Nifti1Image(raw_mask, ori_aff, ori_hdr)
-    # nib.save(nii_mask, seg_paths["vessel_mask"])
+    nii_mask = nib.Nifti1Image(vessel_mask, ori_aff, ori_hdr)
+    nib.save(nii_mask, seg_paths["vessel_mask"])
 
 
 def seg_vessels(paths: dict, settings: dict, verbose: bool = True):
