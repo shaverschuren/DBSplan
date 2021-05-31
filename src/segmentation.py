@@ -19,7 +19,6 @@ if root not in sys.path: sys.path.append(root)
 if src not in sys.path: sys.path.append(src)
 
 # File-specific imports
-import shutil                                           # noqa: E402
 import numpy as np                                      # noqa: E402
 import nibabel as nib                                   # noqa: E402
 from scipy.ndimage import affine_transform              # noqa: E402
@@ -58,13 +57,13 @@ def finalize_segmentation(paths: dict, settings: dict, verbose: bool = True) \
         paths["seg_paths"][subject]["final_mask"] = mask_path
 
         # Now, check whether all relevant files are there
-        dict_ok = all([
+        dict_ok = all(
             (item in subject_paths) for item in required_paths
-        ])
+        )
 
-        files_ok = all([
-            os.path.exists(path) for _, path in subject_paths.items()
-        ])
+        files_ok = all(
+            os.path.exists(path) for (_, path) in subject_paths.items()
+        )
 
         if (not dict_ok) or (not files_ok):
             raise UserWarning(
@@ -89,10 +88,14 @@ def finalize_segmentation(paths: dict, settings: dict, verbose: bool = True) \
             sulc_translation = (np.linalg.inv(sulc_aff)).dot(vent_aff)
             vess_translation = (np.linalg.inv(vess_aff)).dot(vent_aff)
 
-            sulcus_mask = affine_transform(sulcus_mask, sulc_translation,
-                                        output_shape=np.shape(ventricle_mask))
-            vessel_mask = affine_transform(vessel_mask, vess_translation,
-                                        output_shape=np.shape(ventricle_mask))
+            sulcus_mask = affine_transform(
+                sulcus_mask, sulc_translation,
+                output_shape=np.shape(ventricle_mask)
+            )
+            vessel_mask = affine_transform(
+                vessel_mask, vess_translation,
+                output_shape=np.shape(ventricle_mask)
+            )
 
             shapes_ok = (
                 (np.shape(ventricle_mask) == np.shape(sulcus_mask)) and
@@ -102,7 +105,7 @@ def finalize_segmentation(paths: dict, settings: dict, verbose: bool = True) \
                 final_mask = np.zeros(np.shape(ventricle_mask))
             else:
                 raise ValueError(
-                    "The ventricle, sulcus and vessel masks are not the same size!"
+                    "The intermediate masks are not the same size!"
                     f"\nVentricle mask: {np.shape(ventricle_mask)}"
                     f"\nSulcus mask:    {np.shape(sulcus_mask)}"
                     f"\nVessel mask:    {np.shape(vessel_mask)}"
