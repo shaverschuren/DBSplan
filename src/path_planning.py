@@ -25,4 +25,4 @@ def path_planning(paths, settings):
     It calls on other functions to perform specific tasks.
     """
 
-    return
+    return paths, settings
