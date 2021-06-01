@@ -20,6 +20,7 @@ from preprocessing import preprocessing             # noqa: E402
 from registration_mri import registration_mri       # noqa: E402
 from segmentation import segmentation               # noqa: E402
 from registration_ct import registration_ct         # noqa: E402
+from path_planning import path_planning             # noqa: E402
 
 
 def main():
@@ -44,6 +45,9 @@ def main():
 
     # MODULE 4 : CT COREGISTRATION
     paths, settings = registration_ct(paths, settings)
+
+    # MODULE 5 : PATH PLANNING
+    paths, settings = path_planning(paths, settings)
 
 
 if __name__ == "__main__":
