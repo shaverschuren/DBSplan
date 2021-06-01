@@ -77,24 +77,24 @@ def finalize_segmentation(paths: dict, settings: dict, verbose: bool = True) \
         # If it doesn't already exist, combine masks
         if not os.path.exists(mask_path):
             # Now, load all partial masks
-            ventricle_mask, vent_aff, hdr = \
+            ventricle_mask, vent_aff, _ = \
                 load_nifti(subject_paths["ventricle_mask"])
             sulcus_mask, sulc_aff, _ = \
                 load_nifti(subject_paths["sulcus_mask"])
-            vessel_mask, vess_aff, _ = \
+            vessel_mask, vess_aff, hdr = \
                 load_nifti(subject_paths["vessel_mask"])
 
             # Transform all masks to appropriate space
-            sulc_translation = (np.linalg.inv(sulc_aff)).dot(vent_aff)
-            vess_translation = (np.linalg.inv(vess_aff)).dot(vent_aff)
+            sulc_translation = (np.linalg.inv(sulc_aff)).dot(vess_aff)
+            vent_translation = (np.linalg.inv(vent_aff)).dot(vess_aff)
 
             sulcus_mask = affine_transform(
                 sulcus_mask, sulc_translation,
-                output_shape=np.shape(ventricle_mask)
+                output_shape=np.shape(vessel_mask)
             )
-            vessel_mask = affine_transform(
-                vessel_mask, vess_translation,
-                output_shape=np.shape(ventricle_mask)
+            ventricle_mask = affine_transform(
+                ventricle_mask, vent_translation,
+                output_shape=np.shape(vessel_mask)
             )
 
             shapes_ok = (
@@ -102,7 +102,7 @@ def finalize_segmentation(paths: dict, settings: dict, verbose: bool = True) \
                 (np.shape(sulcus_mask) == np.shape(vessel_mask))
             )
             if shapes_ok:
-                final_mask = np.zeros(np.shape(ventricle_mask))
+                final_mask = np.zeros(np.shape(vessel_mask))
             else:
                 raise ValueError(
                     "The intermediate masks are not the same size!"
@@ -111,13 +111,27 @@ def finalize_segmentation(paths: dict, settings: dict, verbose: bool = True) \
                     f"\nVessel mask:    {np.shape(vessel_mask)}"
                 )
 
+            # Rebinarize ventricle/sulcus masks
+            ventricle_mask[ventricle_mask >= 0.5] = 1.0
+            ventricle_mask[ventricle_mask < 0.5] = 0.0
+
+            sulcus_mask[sulcus_mask >= 0.5] = 1.0
+            sulcus_mask[sulcus_mask < 0.5] = 0.0
+
             # Combine masks
             final_mask[ventricle_mask > 1e-1] = 1.0
             final_mask[sulcus_mask > 1e-1] = 1.0
             final_mask[vessel_mask > 1e-1] = 1.0
 
+            # Re-save ventricle/sulcus masks in FSL orientation instead of
+            # FreeSurfer. This enables later co-registration to other images.
+            nib.save(nib.Nifti1Image(ventricle_mask, vess_aff, hdr),
+                     subject_paths["ventricle_mask"])
+            nib.save(nib.Nifti1Image(sulcus_mask, vess_aff, hdr),
+                     subject_paths["sulcus_mask"])
+
             # Save final mask
-            nii_mask = nib.Nifti1Image(final_mask, vent_aff, hdr)
+            nii_mask = nib.Nifti1Image(final_mask, vess_aff, hdr)
             nib.save(nii_mask, mask_path)
 
     return paths, settings

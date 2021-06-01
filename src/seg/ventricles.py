@@ -149,8 +149,9 @@ def extract_ventricles_fs(aparc_aseg_path: str, ventricles_mask_path: str):
     ventricles_mask_path --> path to to-be-created ventricles .nii mask.
     """
 
+    # Define FreeSurfer labels
     ventricle_labels = [4, 5, 43, 44]
-
+    # Label the appropriate voxels
     extract_tissues(aparc_aseg_path, ventricles_mask_path, ventricle_labels)
 
 
