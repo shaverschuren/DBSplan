@@ -127,6 +127,9 @@ def run_path_planning(paths: dict, settings: dict, verbose: bool = True) \
     trajectory for a specific patient.
     """
 
+    # Initialize skipped_img
+    skipped_img = False
+
     # Extract proper processing paths
     planning_paths, paths = generate_planning_paths(paths, settings)
 
