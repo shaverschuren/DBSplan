@@ -109,8 +109,8 @@ def coreg_ct(paths, settings, verbose):
             (paths["seg_paths"][subject]["sulcus_mask"],
              regpaths["mask_sulci_coreg"]),
             (paths["seg_paths"][subject]["vessel_mask"],
-             regpaths["mask_vessels_coreg"],
-             paths["seg_paths"][subject]["entry_points"],
+             regpaths["mask_vessels_coreg"]),
+            (paths["seg_paths"][subject]["entry_points"],
              regpaths["entry_points_coreg"])
         ]
 
