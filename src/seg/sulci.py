@@ -81,7 +81,7 @@ def extract_sulci_fs(seg_paths: dict):
     # --- Perform morphological closing
 
     # Find proper element size
-    avg_vox_dim = np.mean((np.array(aff).diagonal())[:-1])
+    avg_vox_dim = np.mean(np.absolute((np.array(aff).diagonal())[:-1]))
     close_element = morph.ball(int(1 / avg_vox_dim))  # Element radius +- 1 mm
 
     # Perform closing

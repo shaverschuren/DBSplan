@@ -100,7 +100,7 @@ def generate_distance_map(mask: np.ndarray, aff: np.ndarray,
     """
 
     # Calculate voxel size
-    vox_dim = np.mean((aff.diagonal())[:-1])
+    vox_dim = np.mean(np.absolute((aff.diagonal())[:-1]))
 
     # Generate distance map
     distance_map = morph.distance_transform_edt(1 - mask) * vox_dim

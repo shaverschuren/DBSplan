@@ -220,7 +220,7 @@ def fastmarching_segmentation(image: itk.Image, seed_mask: itk.Image,
     """
 
     # Determine voxel size
-    avg_vox_dim = np.mean((affine_matrix.diagonal())[:-1])
+    avg_vox_dim = np.mean(np.absolute((affine_matrix.diagonal())[:-1]))
 
     # Cast image to itk.F
     image_F = image.astype(itk.F)
@@ -394,7 +394,7 @@ def neumann_segmentation(image: np.ndarray,
     """
 
     # Determine image scale
-    avg_vox_dim = np.mean((affine_matrix.diagonal())[:-1])
+    avg_vox_dim = np.mean(np.absolute((affine_matrix.diagonal())[:-1]))
 
     # Import image to itk
     img_itk = (itk.GetImageFromArray(image))
@@ -486,7 +486,7 @@ def extract_vessels(seg_paths: dict):
     vessel_mask[T1w_bet < 1e-2] = 0   # Remove non-brain
 
     # Prepare morphological operations
-    avg_vox_dim = np.mean((ori_aff.diagonal())[:-1])
+    avg_vox_dim = np.mean(np.absolute((ori_aff.diagonal())[:-1]))
 
     # Perform closing
     element = morph.ball(int(2 / avg_vox_dim))

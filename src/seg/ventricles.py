@@ -23,7 +23,7 @@ def find_seed_mask(csf_mask: np.ndarray, img_aff: np.ndarray,
     seed_mask = csf_mask
 
     # Determine avg voxel dimension
-    avg_vox_dim = np.mean((np.array(img_aff).diagonal())[:-1])
+    avg_vox_dim = np.mean(np.absolute((np.array(img_aff).diagonal())[:-1]))
 
     # Perform erosion with a ball element (radius approx 4mm)
     element = morph.ball(int(4 / avg_vox_dim))
@@ -61,7 +61,7 @@ def region_growing(seed_mask: np.ndarray, full_mask: np.ndarray,
     """
 
     # Determine avg voxel dimension
-    avg_vox_dim = np.mean((np.array(img_aff).diagonal())[:-1])
+    avg_vox_dim = np.mean(np.absolute((np.array(img_aff).diagonal())[:-1]))
 
     # Build morphological structuring element
     element = morph.ball(int(element_size / avg_vox_dim))
