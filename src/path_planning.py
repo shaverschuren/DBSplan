@@ -51,7 +51,15 @@ def generate_planning_paths(paths: dict, settings: dict) -> tuple[list, dict]:
         if not os.path.exists(raw_dir): os.mkdir(raw_dir)
 
         # Create output paths
-        distance_map_path = os.path.join(raw_dir, "distance_map.nii.gz")
+        distance_map_combined_path = \
+            os.path.join(raw_dir, "distance_map_combined.nii.gz")
+        distance_map_ventricles_path = \
+            os.path.join(raw_dir, "distance_map_ventricles.nii.gz")
+        distance_map_sulci_path = \
+            os.path.join(raw_dir, "distance_map_sulci.nii.gz")
+        distance_map_vessels_path = \
+            os.path.join(raw_dir, "distance_map_vessels.nii.gz")
+
         output_txt = os.path.join(subject_dir, "path.txt")
 
         # Assemble subject path dict
@@ -66,7 +74,10 @@ def generate_planning_paths(paths: dict, settings: dict) -> tuple[list, dict]:
                 paths["ctreg_paths"][subject]["mask_ventricles_coreg"],
             "sulcus_mask": paths["ctreg_paths"][subject]["mask_sulci_coreg"],
             "vessel_mask": paths["ctreg_paths"][subject]["mask_vessels_coreg"],
-            "distance_map": distance_map_path,
+            "distance_map_combined": distance_map_combined_path,
+            "distance_map_ventricles": distance_map_ventricles_path,
+            "distance_map_sulci": distance_map_sulci_path,
+            "distance_map_vessels": distance_map_vessels_path,
             "output_path": output_txt
         }
 
@@ -77,24 +88,24 @@ def generate_planning_paths(paths: dict, settings: dict) -> tuple[list, dict]:
     return planning_paths, paths
 
 
-def generate_distance_map(mask: np.ndarray) -> np.ndarray:
+def generate_distance_map(mask: np.ndarray, aff: np.ndarray,
+                          cutoff: float = 15.0) -> np.ndarray:
     """
     This function generates a distance map from a mask.
     This map represents the distance between any voxel and
     a structure which must not be hit. If the voxel is within the
     voxel that shouldn't be hit, the value becomes 0.
-    The maximum distance is capped at 15 (voxels) to deal with the problem
-    of huge values at the edge of the image.
+    The maximum distance is capped (by default at 15 (mm) ) to
+    deal with the problem of huge values at the edge of the image.
     """
 
-    # Invert mask
-    mask_inv = np.zeros(np.shape(mask))
-    mask_inv[mask == 0.0] = 1
+    # Calculate voxel size
+    vox_dim = np.mean((aff.diagonal())[:-1])
 
     # Generate distance map
-    distance_map = morph.distance_transform_edt(mask_inv)
+    distance_map = morph.distance_transform_edt(1 - mask) * vox_dim
 
-    distance_map[distance_map > 15.0] = 15.0
+    distance_map[distance_map > cutoff] = cutoff
 
     return distance_map
 
@@ -109,12 +120,27 @@ def generate_trajectory(subject_paths: dict):
 
     # Load relevant files / images
     ct_np, aff_ct, _ = load_nifti(subject_paths["CT"])
-    mask_np, aff_mask, hdr_mask = load_nifti(subject_paths["final_mask"])
+    gado_np, aff_gado, _ = load_nifti(subject_paths["T1w_gado"])
 
-    # Create and save distance map
-    distance_map = generate_distance_map(mask_np)
-    nib.save(nib.Nifti1Image(distance_map, aff_mask, hdr_mask),
-             subject_paths["distance_map"])
+    mask_combined, aff_mask_combined, hdr_mask = \
+        load_nifti(subject_paths["final_mask"])
+    mask_ventricles, aff_mask_ventricles, _ = \
+        load_nifti(subject_paths["ventricle_mask"])
+    mask_sulci, aff_mask_sulci, _ = \
+        load_nifti(subject_paths["sulcus_mask"])
+    mask_vessels, aff_mask_vessels, _ = \
+        load_nifti(subject_paths["vessel_mask"])
+
+    # Create and save distance maps
+    for mask, aff, path_pointer in [
+        (mask_combined, aff_mask_combined, "combined"),
+        (mask_ventricles, aff_mask_ventricles, "ventricles"),
+        (mask_sulci, aff_mask_sulci, "sulci"),
+        (mask_vessels, aff_mask_vessels, "vessels"),
+    ]:
+        distance_map = generate_distance_map(mask, aff)
+        nib.save(nib.Nifti1Image(distance_map, aff, hdr_mask),
+                 subject_paths["distance_map_" + path_pointer])
 
 
 def run_path_planning(paths: dict, settings: dict, verbose: bool = True) \
