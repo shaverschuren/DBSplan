@@ -578,14 +578,14 @@ def seg_vessels(paths: dict, settings: dict, verbose: bool = True):
                 skipped_img = True
                 continue
             elif settings["resetModules"][2] == 1:
-                # Generate sulcus mask
+                # Generate vessel mask
                 extract_vessels(sub_paths)
             else:
                 raise ValueError("Parameter 'resetModules' should be a list "
                                  "containing only 0's and 1's. "
                                  "Please check the config file (config.json).")
         else:
-            # Generate sulcus mask
+            # Generate vessel mask
             extract_vessels(sub_paths)
 
     # If some files were skipped, write message
