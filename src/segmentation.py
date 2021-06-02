@@ -85,10 +85,13 @@ def finalize_segmentation(paths: dict, settings: dict, verbose: bool = True) \
                 load_nifti(subject_paths["sulcus_mask"])
             vessel_mask, vess_aff, hdr = \
                 load_nifti(subject_paths["vessel_mask"])
+            entry_mask, entr_aff, _ = \
+                load_nifti(subject_paths["entry_points"])
 
             # Transform all masks to appropriate space
             sulc_translation = (np.linalg.inv(sulc_aff)).dot(vess_aff)
             vent_translation = (np.linalg.inv(vent_aff)).dot(vess_aff)
+            entr_translation = (np.linalg.inv(entr_aff)).dot(vess_aff)
 
             sulcus_mask = affine_transform(
                 sulcus_mask, sulc_translation,
@@ -96,6 +99,10 @@ def finalize_segmentation(paths: dict, settings: dict, verbose: bool = True) \
             )
             ventricle_mask = affine_transform(
                 ventricle_mask, vent_translation,
+                output_shape=np.shape(vessel_mask)
+            )
+            entry_mask = affine_transform(
+                entry_mask, entr_translation,
                 output_shape=np.shape(vessel_mask)
             )
 
@@ -113,24 +120,31 @@ def finalize_segmentation(paths: dict, settings: dict, verbose: bool = True) \
                     f"\nVessel mask:    {np.shape(vessel_mask)}"
                 )
 
-            # Rebinarize ventricle/sulcus masks
+            # Rebinarize ventricle/sulcus/entry masks
             ventricle_mask[ventricle_mask >= 0.5] = 1.0
             ventricle_mask[ventricle_mask < 0.5] = 0.0
 
             sulcus_mask[sulcus_mask >= 0.5] = 1.0
             sulcus_mask[sulcus_mask < 0.5] = 0.0
 
+            entry_mask[entry_mask >= 0.5] = 1.0
+            entry_mask[entry_mask < 0.5] = 0.0
+
             # Combine masks
             final_mask[ventricle_mask > 1e-1] = 1.0
             final_mask[sulcus_mask > 1e-1] = 1.0
             final_mask[vessel_mask > 1e-1] = 1.0
 
-            # Re-save ventricle/sulcus masks in FSL orientation instead of
-            # FreeSurfer. This enables later co-registration to other images.
+            # Re-save ventricle/sulcus/entry masks in FSL orientation instead
+            # of FreeSurfer. This enables later co-registration to
+            # other images.
+
             nib.save(nib.Nifti1Image(ventricle_mask, vess_aff, hdr),
                      subject_paths["ventricle_mask"])
             nib.save(nib.Nifti1Image(sulcus_mask, vess_aff, hdr),
                      subject_paths["sulcus_mask"])
+            nib.save(nib.Nifti1Image(entry_mask, vess_aff, hdr),
+                     subject_paths["entry_points"])
 
             # Save final mask
             nii_mask = nib.Nifti1Image(final_mask, vess_aff, hdr)
@@ -177,16 +191,16 @@ def segmentation(paths: dict, settings: dict, verbose: bool = True) \
         paths, settings = seg_vessels(paths, settings, verbose)
         if verbose: print("Vessel segmentation completed!")
 
+        if verbose: print("\nPerforming entry point segmentation...")
+        paths, settings = seg_entry_points(paths, settings, verbose)
+        if verbose: print("Entry point segmentation completed!")
+
         if verbose: print(
             "\nPerforming mask combination and restructuring... ",
             end="", flush=True
         )
         paths, settings = finalize_segmentation(paths, settings, verbose)
         if verbose: print_result()
-
-        if verbose: print("\nPerforming entry point segmentation...")
-        paths, settings = seg_entry_points(paths, settings, verbose)
-        if verbose: print("Entry point segmentation completed!")
 
         if verbose: print_header("\nSEGMENTATION FINISHED")
 

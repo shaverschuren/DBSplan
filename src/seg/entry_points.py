@@ -131,7 +131,7 @@ def seg_entry_points(paths: dict, settings: dict, verbose: bool = True) \
             "sulc_path": seg_paths["sulc_vol"],
             "curv_path": seg_paths["curv_vol"],
             "fs_labels_path": seg_paths["fs_labels"],
-            "nogo_mask": seg_paths["final_mask"],
+            "nogo_mask": seg_paths["sulcus_mask"],
             "frontal_lobe_path":
                 os.path.join(seg_paths["raw"], "frontal_lobe.nii.gz"),
             "output_path":
