@@ -83,6 +83,8 @@ def generate_distance_map(mask: np.ndarray) -> np.ndarray:
     This map represents the distance between any voxel and
     a structure which must not be hit. If the voxel is within the
     voxel that shouldn't be hit, the value becomes 0.
+    The maximum distance is capped at 15 (voxels) to deal with the problem
+    of huge values at the edge of the image.
     """
 
     # Invert mask
@@ -91,6 +93,8 @@ def generate_distance_map(mask: np.ndarray) -> np.ndarray:
 
     # Generate distance map
     distance_map = morph.distance_transform_edt(mask_inv)
+
+    distance_map[distance_map > 15.0] = 15.0
 
     return distance_map
 
