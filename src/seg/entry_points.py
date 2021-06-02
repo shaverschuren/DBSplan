@@ -2,7 +2,9 @@ import os
 from tqdm import tqdm
 import numpy as np
 import nibabel as nib
+from scipy.ndimage import affine_transform
 from util.nifti import load_nifti
+from util.freesurfer import extract_tissues
 
 
 def extract_entry_points(processing_paths: dict,
@@ -33,7 +35,26 @@ def extract_entry_points(processing_paths: dict,
         mask[surf < abs_threshold] = 1.0
         mask[surf == 0.0] = 0.0
 
-    # TODO: Implement deletion of all non-frontal lobe voxels
+    # Extract frontal lobe
+    frontal_lobe_labels = [1003, 1027, 1028, 2003, 2027, 2028]
+    extract_tissues(processing_paths["fs_labels_path"],
+                    processing_paths["frontal_lobe_path"],
+                    frontal_lobe_labels)
+
+    # Import frontal lobe mask to numpy
+    frontal_lobe_mask, aff_fl, _ = \
+        load_nifti(processing_paths["frontal_lobe_path"])
+
+    # Perform affine transform (if applicable)
+    if not (aff_fl == aff).all():
+        aff_translation = (np.linalg.inv(aff_fl)).dot(aff)
+        frontal_lobe_mask = affine_transform(
+            frontal_lobe_mask, aff_translation,
+            output_shape=np.shape(mask)
+        )
+
+    # Remove all non-frontal lobe voxels from entry point mask
+    mask[frontal_lobe_mask < 1e-2] = 0.0
 
     # Save mask
     mask_nii = nib.Nifti1Image(mask, aff, hdr)
@@ -71,6 +92,9 @@ def seg_entry_points(paths: dict, settings: dict, verbose: bool = True) \
         subject_paths = {
             "sulc_path": seg_paths["sulc_vol"],
             "curv_path": seg_paths["curv_vol"],
+            "fs_labels_path": seg_paths["fs_labels"],
+            "frontal_lobe_path":
+                os.path.join(seg_paths["raw"], "frontal_lobe.nii.gz"),
             "output_path":
                 os.path.join(seg_paths["dir"], "entry_points.nii.gz")
         }
