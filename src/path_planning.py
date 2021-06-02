@@ -110,6 +110,20 @@ def generate_distance_map(mask: np.ndarray, aff: np.ndarray,
     return distance_map
 
 
+def generate_entry_points():
+    """
+    This function generates a list of entry points which may be
+    explored in the path planning process. For the entry points,
+    we will be taking a number of points of the frontal lobe gyri.
+    These gyri have been previously segmented in the `segmentation`
+    module, more specifically in the `seg.entry_points` module.
+    In this function, we generate a list of points based on
+    this segmentation.
+    """
+
+    raise UserWarning("TODO: Still have to implement this")
+
+
 def generate_trajectory(subject_paths: dict):
     """
     This function generates an appropriate trajectory
@@ -141,6 +155,9 @@ def generate_trajectory(subject_paths: dict):
         distance_map = generate_distance_map(mask, aff)
         nib.save(nib.Nifti1Image(distance_map, aff, hdr_mask),
                  subject_paths["distance_map_" + path_pointer])
+
+    # Generate entry points
+    entry_points = generate_entry_points()
 
 
 def run_path_planning(paths: dict, settings: dict, verbose: bool = True) \

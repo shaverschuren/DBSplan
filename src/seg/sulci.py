@@ -211,10 +211,10 @@ def fsl_seg_sulci(paths: dict, settings: dict, verbose: bool = True) \
 def fs_seg_sulci(paths: dict, settings: dict, verbose: bool = True) \
         -> tuple[dict, dict, bool]:
     """
-    This function performs the quick and dirty variation
-    of the sulcus segmentation. It doesn't make use
-    of (slow) FreeSurfer output and uses some morphological tricks
-    to reach the same goal. This is less robust but very fast.
+    This function performs the robust variation
+    of the sulcus segmentation. It makes use
+    of FreeSurfer output and uses some morphological tricks
+    to obtain a robust sulcus segmentation.
     """
 
     # Init skipped_img
@@ -257,6 +257,11 @@ def fs_seg_sulci(paths: dict, settings: dict, verbose: bool = True) \
 
         # Add paths to {paths}
         paths["seg_paths"][subject]["sulcus_mask"] = sulcus_mask_path
+
+        paths["seg_paths"][subject]["sulc_vol"] = \
+            os.path.join(rawDir, "sulc_vol.nii.gz")
+        paths["seg_paths"][subject]["curv_vol"] = \
+            os.path.join(rawDir, "curv_vol.nii.gz")
 
         # Add paths to seg_paths
         subject_dict = {"subject": subject,

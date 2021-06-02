@@ -7,6 +7,7 @@ tasks are imported from the `seg` module.
 - Segment ventricles -> seg.ventricles
 - Segment sulci -> seg.sulci
 - Segment vessels -> seg.vessels
+- Segment entry points -> seg.entry_points
 """
 
 # Path setup
@@ -29,6 +30,7 @@ from seg.fsl import generate_fsl_paths, process_fsl     # noqa: E402
 from seg.ventricles import seg_ventricles               # noqa: E402
 from seg.sulci import seg_sulci                         # noqa: E402
 from seg.vessels import seg_vessels                     # noqa: E402
+from seg.entry_points import seg_entry_points           # noqa: E402
 from util.style import print_header, print_result       # noqa: E402
 from util.general import log_dict                       # noqa: E402
 from util.nifti import load_nifti                       # noqa: E402
@@ -174,6 +176,10 @@ def segmentation(paths: dict, settings: dict, verbose: bool = True) \
         if verbose: print("\nPerforming vessel segmentation...")
         paths, settings = seg_vessels(paths, settings, verbose)
         if verbose: print("Vessel segmentation completed!")
+
+        if verbose: print("\nPerforming entry point segmentation...")
+        paths, settings = seg_entry_points(paths, settings, verbose)
+        if verbose: print("Entry point segmentation completed!")
 
         if verbose: print(
             "\nPerforming mask combination and restructuring... ",
