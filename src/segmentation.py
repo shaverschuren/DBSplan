@@ -177,16 +177,16 @@ def segmentation(paths: dict, settings: dict, verbose: bool = True) \
         paths, settings = seg_vessels(paths, settings, verbose)
         if verbose: print("Vessel segmentation completed!")
 
-        if verbose: print("\nPerforming entry point segmentation...")
-        paths, settings = seg_entry_points(paths, settings, verbose)
-        if verbose: print("Entry point segmentation completed!")
-
         if verbose: print(
             "\nPerforming mask combination and restructuring... ",
             end="", flush=True
         )
         paths, settings = finalize_segmentation(paths, settings, verbose)
         if verbose: print_result()
+
+        if verbose: print("\nPerforming entry point segmentation...")
+        paths, settings = seg_entry_points(paths, settings, verbose)
+        if verbose: print("Entry point segmentation completed!")
 
         if verbose: print_header("\nSEGMENTATION FINISHED")
 

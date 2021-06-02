@@ -2,13 +2,33 @@ import os
 from tqdm import tqdm
 import numpy as np
 import nibabel as nib
+import skimage.morphology as morph
 from scipy.ndimage import affine_transform
 from util.nifti import load_nifti
 from util.freesurfer import extract_tissues
 
 
+def find_mask_edges(mask: np.ndarray) -> np.ndarray:
+    """
+    This function finds the edges/borders of a mask.
+    In our context, it is used to find the appropriate
+    entrance points for the relatively thick ribbon mask.
+    """
+
+    # Define morphological element
+    element = morph.ball(1)
+
+    # Perform erosion
+    mask_eroded = morph.binary_erosion(mask, element)
+
+    # Generate border masks
+    mask_borders = mask - mask_eroded
+
+    return mask_borders
+
+
 def extract_entry_points(processing_paths: dict,
-                         threshold_sulc: float = 3.0,
+                         threshold_sulc: float = -3.0,
                          threshold_curv: float = -0.5):
     """
     This function runs the mask manipulation of the entry
@@ -56,6 +76,24 @@ def extract_entry_points(processing_paths: dict,
     # Remove all non-frontal lobe voxels from entry point mask
     mask[frontal_lobe_mask < 1e-2] = 0.0
 
+    # Find edges of WM entry region
+    mask = find_mask_edges(mask)
+
+    # Import no-go mask to numpy
+    nogo_mask, aff_nogo, _ = \
+        load_nifti(processing_paths["nogo_mask"])
+
+    # Perform affine transform (if applicable)
+    if not (aff_nogo == aff).all():
+        aff_translation = (np.linalg.inv(aff_nogo)).dot(aff)
+        nogo_mask = affine_transform(
+            nogo_mask, aff_translation,
+            output_shape=np.shape(mask)
+        )
+
+    # Remove all no-go voxels from entry point mask
+    # mask[nogo_mask < 1e-2] = 0.0 -> TODO: Keep this or not?
+
     # Save mask
     mask_nii = nib.Nifti1Image(mask, aff, hdr)
     nib.save(mask_nii, processing_paths["output_path"])
@@ -93,6 +131,7 @@ def seg_entry_points(paths: dict, settings: dict, verbose: bool = True) \
             "sulc_path": seg_paths["sulc_vol"],
             "curv_path": seg_paths["curv_vol"],
             "fs_labels_path": seg_paths["fs_labels"],
+            "nogo_mask": seg_paths["final_mask"],
             "frontal_lobe_path":
                 os.path.join(seg_paths["raw"], "frontal_lobe.nii.gz"),
             "output_path":
