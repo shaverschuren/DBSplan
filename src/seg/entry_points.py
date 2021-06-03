@@ -40,7 +40,7 @@ def extract_entry_points(processing_paths: dict,
     # Extract nogo-volume and, fs labels and ribbon .mgz
     # file header for spatial info
     nogo_np, aff, hdr = load_nifti(processing_paths["nogo_mask"])
-    labels_np, aff_fs, hdr_fs = load_nifti(processing_paths["fs_labels_path"])
+    labels_np, aff_fs, _ = load_nifti(processing_paths["fs_labels_path"])
 
     with gzip.open(processing_paths["orig_path"], 'rb') as mgh_file_handle:
         mgh_header = \
@@ -113,6 +113,14 @@ def extract_entry_points(processing_paths: dict,
         indices = entry_points_vox[i].astype(int)
         mask[indices[0], indices[1], indices[2]] = 1.0
 
+    # Perform affine transform to subject space
+    if not (aff_fs == aff).all():
+        aff_translation = (np.linalg.inv(aff_fs)).dot(aff)
+        mask = affine_transform(
+            mask, aff_translation,
+            output_shape=np.shape(nogo_np)
+        )
+
     # Import no-go mask to numpy
     nogo_mask, aff_nogo, _ = \
         load_nifti(processing_paths["nogo_mask"])
@@ -148,8 +156,8 @@ def extract_entry_points(processing_paths: dict,
     distance_map = generate_distance_map(1 - bet_mask, aff, 15)
 
     # If an entry point is situated too far from the brain surface,
-    # omit it. "Too far" is defined as 10 mm
-    mask[distance_map >= 5.0] = 0.0
+    # omit it. "Too far" is defined as 15 mm
+    mask[distance_map >= 15.0] = 0.0
 
     # # Save mask
     mask_nii = nib.Nifti1Image(mask, aff, hdr)
@@ -222,7 +230,7 @@ def seg_entry_points(paths: dict, settings: dict, verbose: bool = True) \
             subject_paths["output_path"]
 
         # Check whether output already there
-        output_ok = False  # TODO: os.path.exists(subject_paths["output_path"])
+        output_ok = os.path.exists(subject_paths["output_path"])
 
         if output_ok:
             if settings["resetModules"][2] == 0:
