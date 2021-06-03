@@ -16,7 +16,6 @@ def mgz2nii(mgz_path: str, nii_path: str):
     command = ["mri_convert",
                "--in_type", "mgz",
                "--out_type", "nii",
-               "--out_orientation", "RAS",
                mgz_path,
                nii_path]
 
