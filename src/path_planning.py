@@ -16,6 +16,8 @@ if root not in sys.path: sys.path.append(root)
 if src not in sys.path: sys.path.append(src)
 
 # File-specific imports
+from typing import Union                    # noqa: E402
+import warnings                             # noqa: E402
 import numpy as np                          # noqa: E402
 import math                                 # noqa: E402
 from tqdm import tqdm                       # noqa: E402
@@ -148,6 +150,25 @@ def generate_entry_points(subject_paths: dict, n_points: int = 10000) \
     return entry_points_down
 
 
+def generate_target_points(subject_paths: dict) -> \
+        Union[np.ndarray, list[np.ndarray]]:
+    """
+    This function generates the coordinates for a
+    target point or list of target points.
+    TODO: Implement a GUI for this.
+    For now, just define a certain point.
+    """
+
+    # Temporarily, just hard-code points
+    point_1 = np.array([312, 277, 94])
+    point_2 = np.array([225, 261, 100])
+
+    warnings.warn(message="WARNING: TODO: Implement target point selection",
+                  category=UserWarning)
+
+    return [point_1, point_2]
+
+
 def generate_trajectory(subject_paths: dict):
     """
     This function generates an appropriate trajectory
@@ -182,6 +203,9 @@ def generate_trajectory(subject_paths: dict):
 
     # Generate entry points
     entry_points = generate_entry_points(subject_paths)
+
+    # Generate target point(s)
+    target_points = generate_target_points(subject_paths)
 
 
 def run_path_planning(paths: dict, settings: dict, verbose: bool = True) \
