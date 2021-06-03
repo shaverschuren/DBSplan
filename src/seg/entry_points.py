@@ -40,14 +40,14 @@ def extract_entry_points(processing_paths: dict,
     # Extract nogo-volume and, fs labels and ribbon .mgz
     # file header for spatial info
     nogo_np, aff, hdr = load_nifti(processing_paths["nogo_mask"])
-    _, aff_fs, hdr_fs = load_nifti(processing_paths["fs_labels_path"])
+    labels_np, aff_fs, hdr_fs = load_nifti(processing_paths["fs_labels_path"])
 
-    with gzip.open(processing_paths["ribbon_path"], 'rb') as mgh_file_handle:
+    with gzip.open(processing_paths["orig_path"], 'rb') as mgh_file_handle:
         mgh_header = \
             nib.freesurfer.mghformat.MGHHeader.from_fileobj(mgh_file_handle)
 
     # Generate empty mask
-    mask = np.zeros(np.shape(nogo_np))
+    mask = np.zeros(np.shape(labels_np))
 
     # Extract list of vertices on the pial surface
     rh_pial_points, _ = \
@@ -97,24 +97,21 @@ def extract_entry_points(processing_paths: dict,
     include_vertices[~frontal_vertices] = False
 
     # Delete all vertices which do not conform to specs
-    entry_points = pial_points[include_vertices]
+    entry_points_ras = pial_points[include_vertices]
 
-    # Transform entry point coordiantes from RAS to voxel space
-    ras2vox_aff = mgh_header.get_ras2vox()
+    # Transform entry point coordinates from RAS to voxel space
+    ras2vox_aff = np.linalg.inv(mgh_header.get_vox2ras_tkr())
 
-    entry_points_vox = np.zeros(np.shape(entry_points))
+    entry_points_vox = np.zeros(np.shape(entry_points_ras))
     for i in range(np.shape(entry_points_vox)[0]):
-        entry_points_vox[i] = \
-            (np.array([*entry_points[i], 1]).dot(ras2vox_aff))[:-1].astype(int)
+        entry_points_vox[i] = (
+            ras2vox_aff.dot(np.array([*entry_points_ras[i], 1]))
+        )[:-1].astype(int)
 
     # Convert entry point list to mask
     for i in range(np.shape(entry_points_vox)[0]):
         indices = entry_points_vox[i].astype(int)
         mask[indices[0], indices[1], indices[2]] = 1.0
-
-    # Save mask
-    mask_nii = nib.Nifti1Image(mask, aff_fs, hdr_fs)
-    nib.save(mask_nii, processing_paths["output_path"])
 
     # Import no-go mask to numpy
     nogo_mask, aff_nogo, _ = \
@@ -155,8 +152,8 @@ def extract_entry_points(processing_paths: dict,
     mask[distance_map >= 5.0] = 0.0
 
     # # Save mask
-    # mask_nii = nib.Nifti1Image(mask, aff, hdr)
-    # nib.save(mask_nii, processing_paths["output_path"])
+    mask_nii = nib.Nifti1Image(mask, aff, hdr)
+    nib.save(mask_nii, processing_paths["output_path"])
 
 
 def seg_entry_points(paths: dict, settings: dict, verbose: bool = True) \
@@ -200,8 +197,8 @@ def seg_entry_points(paths: dict, settings: dict, verbose: bool = True) \
                 os.path.join(paths["fs_paths"][subject], "surf", "lh.sulc"),
             "rh_sulc_path":
                 os.path.join(paths["fs_paths"][subject], "surf", "rh.sulc"),
-            "ribbon_path":
-                os.path.join(paths["fs_paths"][subject], "mri", "ribbon.mgz"),
+            "orig_path":
+                os.path.join(paths["fs_paths"][subject], "mri", "orig.mgz"),
             "lh_annot_path":
                 os.path.join(paths["fs_paths"][subject],
                              "label", "lh.aparc.annot"),
@@ -225,7 +222,7 @@ def seg_entry_points(paths: dict, settings: dict, verbose: bool = True) \
             subject_paths["output_path"]
 
         # Check whether output already there
-        output_ok = os.path.exists(subject_paths["output_path"])
+        output_ok = False  # TODO: os.path.exists(subject_paths["output_path"])
 
         if output_ok:
             if settings["resetModules"][2] == 0:
