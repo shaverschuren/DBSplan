@@ -17,6 +17,7 @@ if src not in sys.path: sys.path.append(src)
 
 # File-specific imports
 import numpy as np                          # noqa: E402
+import math                                 # noqa: E402
 from tqdm import tqdm                       # noqa: E402
 import nibabel as nib                       # noqa: E402
 import scipy.ndimage.morphology as morph    # noqa: E402
@@ -69,11 +70,16 @@ def generate_planning_paths(paths: dict, settings: dict) -> tuple[list, dict]:
             "CT": paths["nii_paths"][subject]["CT_PRE"],
             "T1w": paths["ctreg_paths"][subject]["T1w_coreg"],
             "T1w_gado": paths["ctreg_paths"][subject]["gado_coreg"],
-            "final_mask": paths["ctreg_paths"][subject]["mask_final_coreg"],
+            "final_mask":
+                paths["ctreg_paths"][subject]["mask_final_coreg"],
             "ventricle_mask":
                 paths["ctreg_paths"][subject]["mask_ventricles_coreg"],
-            "sulcus_mask": paths["ctreg_paths"][subject]["mask_sulci_coreg"],
-            "vessel_mask": paths["ctreg_paths"][subject]["mask_vessels_coreg"],
+            "sulcus_mask":
+                paths["ctreg_paths"][subject]["mask_sulci_coreg"],
+            "vessel_mask":
+                paths["ctreg_paths"][subject]["mask_vessels_coreg"],
+            "entry_point_mask":
+                paths["ctreg_paths"][subject]["entry_points_coreg"],
             "distance_map_combined": distance_map_combined_path,
             "distance_map_ventricles": distance_map_ventricles_path,
             "distance_map_sulci": distance_map_sulci_path,
@@ -110,7 +116,8 @@ def generate_distance_map(mask: np.ndarray, aff: np.ndarray,
     return distance_map
 
 
-def generate_entry_points():
+def generate_entry_points(subject_paths: dict, n_points: int = 10000) \
+        -> np.ndarray:
     """
     This function generates a list of entry points which may be
     explored in the path planning process. For the entry points,
@@ -121,7 +128,24 @@ def generate_entry_points():
     this segmentation.
     """
 
-    raise UserWarning("TODO: Still have to implement this")
+    # Import Entry point mask to numpy
+    entry_point_mask, _, _ = load_nifti(subject_paths["entry_point_mask"])
+
+    # Extract indices of entry points
+    entry_points = np.swapaxes(np.nonzero(entry_point_mask), 0, 1)
+
+    # Now, downsample this list to the required number of points
+    # Here, we make use of the fact that nearby points are next to
+    # each other in this list.
+    entry_points_down = np.zeros((n_points, 3), dtype=int)
+
+    for i in range(n_points):
+        # Find index of sampled point in original entry point array
+        point_id = math.floor(len(entry_points) / n_points) * i
+        # Append downsampled array
+        entry_points_down[i, :] = entry_points[point_id, :]
+
+    return entry_points_down
 
 
 def generate_trajectory(subject_paths: dict):
@@ -157,7 +181,7 @@ def generate_trajectory(subject_paths: dict):
                  subject_paths["distance_map_" + path_pointer])
 
     # Generate entry points
-    entry_points = generate_entry_points()
+    entry_points = generate_entry_points(subject_paths)
 
 
 def run_path_planning(paths: dict, settings: dict, verbose: bool = True) \
