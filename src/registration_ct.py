@@ -64,6 +64,8 @@ def setup_reg_paths(paths: dict, settings: dict) -> tuple[dict, dict]:
             os.path.join(subjectDir, "mask_vessels_coreg.nii.gz")
         paths["ctreg_paths"][subject]["entry_points_coreg"] = \
             os.path.join(subjectDir, "entry_points_coreg.nii.gz")
+        paths["ctreg_paths"][subject]["bet_coreg"] = \
+            os.path.join(subjectDir, "T1w_bet_coreg.nii.gz")
         paths["ctreg_paths"][subject]["omat"] = \
             os.path.join(subjectDir, "coreg.mat")
 
@@ -111,7 +113,9 @@ def coreg_ct(paths, settings, verbose):
             (paths["seg_paths"][subject]["vessel_mask"],
              regpaths["mask_vessels_coreg"]),
             (paths["seg_paths"][subject]["entry_points"],
-             regpaths["entry_points_coreg"])
+             regpaths["entry_points_coreg"]),
+            (paths["fsl_paths"][subject]["bet"],
+             regpaths["bet_coreg"])
         ]
 
         # Check output

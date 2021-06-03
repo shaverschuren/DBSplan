@@ -1,9 +1,11 @@
 import os
 from tqdm import tqdm
+import gzip
 import numpy as np
 import nibabel as nib
 import skimage.morphology as morph
 from scipy.ndimage import affine_transform
+from path_planning import generate_distance_map
 from util.nifti import load_nifti
 from util.freesurfer import extract_tissues
 
@@ -35,49 +37,84 @@ def extract_entry_points(processing_paths: dict,
     point segmentation.
     """
 
-    # Extract sulc and curv volumes
-    sulc_np, aff, hdr = load_nifti(processing_paths["sulc_path"])
-    curv_np, _, _ = load_nifti(processing_paths["curv_path"])
+    # Extract nogo-volume and, fs labels and ribbon .mgz
+    # file header for spatial info
+    nogo_np, aff, hdr = load_nifti(processing_paths["nogo_mask"])
+    _, aff_fs, hdr_fs = load_nifti(processing_paths["fs_labels_path"])
+
+    with gzip.open(processing_paths["ribbon_path"], 'rb') as mgh_file_handle:
+        mgh_header = \
+            nib.freesurfer.mghformat.MGHHeader.from_fileobj(mgh_file_handle)
 
     # Generate empty mask
-    if np.shape(sulc_np) == np.shape(curv_np):
-        mask = np.zeros(np.shape(sulc_np))
-    else:
-        raise ValueError("Arrays 'sulc' and 'curv' are not the same size!"
-                         f"\nGot {np.shape(sulc_np)} and {np.shape(curv_np)}")
+    mask = np.zeros(np.shape(nogo_np))
 
-    # Fill mask with appropriate voxels
+    # Extract list of vertices on the pial surface
+    rh_pial_points, _ = \
+        nib.freesurfer.read_geometry(processing_paths["rh_pial_path"])
+    lh_pial_points, _ = \
+        nib.freesurfer.read_geometry(processing_paths["lh_pial_path"])
+    # Extract curv and sulc values for these vertices
+    rh_curv_points = \
+        nib.freesurfer.read_morph_data(processing_paths["rh_curv_path"])
+    lh_curv_points = \
+        nib.freesurfer.read_morph_data(processing_paths["lh_curv_path"])
+    rh_sulc_points = \
+        nib.freesurfer.read_morph_data(processing_paths["rh_sulc_path"])
+    lh_sulc_points = \
+        nib.freesurfer.read_morph_data(processing_paths["lh_sulc_path"])
+    # Extract annotations for these vertices
+    rh_annot_points, _, labels = \
+        nib.freesurfer.read_annot(processing_paths["rh_annot_path"])
+    lh_annot_points, _, _ = \
+        nib.freesurfer.read_annot(processing_paths["lh_annot_path"])
+
+    # Assemble seperate hemisphere arrays into lh+rh arrays
+    pial_points = np.array([*rh_pial_points, *lh_pial_points])
+    curv_points = np.array([*rh_curv_points, *lh_curv_points])
+    sulc_points = np.array([*rh_sulc_points, *lh_sulc_points])
+    annot_points = np.array([*rh_annot_points, *lh_annot_points])
+
+    # Create new array for vertex selection
+    include_vertices = np.ones(np.shape(curv_points), dtype=bool)
+
+    # Find indices of vertices which exceed the threshold for curv/sulc
     for surf, threshold in [
-        (sulc_np, threshold_sulc), (curv_np, threshold_curv)
+        (curv_points, threshold_sulc), (sulc_points, threshold_curv)
     ]:
         abs_threshold = np.mean(surf) + threshold * np.std(surf)
 
-        mask[surf < abs_threshold] = 1.0
-        mask[surf == 0.0] = 0.0
+        include_vertices[surf < abs_threshold] = False
+        include_vertices[surf == 0.0] = False
 
-    # Extract frontal lobe
-    frontal_lobe_labels = [1003, 1027, 1028, 2003, 2027, 2028]
-    extract_tissues(processing_paths["fs_labels_path"],
-                    processing_paths["frontal_lobe_path"],
-                    frontal_lobe_labels)
+    # Extract frontal lobe indices
+    frontal_vertices = np.zeros(np.shape(include_vertices), dtype=bool)
+    labels_frontal = [3, 27, 28]
 
-    # Import frontal lobe mask to numpy
-    frontal_lobe_mask, aff_fl, _ = \
-        load_nifti(processing_paths["frontal_lobe_path"])
+    for label in labels_frontal:
+        frontal_vertices[annot_points == label] = True
 
-    # Perform affine transform (if applicable)
-    if not (aff_fl == aff).all():
-        aff_translation = (np.linalg.inv(aff_fl)).dot(aff)
-        frontal_lobe_mask = affine_transform(
-            frontal_lobe_mask, aff_translation,
-            output_shape=np.shape(mask)
-        )
+    include_vertices[~frontal_vertices] = False
 
-    # Remove all non-frontal lobe voxels from entry point mask
-    mask[frontal_lobe_mask < 1e-2] = 0.0
+    # Delete all vertices which do not conform to specs
+    entry_points = pial_points[include_vertices]
 
-    # Find edges of WM entry region
-    mask = find_mask_edges(mask)
+    # Transform entry point coordiantes from RAS to voxel space
+    ras2vox_aff = mgh_header.get_ras2vox()
+
+    entry_points_vox = np.zeros(np.shape(entry_points))
+    for i in range(np.shape(entry_points_vox)[0]):
+        entry_points_vox[i] = \
+            (np.array([*entry_points[i], 1]).dot(ras2vox_aff))[:-1].astype(int)
+
+    # Convert entry point list to mask
+    for i in range(np.shape(entry_points_vox)[0]):
+        indices = entry_points_vox[i].astype(int)
+        mask[indices[0], indices[1], indices[2]] = 1.0
+
+    # Save mask
+    mask_nii = nib.Nifti1Image(mask, aff_fs, hdr_fs)
+    nib.save(mask_nii, processing_paths["output_path"])
 
     # Import no-go mask to numpy
     nogo_mask, aff_nogo, _ = \
@@ -92,11 +129,34 @@ def extract_entry_points(processing_paths: dict,
         )
 
     # Remove all no-go voxels from entry point mask
-    # mask[nogo_mask < 1e-2] = 0.0 -> TODO: Keep this or not?
+    mask[nogo_mask < 1e-2] = 0.0
 
-    # Save mask
-    mask_nii = nib.Nifti1Image(mask, aff, hdr)
-    nib.save(mask_nii, processing_paths["output_path"])
+    # Import BET image to numpy
+    bet_img, aff_bet, _ = \
+        load_nifti(processing_paths["bet_path"])
+
+    # Perform affine transform (if applicable)
+    if not (aff_bet == aff).all():
+        aff_translation = (np.linalg.inv(aff_bet)).dot(aff)
+        bet_img = affine_transform(
+            bet_img, aff_translation,
+            output_shape=np.shape(mask)
+        )
+
+    # Binarize BET image
+    bet_mask = np.zeros(np.shape(bet_img))
+    bet_mask[bet_img > 1e-2] = 1.0
+
+    # Calculate distance map to edge of the brain
+    distance_map = generate_distance_map(1 - bet_mask, aff, 15)
+
+    # If an entry point is situated too far from the brain surface,
+    # omit it. "Too far" is defined as 10 mm
+    mask[distance_map >= 5.0] = 0.0
+
+    # # Save mask
+    # mask_nii = nib.Nifti1Image(mask, aff, hdr)
+    # nib.save(mask_nii, processing_paths["output_path"])
 
 
 def seg_entry_points(paths: dict, settings: dict, verbose: bool = True) \
@@ -128,10 +188,32 @@ def seg_entry_points(paths: dict, settings: dict, verbose: bool = True) \
     for subject, seg_paths in iterator:
         # Determine required paths
         subject_paths = {
-            "sulc_path": seg_paths["sulc_vol"],
-            "curv_path": seg_paths["curv_vol"],
-            "fs_labels_path": seg_paths["fs_labels"],
-            "nogo_mask": seg_paths["sulcus_mask"],
+            "lh_pial_path":
+                os.path.join(paths["fs_paths"][subject], "surf", "lh.pial.T1"),
+            "rh_pial_path":
+                os.path.join(paths["fs_paths"][subject], "surf", "rh.pial.T1"),
+            "lh_curv_path":
+                os.path.join(paths["fs_paths"][subject], "surf", "lh.curv"),
+            "rh_curv_path":
+                os.path.join(paths["fs_paths"][subject], "surf", "rh.curv"),
+            "lh_sulc_path":
+                os.path.join(paths["fs_paths"][subject], "surf", "lh.sulc"),
+            "rh_sulc_path":
+                os.path.join(paths["fs_paths"][subject], "surf", "rh.sulc"),
+            "ribbon_path":
+                os.path.join(paths["fs_paths"][subject], "mri", "ribbon.mgz"),
+            "lh_annot_path":
+                os.path.join(paths["fs_paths"][subject],
+                             "label", "lh.aparc.annot"),
+            "rh_annot_path":
+                os.path.join(paths["fs_paths"][subject],
+                             "label", "rh.aparc.annot"),
+            "fs_labels_path":
+                seg_paths["fs_labels"],
+            "nogo_mask":
+                seg_paths["sulcus_mask"],
+            "bet_path":
+                paths["fsl_paths"][subject]["bet"],
             "frontal_lobe_path":
                 os.path.join(seg_paths["raw"], "frontal_lobe.nii.gz"),
             "output_path":
