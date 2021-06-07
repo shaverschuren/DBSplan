@@ -16,16 +16,16 @@ if root not in sys.path: sys.path.append(root)
 if src not in sys.path: sys.path.append(src)
 
 # File-specific imports
-from typing import Union                    # noqa: E402
-import warnings                             # noqa: E402
-import numpy as np                          # noqa: E402
-import math                                 # noqa: E402
-from tqdm import tqdm                       # noqa: E402
-import nibabel as nib                       # noqa: E402
-import scipy.ndimage.morphology as morph    # noqa: E402
-from util.style import print_header         # noqa: E402
-from util.general import log_dict           # noqa: E402
-from util.nifti import load_nifti           # noqa: E402
+from typing import Union                                # noqa: E402
+import warnings                                         # noqa: E402
+import numpy as np                                      # noqa: E402
+import math                                             # noqa: E402
+from tqdm import tqdm                                   # noqa: E402
+import nibabel as nib                                   # noqa: E402
+import scipy.ndimage.morphology as morph                # noqa: E402
+from util.style import print_header, print_result       # noqa: E402
+from util.general import log_dict                       # noqa: E402
+from util.nifti import load_nifti                       # noqa: E402
 
 
 def calculate_all_lines(
@@ -67,6 +67,80 @@ def calculate_all_lines(
         return target_list
     else:
         return target_list[0]
+
+
+def calculate_valid_lines(
+        paths: Union[np.ndarray, list[np.ndarray]],
+        collision_map: np.ndarray) -> Union[np.ndarray, list[np.ndarray]]:
+    """
+    This function takes in all possible paths (i.e. from all entry points
+    to all target points) and checks for direct collisions. It returns
+    all paths which do not yield a direct collision.
+    """
+
+    # Make sure paths in in list format
+    if type(paths) != list:
+        paths = [paths]
+
+    # Initialize valid paths list
+    valid_paths = [np.zeros((1, *(np.shape(paths[0])[1:])))] * len(paths)
+
+    # Loop over targets
+    for target_id in range(len(paths)):
+        # Loop over entry points
+        for entry_id in range(len(paths[target_id])):
+
+            # Define start, stop and direction vectors
+            direction = paths[target_id][entry_id, 0, :]
+            entry_point = np.array(
+                paths[target_id][entry_id, 1, :], dtype=int
+            )
+            target_point = np.array(
+                paths[target_id][entry_id, 2, :], dtype=int
+            )
+
+            # Initialize params needed for collision checking
+            zeros = np.zeros(np.shape(target_point))
+            direction_sign = np.sign(direction)
+
+            path_ok = True
+
+            current_point = np.array(entry_point, dtype=float)
+
+            # Check for collisions iteratively
+            while (
+                (target_point - current_point) * direction_sign > zeros
+            ).any():
+                # Update point to be checked
+                current_point = current_point + direction
+
+                # Check for collision
+                collision_bool = bool(collision_map[
+                    int(current_point[0]),
+                    int(current_point[1]),
+                    int(current_point[2])
+                ])
+
+                # If collision, break loop and move on to next
+                if collision_bool:
+                    path_ok = False
+                    break
+
+            # If checks finished without collision, add path to
+            # array of valid paths
+            if path_ok:
+                # Define insert
+                insert = np.array(
+                    [direction, entry_point, target_point]
+                )[np.newaxis, :]
+
+                # Concatenate arrays
+                valid_paths[target_id] = np.concatenate(
+                    (insert, valid_paths[target_id]),
+                    axis=0, dtype=float
+                )
+
+    return valid_paths
 
 
 def generate_planning_paths(paths: dict, settings: dict) -> tuple[list, dict]:
@@ -230,9 +304,8 @@ def generate_trajectories(
 
     # Extract target point(s)
     if type(target_points) == list:
-        multiple_targets = True
+        pass
     elif type(target_points) == np.ndarray:
-        multiple_targets = False
         target_points = [target_points]
     else:
         raise TypeError("Expected either list of arrays or array."
@@ -246,7 +319,14 @@ def generate_trajectories(
 
     # Before assessing margins, remove all paths which
     # cause direct collisions.
-    # TODO: Implement this. Preferably using parallel computing
+    valid_trajectories = calculate_valid_lines(
+        all_trajectories, collision_map
+    )
+
+    # Now, we'll sort the trajectories based on their margins
+    # TODO: Implement this!
+
+    return valid_trajectories
 
 
 def generate_possible_paths(subject_paths: dict):
