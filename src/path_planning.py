@@ -2,8 +2,10 @@
 
 This module performs several tasks, which may all
 be called from the `path_planning` function.
-- ...
-- ...
+- Generate entry points
+- Generate target points (TODO: Via GUI)
+- Generate distance maps
+- Generate possible trajectories
 """
 
 # Path setup
