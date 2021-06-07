@@ -266,7 +266,7 @@ def generate_planning_paths(paths: dict, settings: dict) -> tuple[list, dict]:
         distance_map_vessels_path = \
             os.path.join(raw_dir, "distance_map_vessels.nii.gz")
 
-        output_txt = os.path.join(subject_dir, "path.txt")
+        output_txt = os.path.join(subject_dir, "paths.npy")
 
         # Assemble subject path dict
         subject_dict = {
@@ -461,6 +461,8 @@ def generate_possible_paths(subject_paths: dict):
     trajectories = generate_trajectories(
         entry_points, target_points, distance_map, aff_mask_combined
     )
+
+    np.save(subject_paths["output_path"], trajectories)
 
 
 def run_path_planning(paths: dict, settings: dict, verbose: bool = True) \
