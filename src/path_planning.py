@@ -140,7 +140,101 @@ def calculate_valid_lines(
                     axis=0, dtype=float
                 )
 
+        # Remove zeros row
+        valid_paths[target_id] = valid_paths[target_id][1:, :, :]
+
     return valid_paths
+
+
+def generate_margin_trajectories(
+        trajectories: Union[np.ndarray, list[np.ndarray]],
+        distance_map: np.ndarray,
+        margin: float = 3.0) -> Union[np.ndarray, list[np.ndarray]]:
+    """
+    This function orders the valid trajectories, as are defined by
+    `calculate_valid_lines`, based on margins. Also, it removes some
+    trajectories that yield a margin smaller than the minimal margin (in mm).
+    """
+
+    # Make sure trajectories is in list format
+    if type(trajectories) != list:
+        trajectories = [trajectories]
+
+    # Initialize valid paths list
+    new_arr_shape = [1, *(np.shape(trajectories[0])[1:])]
+    new_arr_shape[1] = new_arr_shape[1] + 1
+
+    margin_trajectories = [
+        np.zeros(tuple(new_arr_shape))
+    ] * len(trajectories)
+
+    # Loop over targets
+    for target_id in range(len(trajectories)):
+        # Loop over entry points
+        for entry_id in range(len(trajectories[target_id])):
+
+            print(f"Attempt {entry_id}/{len(trajectories[target_id])}")
+
+            # Define start, stop and direction vectors
+            direction = trajectories[target_id][entry_id, 0, :]
+            entry_point = np.array(
+                trajectories[target_id][entry_id, 1, :], dtype=int
+            )
+            target_point = np.array(
+                trajectories[target_id][entry_id, 2, :], dtype=int
+            )
+
+            # Initialize params needed for margin checking
+            zeros = np.zeros(np.shape(target_point))
+            direction_sign = np.sign(direction)
+
+            min_margin = 10.0
+
+            current_point = np.array(entry_point, dtype=float)
+
+            # Check for collisions iteratively
+            while (
+                (target_point - current_point) * direction_sign > zeros
+            ).any():
+                # Update point to be checked
+                current_point = current_point + direction
+
+                # Obtain the margin for this specific voxel/point
+                current_margin = float(distance_map[
+                    int(current_point[0]),
+                    int(current_point[1]),
+                    int(current_point[2])
+                ])
+
+                # If the current margin is smaller than the previous minimal
+                # margin, update it
+                if current_margin < min_margin:
+                    min_margin = current_margin
+
+            # If checks finished without collision, add path to
+            # array of valid paths
+            if min_margin > margin:
+                # Define insert
+                insert = np.array(
+                    [direction, entry_point, target_point,
+                     np.array([min_margin] * 3)]
+                )[np.newaxis, :]
+
+                print("\n\n")
+                print(np.shape(insert))
+                print(np.shape(margin_trajectories))
+
+                # Concatenate arrays
+                margin_trajectories[target_id] = np.concatenate(
+                    (insert, margin_trajectories[target_id]),
+                    axis=0, dtype=float
+                )
+
+        # Remove zeros row
+        margin_trajectories[target_id] = \
+            margin_trajectories[target_id][1:, :, :]
+
+    return margin_trajectories
 
 
 def generate_planning_paths(paths: dict, settings: dict) -> tuple[list, dict]:
@@ -324,7 +418,9 @@ def generate_trajectories(
     )
 
     # Now, we'll sort the trajectories based on their margins
-    # TODO: Implement this!
+    margin_trajectories = generate_margin_trajectories(
+        valid_trajectories, distance_map
+    )
 
     return valid_trajectories
 
