@@ -149,7 +149,7 @@ def calculate_valid_lines(
 def generate_margin_trajectories(
         trajectories: Union[np.ndarray, list[np.ndarray]],
         distance_map: np.ndarray,
-        margin: float = 3.0) -> Union[np.ndarray, list[np.ndarray]]:
+        margin: float = 0.0) -> Union[np.ndarray, list[np.ndarray]]:
     """
     This function orders the valid trajectories, as are defined by
     `calculate_valid_lines`, based on margins. Also, it removes some
@@ -172,8 +172,6 @@ def generate_margin_trajectories(
     for target_id in range(len(trajectories)):
         # Loop over entry points
         for entry_id in range(len(trajectories[target_id])):
-
-            print(f"Attempt {entry_id}/{len(trajectories[target_id])}")
 
             # Define start, stop and direction vectors
             direction = trajectories[target_id][entry_id, 0, :]
@@ -219,10 +217,6 @@ def generate_margin_trajectories(
                     [direction, entry_point, target_point,
                      np.array([min_margin] * 3)]
                 )[np.newaxis, :]
-
-                print("\n\n")
-                print(np.shape(insert))
-                print(np.shape(margin_trajectories))
 
                 # Concatenate arrays
                 margin_trajectories[target_id] = np.concatenate(
@@ -422,7 +416,7 @@ def generate_trajectories(
         valid_trajectories, distance_map
     )
 
-    return valid_trajectories
+    return margin_trajectories
 
 
 def generate_possible_paths(subject_paths: dict):
@@ -439,19 +433,19 @@ def generate_possible_paths(subject_paths: dict):
 
     mask_combined, aff_mask_combined, hdr_mask = \
         load_nifti(subject_paths["final_mask"])
-    mask_ventricles, aff_mask_ventricles, _ = \
-        load_nifti(subject_paths["ventricle_mask"])
-    mask_sulci, aff_mask_sulci, _ = \
-        load_nifti(subject_paths["sulcus_mask"])
-    mask_vessels, aff_mask_vessels, _ = \
-        load_nifti(subject_paths["vessel_mask"])
+    # mask_ventricles, aff_mask_ventricles, _ = \
+    #     load_nifti(subject_paths["ventricle_mask"])
+    # mask_sulci, aff_mask_sulci, _ = \
+    #     load_nifti(subject_paths["sulcus_mask"])
+    # mask_vessels, aff_mask_vessels, _ = \
+    #     load_nifti(subject_paths["vessel_mask"])
 
     # Create and save distance maps
     for mask, aff, path_pointer in [
-        (mask_combined, aff_mask_combined, "combined"),
-        (mask_ventricles, aff_mask_ventricles, "ventricles"),
-        (mask_sulci, aff_mask_sulci, "sulci"),
-        (mask_vessels, aff_mask_vessels, "vessels"),
+        (mask_combined, aff_mask_combined, "combined")  # ,
+        # (mask_ventricles, aff_mask_ventricles, "ventricles"),
+        # (mask_sulci, aff_mask_sulci, "sulci"),
+        # (mask_vessels, aff_mask_vessels, "vessels")
     ]:
         distance_map = generate_distance_map(mask, aff)
         nib.save(nib.Nifti1Image(distance_map, aff, hdr_mask),
