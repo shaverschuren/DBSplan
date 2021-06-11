@@ -1,5 +1,6 @@
 # System-specific configuration
 config.json
+.qt_for_python/*
 
 # VS code 
 .vscode/

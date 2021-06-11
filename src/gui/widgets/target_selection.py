@@ -2,7 +2,7 @@ import pyqtgraph as pg
 import numpy as np
 
 
-class CustomWidget(pg.GraphicsWindow):
+class TargetSelection(pg.GraphicsWindow):
     pg.setConfigOption('background', 'w')
     pg.setConfigOption('foreground', 'k')
     ptr1 = 0
@@ -34,7 +34,7 @@ class CustomWidget(pg.GraphicsWindow):
 
 
 if __name__ == '__main__':
-    w = CustomWidget()
+    w = TargetSelection()
     w.show()
 
     pg.QtGui.QApplication.exec_()
