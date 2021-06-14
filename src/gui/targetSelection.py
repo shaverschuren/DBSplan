@@ -1,11 +1,6 @@
-"""
-Demonstrates common image analysis tools.
-Many of the features demonstrated here are already provided by the ImageView
-widget, but here we present a lower-level approach that provides finer control
-over the user interface.
+"""Main Target Selection GUI
 """
 
-import warnings
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
 import numpy as np
