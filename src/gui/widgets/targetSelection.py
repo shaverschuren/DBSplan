@@ -98,6 +98,24 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         self.v2.addItem(self.img_fro)
         self.v3.addItem(self.img_tra)
 
+        # Add cursor in all 3 images
+        self.cur_sag = pg.ScatterPlotItem(
+            pos=[(self.cursor_j, self.cursor_k)],
+            symbol="+", brush="r", pen="r", size=6
+        )
+        self.cur_fro = pg.ScatterPlotItem(
+            pos=[(self.cursor_i, self.cursor_k)],
+            symbol="+", brush="r", pen="r", size=6
+        )
+        self.cur_tra = pg.ScatterPlotItem(
+            pos=[(self.cursor_i, self.cursor_j)],
+            symbol="+", brush="r", pen="r", size=6
+        )
+
+        self.v1.addItem(self.cur_sag)
+        self.v2.addItem(self.cur_fro)
+        self.v3.addItem(self.cur_tra)
+
         # Disable right click menus
         self.v1.setMenuEnabled(False)
         self.v2.setMenuEnabled(False)
@@ -140,6 +158,10 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         self.img_tra.setImage(self.data[:, :, self.tra_pos])
         self.img_fro.setImage(self.data[:, self.fro_pos, :])
         self.img_sag.setImage(self.data[self.sag_pos, :, :])
+
+        self.cur_tra.setData(pos=[(self.cursor_i, self.cursor_j)])
+        self.cur_fro.setData(pos=[(self.cursor_i, self.cursor_k)])
+        self.cur_sag.setData(pos=[(self.cursor_j, self.cursor_k)])
 
     def updateText(self):
         updated_string = (
