@@ -70,6 +70,10 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         self.view_v2 = "fro"
         self.view_v3 = "tra"
 
+        self.view_sag = "v1"
+        self.view_fro = "v2"
+        self.view_tra = "v3"
+
         self.tra_pos = self.shape[2] // 2
         self.sag_pos = self.shape[0] // 2
         self.fro_pos = self.shape[1] // 2
@@ -185,23 +189,32 @@ class TargetSelection(pg.GraphicsLayoutWidget):
             x_scale = self.hover_i
             y_scale = self.hover_j
 
-            self.v3.scaleBy(
-                s=[scale_factor, scale_factor],
-                center=(x_scale, y_scale)
-            )
+            view = self.view_tra
+
         elif img_str == "fro":
             x_scale = self.hover_i
             y_scale = self.hover_k
 
-            self.v2.scaleBy(
-                s=[scale_factor, scale_factor],
-                center=(x_scale, y_scale)
-            )
+            view = self.view_fro
+
         elif img_str == "sag":
             x_scale = self.hover_j
             y_scale = self.hover_k
 
+            view = self.view_sag
+
+        if view == "v1":
             self.v1.scaleBy(
+                s=[scale_factor, scale_factor],
+                center=(x_scale, y_scale)
+            )
+        elif view == "v2":
+            self.v2.scaleBy(
+                s=[scale_factor, scale_factor],
+                center=(x_scale, y_scale)
+            )
+        elif view == "v3":
+            self.v3.scaleBy(
                 s=[scale_factor, scale_factor],
                 center=(x_scale, y_scale)
             )
