@@ -5,6 +5,7 @@ widget, but here we present a lower-level approach that provides finer control
 over the user interface.
 """
 
+import warnings
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
 import numpy as np
@@ -19,15 +20,22 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         # Setup main window
         pg.mkQApp()
         self.setWindowTitle('Target Selection')
-        self.resize(1000, 800)
-        self.setWindowState(QtCore.Qt.WindowMaximized)
         self.ci.setBorder((50, 50, 100))
+
+        # Setup window size
+        self.initScreen()
 
         # Setup data
         self.initData()
 
         # Setup subplots
         self.initSubplots()
+
+    def initScreen(self):
+        self.screen = QtGui.QDesktopWidget().screenGeometry()
+
+        self.resize(1000, 800)
+        self.setWindowState(QtCore.Qt.WindowMaximized)
 
     def initData(self):
         # Load nifti image for tryouts
@@ -62,9 +70,13 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         self.view_v2 = "fro"
         self.view_v3 = "tra"
 
-        self.tra_pos = 128
-        self.sag_pos = 128
-        self.fro_pos = 128
+        self.tra_pos = self.shape[2] // 2
+        self.sag_pos = self.shape[0] // 2
+        self.fro_pos = self.shape[1] // 2
+
+        self.cursor_i = self.sag_pos
+        self.cursor_j = self.fro_pos
+        self.cursor_k = self.tra_pos
 
         # Setup viewboxes
         for v in [self.v1, self.v2, self.v3]:
@@ -86,11 +98,26 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         self.v2.addItem(self.img_fro)
         self.v3.addItem(self.img_tra)
 
+        # Disable right click menus
+        self.v1.setMenuEnabled(False)
+        self.v2.setMenuEnabled(False)
+        self.v3.setMenuEnabled(False)
+
         # Display text bar
-        self.infoStr = "Voxel: [???, ???, ???]"
-        self.text = pg.TextItem(
-            self.infoStr, (255, 255, 255), anchor=(0.5, 0.5)
+        infoStr = (
+            "Mouse: "
+            f"[{0:4d}, {0:4d}, {0:4d}]"
+            "   |   "
+            "Cursor: "
+            f"[{0:4d}, {0:4d}, {0:4d}]"
         )
+
+        font = QtGui.QFont()
+        font.setPixelSize(10)
+        self.text = pg.TextItem(
+            infoStr, (255, 255, 255), anchor=(0.5, 0.5)
+        )
+        self.text.setFont(font)
         self.v0.addItem(self.text)
 
         self.v0.setMouseEnabled(x=False, y=False)
@@ -105,6 +132,26 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         self.img_fro.hoverEvent = self.imageHoverEvent_fro
         self.img_sag.hoverEvent = self.imageHoverEvent_sag
 
+        self.img_tra.mouseClickEvent = self.imageMouseClickEvent_tra
+        self.img_fro.mouseClickEvent = self.imageMouseClickEvent_fro
+        self.img_sag.mouseClickEvent = self.imageMouseClickEvent_sag
+
+    def updateImages(self):
+        self.img_tra.setImage(self.data[:, :, self.tra_pos])
+        self.img_fro.setImage(self.data[:, self.fro_pos, :])
+        self.img_sag.setImage(self.data[self.sag_pos, :, :])
+
+    def updateText(self):
+        updated_string = (
+            "Mouse: "
+            f"[{self.hover_i:4d}, {self.hover_j:4d}, {self.hover_k:4d}]"
+            "   |   "
+            "Cursor: "
+            f"[{self.cursor_i:4d}, {self.cursor_j:4d}, {self.cursor_k:4d}]"
+        )
+
+        self.text.setText(updated_string)
+
     def imageHoverEvent_tra(self, event):
         view = "tra"
         self.imageHoverEvent(event, view)
@@ -118,28 +165,83 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         self.imageHoverEvent(event, view)
 
     def imageHoverEvent(self, event, view):
-        """Show the position, pixel, and value under the mouse cursor.
+        """Show the voxel position under the mouse cursor.
         """
+
         if event.isExit():
-            self.text.setText(f"Voxel: [???, ???, ???]")
+            self.hover_i = 0
+            self.hover_j = 0
+            self.hover_k = 0
+
+            self.updateText()
             return
+
         pos = event.pos()
         x, y = pos.y(), pos.x()
 
         if view == "tra":
-            i = int(np.clip(x, 0, self.shape[0] - 1))
-            j = int(np.clip(y, 0, self.shape[1] - 1))
-            k = int(self.tra_pos)
+            self.hover_i = int(np.clip(y, 0, self.shape[0] - 1))
+            self.hover_j = int(np.clip(x, 0, self.shape[1] - 1))
+            self.hover_k = int(self.tra_pos)
         elif view == "fro":
-            i = int(np.clip(x, 0, self.shape[0] - 1))
-            j = int(self.fro_pos)
-            k = int(np.clip(y, 0, self.shape[2] - 1))
+            self.hover_i = int(np.clip(y, 0, self.shape[0] - 1))
+            self.hover_j = int(self.fro_pos)
+            self.hover_k = int(np.clip(x, 0, self.shape[2] - 1))
         elif view == "sag":
-            i = int(self.sag_pos)
-            j = int(np.clip(x, 0, self.shape[1] - 1))
-            k = int(np.clip(y, 0, self.shape[2] - 1))
+            self.hover_i = int(self.sag_pos)
+            self.hover_j = int(np.clip(y, 0, self.shape[1] - 1))
+            self.hover_k = int(np.clip(x, 0, self.shape[2] - 1))
 
-        self.text.setText(f"Voxel: [{i:3d}, {j:3d}, {k:3d}]")
+        if QtCore.Qt.LeftButton == event.buttons():
+            self.sag_pos = self.hover_i
+            self.fro_pos = self.hover_j
+            self.tra_pos = self.hover_k
+
+            self.cursor_i = self.hover_i
+            self.cursor_j = self.hover_j
+            self.cursor_k = self.hover_k
+
+            self.updateImages()
+
+        self.updateText()
+
+    def imageMouseClickEvent_tra(self, event):
+        view = "tra"
+        self.imageMouseClickEvent(event, view)
+
+    def imageMouseClickEvent_fro(self, event):
+        view = "fro"
+        self.imageMouseClickEvent(event, view)
+
+    def imageMouseClickEvent_sag(self, event):
+        view = "sag"
+        self.imageMouseClickEvent(event, view)
+
+    def imageMouseClickEvent(self, event, view):
+        """ Update the current target/view point
+        """
+
+        # Extract click position
+        pos = event.pos()
+        x, y = pos.y(), pos.x()
+
+        if QtCore.Qt.LeftButton == event.buttons():
+            # Update view
+            if view == "tra":
+                self.sag_pos = int(np.clip(y, 0, self.shape[0] - 1))
+                self.fro_pos = int(np.clip(x, 0, self.shape[1] - 1))
+            elif view == "fro":
+                self.sag_pos = int(np.clip(y, 0, self.shape[0] - 1))
+                self.tra_pos = int(np.clip(x, 0, self.shape[2] - 1))
+            elif view == "sag":
+                self.fro_pos = int(np.clip(y, 0, self.shape[1] - 1))
+                self.tra_pos = int(np.clip(x, 0, self.shape[2] - 1))
+
+            self.cursor_i = self.sag_pos
+            self.cursor_j = self.fro_pos
+            self.cursor_k = self.tra_pos
+
+            self.updateImages()
 
 
 if __name__ == '__main__':
