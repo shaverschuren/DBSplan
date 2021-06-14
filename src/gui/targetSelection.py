@@ -88,9 +88,9 @@ class TargetSelection(pg.GraphicsLayoutWidget):
             v.setMouseEnabled(x=False, y=False)
             v.setLimits(
                 xMin=-1.5 * max(self.shape), xMax=max(self.shape) * 2.5,
-                minXRange=10, maxXRange=max(self.shape) * 4.,
+                minXRange=20, maxXRange=max(self.shape) * 4.,
                 yMin=-1.5 * max(self.shape), yMax=max(self.shape) * 2.5,
-                minYRange=10, maxYRange=max(self.shape) * 4.
+                minYRange=20, maxYRange=max(self.shape) * 4.
             )
 
         # Items for displaying image data
@@ -158,6 +158,10 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         self.img_fro.mouseClickEvent = self.imageMouseClickEvent_fro
         self.img_sag.mouseClickEvent = self.imageMouseClickEvent_sag
 
+        self.img_tra.keyPressEvent = self.imageKeyPressEvent_tra
+        self.img_fro.keyPressEvent = self.imageKeyPressEvent_fro
+        self.img_sag.keyPressEvent = self.imageKeyPressEvent_sag
+
         self.img_tra.wheelEvent = self.imageWheelEvent_tra
         self.img_fro.wheelEvent = self.imageWheelEvent_fro
         self.img_sag.wheelEvent = self.imageWheelEvent_sag
@@ -188,36 +192,28 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         if img_str == "tra":
             x_scale = self.hover_i
             y_scale = self.hover_j
-
             view = self.view_tra
-
         elif img_str == "fro":
             x_scale = self.hover_i
             y_scale = self.hover_k
-
             view = self.view_fro
-
         elif img_str == "sag":
             x_scale = self.hover_j
             y_scale = self.hover_k
-
             view = self.view_sag
 
         if view == "v1":
             self.v1.scaleBy(
                 s=[scale_factor, scale_factor],
-                center=(x_scale, y_scale)
-            )
+                center=(x_scale, y_scale))
         elif view == "v2":
             self.v2.scaleBy(
                 s=[scale_factor, scale_factor],
-                center=(x_scale, y_scale)
-            )
+                center=(x_scale, y_scale))
         elif view == "v3":
             self.v3.scaleBy(
                 s=[scale_factor, scale_factor],
-                center=(x_scale, y_scale)
-            )
+                center=(x_scale, y_scale))
 
     def imageHoverEvent_tra(self, event):
         view = "tra"
@@ -292,7 +288,7 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         pos = event.pos()
         x, y = pos.y(), pos.x()
 
-        if QtCore.Qt.LeftButton == event.buttons():
+        if event.buttons() == QtCore.Qt.LeftButton:
             # Update view
             if view == "tra":
                 self.sag_pos = int(np.clip(y, 0, self.shape[0] - 1))
@@ -308,6 +304,49 @@ class TargetSelection(pg.GraphicsLayoutWidget):
             self.cursor_j = self.fro_pos
             self.cursor_k = self.tra_pos
 
+            self.updateImages()
+
+    def imageKeyPressEvent_tra(self, event):
+        print("OK")
+        view = "tra"
+        self.imageKeyPressEvent(event, view)
+
+    def imageKeyPressEvent_fro(self, event):
+        print("OK")
+        view = "fro"
+        self.imageKeyPressEvent(event, view)
+
+    def imageKeyPressEvent_sag(self, event):
+        print("OK")
+        view = "sag"
+        self.imageKeyPressEvent(event, view)
+
+    def imageKeyPressEvent(self, event, view):
+        """ Handles key presses
+        """
+        # Checks for up/down key presses (scroll)
+        if event.key() in (QtCore.Qt.Key_Up, QtCore.Qt.Key_Down):
+            # Define direction
+            if event.key() == QtCore.Qt.Key_Up:
+                scroll = 1
+            elif event.key() == QtCore.Qt.Key_Down:
+                scroll = -1
+
+            # Adjust cursor + view position
+            if view == "tra":
+                if self.cursor_k > 0 and self.cursor_k < self.shape[2] - 1:
+                    self.tra_pos += scroll
+                    self.cursor_k += scroll
+            elif view == "fro":
+                if self.cursor_j > 0 and self.cursor_j < self.shape[1] - 1:
+                    self.fro_pos += scroll
+                    self.cursor_j += scroll
+            elif view == "seg":
+                if self.cursor_i > 0 and self.cursor_i < self.shape[0] - 1:
+                    self.seg_pos += scroll
+                    self.cursor_i += scroll
+
+            # Update images
             self.updateImages()
 
     def imageWheelEvent_tra(self, event):
