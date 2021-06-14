@@ -154,6 +154,10 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         self.img_fro.mouseClickEvent = self.imageMouseClickEvent_fro
         self.img_sag.mouseClickEvent = self.imageMouseClickEvent_sag
 
+        self.img_tra.wheelEvent = self.imageWheelEvent_tra
+        self.img_fro.wheelEvent = self.imageWheelEvent_fro
+        self.img_sag.wheelEvent = self.imageWheelEvent_sag
+
     def updateImages(self):
         self.img_tra.setImage(self.data[:, :, self.tra_pos])
         self.img_fro.setImage(self.data[:, self.fro_pos, :])
@@ -173,6 +177,34 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         )
 
         self.text.setText(updated_string)
+
+    def zoomImage(self, delta, img_str):
+        scale_factor = 1.0 + delta * 0.1
+
+        if img_str == "tra":
+            x_scale = self.hover_i
+            y_scale = self.hover_j
+
+            self.v3.scaleBy(
+                s=[scale_factor, scale_factor],
+                center=(x_scale, y_scale)
+            )
+        elif img_str == "fro":
+            x_scale = self.hover_i
+            y_scale = self.hover_k
+
+            self.v2.scaleBy(
+                s=[scale_factor, scale_factor],
+                center=(x_scale, y_scale)
+            )
+        elif img_str == "sag":
+            x_scale = self.hover_j
+            y_scale = self.hover_k
+
+            self.v1.scaleBy(
+                s=[scale_factor, scale_factor],
+                center=(x_scale, y_scale)
+            )
 
     def imageHoverEvent_tra(self, event):
         view = "tra"
@@ -264,6 +296,33 @@ class TargetSelection(pg.GraphicsLayoutWidget):
             self.cursor_k = self.tra_pos
 
             self.updateImages()
+
+    def imageWheelEvent_tra(self, event):
+        view = "tra"
+        self.imageWheelEvent(event, view)
+
+    def imageWheelEvent_fro(self, event):
+        view = "fro"
+        self.imageWheelEvent(event, view)
+
+    def imageWheelEvent_sag(self, event):
+        view = "sag"
+        self.imageWheelEvent(event, view)
+
+    def imageWheelEvent(self, event, view):
+        """ Zoom using mouse wheel
+        """
+
+        # Check for mouse wheel movement direction
+        if event.delta() > 0:
+            # Wheel away from user -> zoom in
+            delta = 1
+        else:
+            # Wheel towards user -> zoom out
+            delta = -1
+
+        # Zoom appropriate image
+        self.zoomImage(delta, view)
 
 
 if __name__ == '__main__':
