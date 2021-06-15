@@ -77,6 +77,8 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         self.cursor_j = self.fro_pos
         self.cursor_k = self.tra_pos
 
+        self.current_hover = None
+
         # Setup viewboxes
         for v in [self.v1, self.v2, self.v3]:
             v.setAspectLocked(1.0)
@@ -152,6 +154,10 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         self.img_tra.mouseClickEvent = self.imageMouseClickEvent_tra
         self.img_fro.mouseClickEvent = self.imageMouseClickEvent_fro
         self.img_sag.mouseClickEvent = self.imageMouseClickEvent_sag
+
+        self.img_tra.mouseDragEvent = self.imageMouseDragEvent_tra
+        self.img_fro.mouseDragEvent = self.imageMouseDragEvent_fro
+        self.img_sag.mouseDragEvent = self.imageMouseDragEvent_sag
 
         self.img_tra.keyPressEvent = self.imageKeyPressEvent_tra
         self.img_fro.keyPressEvent = self.imageKeyPressEvent_fro
@@ -304,17 +310,76 @@ class TargetSelection(pg.GraphicsLayoutWidget):
 
             self.updateImages()
 
+    def imageMouseDragEvent_tra(self, event):
+        view = "tra"
+        self.imageMouseDragEvent(event, view)
+
+    def imageMouseDragEvent_fro(self, event):
+        view = "fro"
+        self.imageMouseDragEvent(event, view)
+
+    def imageMouseDragEvent_sag(self, event):
+        view = "sag"
+        self.imageMouseDragEvent(event, view)
+
+    def imageMouseDragEvent(self, event, view):
+        """ Implementation of right drag panning
+        """
+
+        # Manually accept event
+        event.accept()
+
+        # Check for right-click drag
+        if event.button() == QtCore.Qt.RightButton:
+            # Extract start position + update is this is a start
+            if event.isStart():
+                self.drag_startpos = event.buttonDownPos()
+                self.drag_prevpos = event.pos()
+            # Reset if this is the end
+            elif event.isFinish():
+                self.drag_startpos = None
+                self.drag_prevpos = None
+            # Translate image upon dragging
+            else:
+                prev_x = self.drag_prevpos.x()
+                prev_y = self.drag_prevpos.y()
+
+                current_x = event.pos().x()
+                current_y = event.pos().y()
+
+                # Check which viewbox to update
+                if view == "tra":
+                    view = self.view_tra
+                elif view == "fro":
+                    view = self.view_fro
+                elif view == "sag":
+                    view = self.view_sag
+
+                # Update appropriate viewbox
+                if view == "v1":
+                    self.v1.translateBy(
+                        x=-(current_x - prev_x), y=-(current_y - prev_y)
+                    )
+                elif view == "v2":
+                    self.v2.translateBy(
+                        x=-(current_x - prev_x), y=-(current_y - prev_y)
+                    )
+                elif view == "v3":
+                    self.v3.translateBy(
+                        x=-(current_x - prev_x), y=-(current_y - prev_y)
+                    )
+
+                # Update "previous" position
+                self.drag_prevpos = event.pos()
+
     def keyPressEvent(self, event):
         self.scene().keyPressEvent(event)
 
         if self.current_hover == "tra":
-            print("tra")
             self.imageKeyPressEvent_tra(event)
         if self.current_hover == "fro":
-            print("fro")
             self.imageKeyPressEvent_fro(event)
         if self.current_hover == "sag":
-            print("sag")
             self.imageKeyPressEvent_sag(event)
 
     def imageKeyPressEvent_tra(self, event):
