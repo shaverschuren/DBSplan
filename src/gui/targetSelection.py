@@ -212,14 +212,17 @@ class TargetSelection(pg.GraphicsLayoutWidget):
 
     def imageHoverEvent_tra(self, event):
         view = "tra"
+        self.current_hover = "tra"
         self.imageHoverEvent(event, view)
 
     def imageHoverEvent_fro(self, event):
         view = "fro"
+        self.current_hover = "fro"
         self.imageHoverEvent(event, view)
 
     def imageHoverEvent_sag(self, event):
         view = "sag"
+        self.current_hover = "sag"
         self.imageHoverEvent(event, view)
 
     def imageHoverEvent(self, event, view):
@@ -301,18 +304,28 @@ class TargetSelection(pg.GraphicsLayoutWidget):
 
             self.updateImages()
 
+    def keyPressEvent(self, event):
+        self.scene().keyPressEvent(event)
+
+        if self.current_hover == "tra":
+            print("tra")
+            self.imageKeyPressEvent_tra(event)
+        if self.current_hover == "fro":
+            print("fro")
+            self.imageKeyPressEvent_fro(event)
+        if self.current_hover == "sag":
+            print("sag")
+            self.imageKeyPressEvent_sag(event)
+
     def imageKeyPressEvent_tra(self, event):
-        print("OK")
         view = "tra"
         self.imageKeyPressEvent(event, view)
 
     def imageKeyPressEvent_fro(self, event):
-        print("OK")
         view = "fro"
         self.imageKeyPressEvent(event, view)
 
     def imageKeyPressEvent_sag(self, event):
-        print("OK")
         view = "sag"
         self.imageKeyPressEvent(event, view)
 
@@ -336,9 +349,9 @@ class TargetSelection(pg.GraphicsLayoutWidget):
                 if self.cursor_j > 0 and self.cursor_j < self.shape[1] - 1:
                     self.fro_pos += scroll
                     self.cursor_j += scroll
-            elif view == "seg":
+            elif view == "sag":
                 if self.cursor_i > 0 and self.cursor_i < self.shape[0] - 1:
-                    self.seg_pos += scroll
+                    self.sag_pos += scroll
                     self.cursor_i += scroll
 
             # Update images
