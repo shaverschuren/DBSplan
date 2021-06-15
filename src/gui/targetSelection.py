@@ -69,6 +69,7 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         self.view_fro = "v2"
         self.view_tra = "v3"
 
+        # Define starting positions
         self.tra_pos = self.shape[2] // 2
         self.sag_pos = self.shape[0] // 2
         self.fro_pos = self.shape[1] // 2
@@ -98,6 +99,29 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         self.v1.addItem(self.img_sag)
         self.v2.addItem(self.img_fro)
         self.v3.addItem(self.img_tra)
+
+        # Add target point plots in all 3 images
+        self.target_points = []
+        self.target_points_sag = []
+        self.target_points_fro = []
+        self.target_points_tra = []
+
+        self.tar_sag = pg.ScatterPlotItem(
+            pos=self.target_points_sag,
+            symbol="o", brush="b", pen="b", size=8
+        )
+        self.tar_fro = pg.ScatterPlotItem(
+            pos=self.target_points_fro,
+            symbol="o", brush="b", pen="b", size=8
+        )
+        self.tar_tra = pg.ScatterPlotItem(
+            pos=self.target_points_tra,
+            symbol="o", brush="b", pen="b", size=8
+        )
+
+        self.v1.addItem(self.tar_sag)
+        self.v2.addItem(self.tar_fro)
+        self.v3.addItem(self.tar_tra)
 
         # Add cursor in all 3 images
         self.cur_sag = pg.ScatterPlotItem(
@@ -168,13 +192,36 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         self.img_sag.wheelEvent = self.imageWheelEvent_sag
 
     def updateImages(self):
+        # Update images
         self.img_tra.setImage(self.data[:, :, self.tra_pos])
         self.img_fro.setImage(self.data[:, self.fro_pos, :])
         self.img_sag.setImage(self.data[self.sag_pos, :, :])
 
+        # Update cursor plots
         self.cur_tra.setData(pos=[(self.cursor_i, self.cursor_j)])
         self.cur_fro.setData(pos=[(self.cursor_i, self.cursor_k)])
         self.cur_sag.setData(pos=[(self.cursor_j, self.cursor_k)])
+
+        # Update target plots
+        self.target_points_tra = []
+        self.target_points_fro = []
+        self.target_points_sag = []
+        for target_point in self.target_points:
+            if self.tra_pos == target_point[2]:
+                self.target_points_tra.append(
+                    (target_point[0], target_point[1])
+                )
+            if self.fro_pos == target_point[1]:
+                self.target_points_fro.append(
+                    (target_point[0], target_point[2])
+                )
+            if self.sag_pos == target_point[0]:
+                self.target_points_sag.append(
+                    (target_point[1], target_point[2])
+                )
+        self.tar_tra.setData(pos=self.target_points_tra)
+        self.tar_fro.setData(pos=self.target_points_fro)
+        self.tar_sag.setData(pos=self.target_points_sag)
 
     def updateText(self):
         updated_string = (
@@ -186,6 +233,11 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         )
 
         self.text.setText(updated_string)
+
+    def addTarget(self):
+        target_point = (self.cursor_i, self.cursor_j, self.cursor_k)
+
+        self.target_points.append(target_point)
 
     def zoomImage(self, delta, img_str):
         scale_factor = 1.0 + delta * 0.1
@@ -397,6 +449,7 @@ class TargetSelection(pg.GraphicsLayoutWidget):
     def imageKeyPressEvent(self, event, view):
         """ Handles key presses
         """
+
         # Checks for up/down key presses (scroll)
         if event.key() in (QtCore.Qt.Key_Up, QtCore.Qt.Key_Down):
             # Define direction
@@ -420,6 +473,11 @@ class TargetSelection(pg.GraphicsLayoutWidget):
                     self.cursor_i += scroll
 
             # Update images
+            self.updateImages()
+
+        # Checks for a Return/Enter key (add Target)
+        elif event.key() == QtCore.Qt.Key_Return:
+            self.addTarget()
             self.updateImages()
 
     def imageWheelEvent_tra(self, event):
