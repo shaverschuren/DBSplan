@@ -10,6 +10,7 @@ import nibabel as nib
 class TargetSelection(pg.GraphicsLayoutWidget):
 
     def __init__(self):
+        """Main window initialization"""
         super().__init__()
 
         # Setup main window
@@ -27,12 +28,14 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         self.initSubplots()
 
     def initScreen(self):
+        """Screen initialization"""
         self.screen = QtGui.QDesktopWidget().screenGeometry()
 
         self.resize(1000, 800)
         self.setWindowState(QtCore.Qt.WindowMaximized)
 
     def initData(self):
+        """Data initialization"""
         # Load nifti image for tryouts
         self.img = nib.load(
             "/mnt/d/DBSplan/tmpData/nifti/SEEGBCI-13/MRI_T1W.nii.gz"
@@ -41,6 +44,7 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         self.shape = np.shape(self.data)
 
     def initSubplots(self):
+        """Subplot initialization"""
         # Setup subplots
         self.sub0 = self.addLayout(colspan=2)
         self.sub4 = self.addLayout(rowspan=3)
@@ -192,6 +196,7 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         self.img_sag.wheelEvent = self.imageWheelEvent_sag
 
     def updateImages(self):
+        """Updates images on event"""
         # Update images
         self.img_tra.setImage(self.data[:, :, self.tra_pos])
         self.img_fro.setImage(self.data[:, self.fro_pos, :])
@@ -224,6 +229,7 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         self.tar_sag.setData(pos=self.target_points_sag)
 
     def updateText(self):
+        """Updates text on event"""
         updated_string = (
             "Mouse: "
             f"[{self.hover_i:4d}, {self.hover_j:4d}, {self.hover_k:4d}]"
@@ -235,11 +241,13 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         self.text.setText(updated_string)
 
     def addTarget(self):
+        """Adds current cursor position to target list"""
         target_point = (self.cursor_i, self.cursor_j, self.cursor_k)
 
         self.target_points.append(target_point)
 
     def zoomImage(self, delta, img_str):
+        """Zooms in/out on a certain image"""
         scale_factor = 1.0 + delta * 0.1
 
         if img_str == "tra":
@@ -269,23 +277,25 @@ class TargetSelection(pg.GraphicsLayoutWidget):
                 center=(x_scale, y_scale))
 
     def imageHoverEvent_tra(self, event):
+        """Handles hover event on transverse plane"""
         view = "tra"
         self.current_hover = "tra"
         self.imageHoverEvent(event, view)
 
     def imageHoverEvent_fro(self, event):
+        """Handles hover event on frontal plane"""
         view = "fro"
         self.current_hover = "fro"
         self.imageHoverEvent(event, view)
 
     def imageHoverEvent_sag(self, event):
+        """Handles hover event on saggital plane"""
         view = "sag"
         self.current_hover = "sag"
         self.imageHoverEvent(event, view)
 
     def imageHoverEvent(self, event, view):
-        """Show the voxel position under the mouse cursor.
-        """
+        """Show the voxel position under the mouse cursor."""
 
         if event.isExit():
             self.hover_i = 0
@@ -325,20 +335,22 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         self.updateText()
 
     def imageMouseClickEvent_tra(self, event):
+        """Handles click event on transverse plane"""
         view = "tra"
         self.imageMouseClickEvent(event, view)
 
     def imageMouseClickEvent_fro(self, event):
+        """Handles click event on frontal plane"""
         view = "fro"
         self.imageMouseClickEvent(event, view)
 
     def imageMouseClickEvent_sag(self, event):
+        """Handles click event on saggital plane"""
         view = "sag"
         self.imageMouseClickEvent(event, view)
 
     def imageMouseClickEvent(self, event, view):
-        """ Update the current target/view point
-        """
+        """ Update the current target/view point"""
 
         # Extract click position
         pos = event.pos()
@@ -363,20 +375,22 @@ class TargetSelection(pg.GraphicsLayoutWidget):
             self.updateImages()
 
     def imageMouseDragEvent_tra(self, event):
+        """Handles drag event on transverse plane"""
         view = "tra"
         self.imageMouseDragEvent(event, view)
 
     def imageMouseDragEvent_fro(self, event):
+        """Handles drag event on frontal plane"""
         view = "fro"
         self.imageMouseDragEvent(event, view)
 
     def imageMouseDragEvent_sag(self, event):
+        """Handles drag event on saggital plane"""
         view = "sag"
         self.imageMouseDragEvent(event, view)
 
     def imageMouseDragEvent(self, event, view):
-        """ Implementation of right drag panning
-        """
+        """ Implementation of right drag panning"""
 
         # Manually accept event
         event.accept()
@@ -425,6 +439,7 @@ class TargetSelection(pg.GraphicsLayoutWidget):
                 self.drag_prevpos = event.pos()
 
     def keyPressEvent(self, event):
+        """Handles general keypress events"""
         self.scene().keyPressEvent(event)
 
         if self.current_hover == "tra":
@@ -435,19 +450,24 @@ class TargetSelection(pg.GraphicsLayoutWidget):
             self.imageKeyPressEvent_sag(event)
 
     def imageKeyPressEvent_tra(self, event):
+        """Handles keypress event on transverse plane"""
         view = "tra"
         self.imageKeyPressEvent(event, view)
 
     def imageKeyPressEvent_fro(self, event):
+        """Handles keypress event on frontal plane"""
         view = "fro"
         self.imageKeyPressEvent(event, view)
 
     def imageKeyPressEvent_sag(self, event):
+        """Handles keypress event on saggital plane"""
         view = "sag"
         self.imageKeyPressEvent(event, view)
 
     def imageKeyPressEvent(self, event, view):
         """ Handles key presses
+        - Up/down -> scrolling
+        - Return -> Add target point
         """
 
         # Checks for up/down key presses (scroll)
@@ -477,24 +497,28 @@ class TargetSelection(pg.GraphicsLayoutWidget):
 
         # Checks for a Return/Enter key (add Target)
         elif event.key() == QtCore.Qt.Key_Return:
+            # Add target
             self.addTarget()
+            # Update plots
             self.updateImages()
 
     def imageWheelEvent_tra(self, event):
+        """Handles mousewheel event on transverse plane"""
         view = "tra"
         self.imageWheelEvent(event, view)
 
     def imageWheelEvent_fro(self, event):
+        """Handles mousewheel event on frontal plane"""
         view = "fro"
         self.imageWheelEvent(event, view)
 
     def imageWheelEvent_sag(self, event):
+        """Handles mousewheel event on saggital plane"""
         view = "sag"
         self.imageWheelEvent(event, view)
 
     def imageWheelEvent(self, event, view):
-        """ Zoom using mouse wheel
-        """
+        """ Zoom using mouse wheel"""
 
         # Check for mouse wheel movement direction
         if event.delta() > 0:
