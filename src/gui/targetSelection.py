@@ -373,6 +373,7 @@ class TargetSelection(pg.GraphicsLayoutWidget):
             self.cursor_k = self.tra_pos
 
             self.updateImages()
+            self.updateText()
 
     def imageMouseDragEvent_tra(self, event):
         """Handles drag event on transverse plane"""
@@ -438,6 +439,8 @@ class TargetSelection(pg.GraphicsLayoutWidget):
                 # Update "previous" position
                 self.drag_prevpos = event.pos()
 
+        self.updateText()
+
     def keyPressEvent(self, event):
         """Handles general keypress events"""
         self.scene().keyPressEvent(event)
@@ -494,6 +497,8 @@ class TargetSelection(pg.GraphicsLayoutWidget):
 
             # Update images
             self.updateImages()
+            # Update text
+            self.updateText()
 
         # Checks for a Return/Enter key (add Target)
         elif event.key() == QtCore.Qt.Key_Return:
@@ -530,6 +535,9 @@ class TargetSelection(pg.GraphicsLayoutWidget):
 
         # Zoom appropriate image
         self.zoomImage(delta, view)
+
+        # Update text
+        self.updateText()
 
 
 if __name__ == '__main__':
