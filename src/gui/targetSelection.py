@@ -1,38 +1,46 @@
 """Main Target Selection GUI
 """
 
+import sys
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
 import numpy as np
 import nibabel as nib
 
 
-class TargetSelection(pg.GraphicsLayoutWidget):
+class TargetSelection(QtGui.QMainWindow):  # pg.GraphicsLayoutWidget):
 
     def __init__(self):
         """Main window initialization"""
         super().__init__()
 
         # Setup main window
-        pg.mkQApp()
-        self.setWindowTitle('Target Selection')
-        self.ci.setBorder((50, 50, 100))
-
-        # Setup window size
         self.initScreen()
 
         # Setup data
         self.initData()
 
-        # Setup subplots
+        # Setup subplots widget
         self.initSubplots()
+
+        # Setup main layout
+        self.initWindow()
+
+        # # Setup top bar
+        # self.initTop()
 
     def initScreen(self):
         """Screen initialization"""
-        self.screen = QtGui.QDesktopWidget().screenGeometry()
+        self.setWindowTitle('Target Selection')
 
+        self.screen = QtGui.QDesktopWidget().screenGeometry()
         self.resize(1000, 800)
         self.setWindowState(QtCore.Qt.WindowMaximized)
+
+    def initWindow(self):
+        """Main window initialization"""
+
+        # Layout of main window
 
     def initData(self):
         """Data initialization"""
@@ -45,24 +53,39 @@ class TargetSelection(pg.GraphicsLayoutWidget):
 
     def initSubplots(self):
         """Subplot initialization"""
-        # Setup subplots
-        self.sub0 = self.addLayout(colspan=2)
-        self.sub4 = self.addLayout(rowspan=3)
-        self.nextRow()
-        self.sub1 = self.addLayout(colspan=2)
-        self.nextRow()
-        self.sub2 = self.addLayout()
-        self.sub3 = self.addLayout()
 
-        # Constrain text row height
-        self.sub0.setMaximumHeight(30)
-        self.sub4.setMaximumWidth(200)
+        # Create PyQtGraph graphics widget
+        self.subplots = pg.GraphicsLayoutWidget()
+        self.subplots.ci.setBorder((50, 50, 100))
+
+        # Setup top/sidebars
+        self.subplots.sub_viewButtons = self.subplots.addLayout(
+            col=1, row=1, colspan=1, rowspan=1
+        )
+        self.subplots.sub_text = self.subplots.addLayout(
+            col=2, row=1, colspan=3, rowspan=1)
+        self.subplots.sub_sidebar = self.subplots.addLayout(
+            col=5, row=1, colspan=1, rowspan=3)
+
+        # Setup image plots
+        self.subplots.sub1 = self.subplots.addLayout(
+            col=1, row=2, colspan=4, rowspan=1)
+        self.subplots.sub2 = self.subplots.addLayout(
+            col=1, row=3, colspan=2, rowspan=1)
+        self.subplots.sub3 = self.subplots.addLayout(
+            col=3, row=3, colspan=2, rowspan=1)
+
+        # Constrain top/side bars
+        self.subplots.sub_viewButtons.setMaximumHeight(30)
+        # self.sub_viewButtons.setMaximumWidth(150)
+
+        self.subplots.sub_text.setMaximumHeight(30)
+        self.subplots.sub_sidebar.setMaximumWidth(200)
 
         # Add viewboxes
-        self.v0 = self.sub0.addViewBox()
-        self.v1 = self.sub1.addViewBox()
-        self.v2 = self.sub2.addViewBox()
-        self.v3 = self.sub3.addViewBox()
+        self.subplots.v1 = self.subplots.sub1.addViewBox()
+        self.subplots.v2 = self.subplots.sub2.addViewBox()
+        self.subplots.v3 = self.subplots.sub3.addViewBox()
 
         # Add labels for image viewboxes
         self.view_v1 = "sag"
@@ -85,7 +108,7 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         self.current_hover = None
 
         # Setup viewboxes
-        for v in [self.v1, self.v2, self.v3]:
+        for v in [self.subplots.v1, self.subplots.v2, self.subplots.v3]:
             v.setAspectLocked(1.0)
             v.setMouseEnabled(x=False, y=False)
             v.setLimits(
@@ -96,13 +119,13 @@ class TargetSelection(pg.GraphicsLayoutWidget):
             )
 
         # Items for displaying image data
-        self.img_tra = pg.ImageItem(self.data[:, :, self.tra_pos])
-        self.img_fro = pg.ImageItem(self.data[:, self.fro_pos, :])
-        self.img_sag = pg.ImageItem(self.data[self.sag_pos, :, :])
+        self.subplots.img_tra = pg.ImageItem(self.data[:, :, self.tra_pos])
+        self.subplots.img_fro = pg.ImageItem(self.data[:, self.fro_pos, :])
+        self.subplots.img_sag = pg.ImageItem(self.data[self.sag_pos, :, :])
 
-        self.v1.addItem(self.img_sag)
-        self.v2.addItem(self.img_fro)
-        self.v3.addItem(self.img_tra)
+        self.subplots.v1.addItem(self.subplots.img_sag)
+        self.subplots.v2.addItem(self.subplots.img_fro)
+        self.subplots.v3.addItem(self.subplots.img_tra)
 
         # Add target point plots in all 3 images
         self.target_points = []
@@ -110,90 +133,114 @@ class TargetSelection(pg.GraphicsLayoutWidget):
         self.target_points_fro = []
         self.target_points_tra = []
 
-        self.tar_sag = pg.ScatterPlotItem(
+        self.subplots.tar_sag = pg.ScatterPlotItem(
             pos=self.target_points_sag,
             symbol="o", brush="b", pen="b", size=8
         )
-        self.tar_fro = pg.ScatterPlotItem(
+        self.subplots.tar_fro = pg.ScatterPlotItem(
             pos=self.target_points_fro,
             symbol="o", brush="b", pen="b", size=8
         )
-        self.tar_tra = pg.ScatterPlotItem(
+        self.subplots.tar_tra = pg.ScatterPlotItem(
             pos=self.target_points_tra,
             symbol="o", brush="b", pen="b", size=8
         )
 
-        self.v1.addItem(self.tar_sag)
-        self.v2.addItem(self.tar_fro)
-        self.v3.addItem(self.tar_tra)
+        self.subplots.v1.addItem(self.subplots.tar_sag)
+        self.subplots.v2.addItem(self.subplots.tar_fro)
+        self.subplots.v3.addItem(self.subplots.tar_tra)
 
         # Add cursor in all 3 images
-        self.cur_sag = pg.ScatterPlotItem(
+        self.subplots.cur_sag = pg.ScatterPlotItem(
             pos=[(self.cursor_j, self.cursor_k)],
             symbol="+", brush="r", pen="r", size=6
         )
-        self.cur_fro = pg.ScatterPlotItem(
+        self.subplots.cur_fro = pg.ScatterPlotItem(
             pos=[(self.cursor_i, self.cursor_k)],
             symbol="+", brush="r", pen="r", size=6
         )
-        self.cur_tra = pg.ScatterPlotItem(
+        self.subplots.cur_tra = pg.ScatterPlotItem(
             pos=[(self.cursor_i, self.cursor_j)],
             symbol="+", brush="r", pen="r", size=6
         )
 
-        self.v1.addItem(self.cur_sag)
-        self.v2.addItem(self.cur_fro)
-        self.v3.addItem(self.cur_tra)
+        self.subplots.v1.addItem(self.subplots.cur_sag)
+        self.subplots.v2.addItem(self.subplots.cur_fro)
+        self.subplots.v3.addItem(self.subplots.cur_tra)
 
         # Disable right click menus
-        self.v1.setMenuEnabled(False)
-        self.v2.setMenuEnabled(False)
-        self.v3.setMenuEnabled(False)
-
-        # Display text bar
-        infoStr = (
-            "Mouse: "
-            f"[{0:4d}, {0:4d}, {0:4d}]"
-            "   |   "
-            "Cursor: "
-            f"[{0:4d}, {0:4d}, {0:4d}]"
-        )
-
-        font = QtGui.QFont()
-        font.setPixelSize(10)
-        self.text = pg.TextItem(
-            infoStr, (255, 255, 255), anchor=(0.5, 0.5)
-        )
-        self.text.setFont(font)
-        self.v0.addItem(self.text)
-
-        self.v0.setMouseEnabled(x=False, y=False)
+        self.subplots.v1.setMenuEnabled(False)
+        self.subplots.v2.setMenuEnabled(False)
+        self.subplots.v3.setMenuEnabled(False)
 
         # Fix scaling
-        self.v1.autoRange()
-        self.v2.autoRange()
-        self.v3.autoRange()
+        self.subplots.v1.autoRange()
+        self.subplots.v2.autoRange()
+        self.subplots.v3.autoRange()
 
         # Setup events
-        self.img_tra.hoverEvent = self.imageHoverEvent_tra
-        self.img_fro.hoverEvent = self.imageHoverEvent_fro
-        self.img_sag.hoverEvent = self.imageHoverEvent_sag
+        self.subplots.img_tra.hoverEvent = self.imageHoverEvent_tra
+        self.subplots.img_fro.hoverEvent = self.imageHoverEvent_fro
+        self.subplots.img_sag.hoverEvent = self.imageHoverEvent_sag
 
-        self.img_tra.mouseClickEvent = self.imageMouseClickEvent_tra
-        self.img_fro.mouseClickEvent = self.imageMouseClickEvent_fro
-        self.img_sag.mouseClickEvent = self.imageMouseClickEvent_sag
+        self.subplots.img_tra.mouseClickEvent = self.imageMouseClickEvent_tra
+        self.subplots.img_fro.mouseClickEvent = self.imageMouseClickEvent_fro
+        self.subplots.img_sag.mouseClickEvent = self.imageMouseClickEvent_sag
 
-        self.img_tra.mouseDragEvent = self.imageMouseDragEvent_tra
-        self.img_fro.mouseDragEvent = self.imageMouseDragEvent_fro
-        self.img_sag.mouseDragEvent = self.imageMouseDragEvent_sag
+        self.subplots.img_tra.mouseDragEvent = self.imageMouseDragEvent_tra
+        self.subplots.img_fro.mouseDragEvent = self.imageMouseDragEvent_fro
+        self.subplots.img_sag.mouseDragEvent = self.imageMouseDragEvent_sag
 
-        self.img_tra.keyPressEvent = self.imageKeyPressEvent_tra
-        self.img_fro.keyPressEvent = self.imageKeyPressEvent_fro
-        self.img_sag.keyPressEvent = self.imageKeyPressEvent_sag
+        self.subplots.img_tra.keyPressEvent = self.imageKeyPressEvent_tra
+        self.subplots.img_fro.keyPressEvent = self.imageKeyPressEvent_fro
+        self.subplots.img_sag.keyPressEvent = self.imageKeyPressEvent_sag
 
-        self.img_tra.wheelEvent = self.imageWheelEvent_tra
-        self.img_fro.wheelEvent = self.imageWheelEvent_fro
-        self.img_sag.wheelEvent = self.imageWheelEvent_sag
+        self.subplots.img_tra.wheelEvent = self.imageWheelEvent_tra
+        self.subplots.img_fro.wheelEvent = self.imageWheelEvent_fro
+        self.subplots.img_sag.wheelEvent = self.imageWheelEvent_sag
+
+    def initTop(self):
+        """Initialize top bar"""
+
+        # Display buttons
+        self.proxy1 = QtGui.QGraphicsProxyWidget()
+        self.proxy2 = QtGui.QGraphicsProxyWidget()
+        self.proxy3 = QtGui.QGraphicsProxyWidget()
+
+        self.proxy1.setGeometry(QtCore.QRectF(0, 0, 10, 10))
+        self.proxy1.setGeometry(QtCore.QRectF(0, 0, 10, 10))
+        self.proxy1.setGeometry(QtCore.QRectF(0, 0, 10, 10))
+
+        self.button1 = QtGui.QPushButton('tra')
+        self.button1.setGeometry(0, 0, 10, 10)
+        self.proxy1.setWidget(self.button1)
+
+        self.button2 = QtGui.QPushButton('fro')
+        self.button2.setGeometry(0, 0, 10, 10)
+        self.proxy2.setWidget(self.button2)
+
+        self.button3 = QtGui.QPushButton('sag')
+        self.button3.setGeometry(0, 0, 10, 10)
+        self.proxy3.setWidget(self.button3)
+
+        self.sub_viewButtons.addItem(self.proxy1, row=1, col=1)
+        self.sub_viewButtons.addItem(self.proxy2, row=1, col=2)
+        self.sub_viewButtons.addItem(self.proxy3, row=1, col=3)
+
+        # Display text bar
+        # infoStr = (
+        #     "Mouse: "
+        #     f"[{0:4d}, {0:4d}, {0:4d}]"
+        #     "    |    "
+        #     "Cursor: "
+        #     f"[{0:4d}, {0:4d}, {0:4d}]"
+        # )
+
+        # self.text = pg.LabelItem(
+        #     infoStr, color=(255, 255, 255), size="10pt"
+        # )
+
+        # self.sub_text.addItem(self.text)
 
     def updateImages(self):
         """Updates images on event"""
@@ -541,6 +588,8 @@ class TargetSelection(pg.GraphicsLayoutWidget):
 
 
 if __name__ == '__main__':
+
+    app = QtGui.QApplication(sys.argv)
 
     target_selection = TargetSelection()
     target_selection.show()
