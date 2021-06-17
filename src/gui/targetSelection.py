@@ -3,13 +3,12 @@
 
 import sys
 import pyqtgraph as pg
-from PyQt5 import QtCore, QtGui, QtWidgets
-# from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
+from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
 import numpy as np
 import nibabel as nib
 
 
-class TargetSelection(QtWidgets.QWidget):  # pg.GraphicsLayoutWidget):
+class TargetSelection(QtWidgets.QWidget):
 
     def __init__(self):
         """Main window initialization"""
@@ -41,8 +40,6 @@ class TargetSelection(QtWidgets.QWidget):  # pg.GraphicsLayoutWidget):
         """Main window initialization"""
 
         # Layout of main window
-        # self.setCentralWidget(self.subplots)
-
         layout = QtGui.QGridLayout()
 
         layout.addWidget(self.topBar, 0, 0, 1, 1)
@@ -355,8 +352,6 @@ class TargetSelection(QtWidgets.QWidget):  # pg.GraphicsLayoutWidget):
 
         # Obtain current views
         current_v1 = self.view_v1
-        current_v2 = self.view_v2
-        current_v3 = self.view_v3
 
         # Define new views
         if view == "tra":
