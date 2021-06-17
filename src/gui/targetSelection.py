@@ -67,14 +67,9 @@ class TargetSelection(QtWidgets.QWidget):  # pg.GraphicsLayoutWidget):
         self.subplots = pg.GraphicsLayoutWidget()
         self.subplots.ci.setBorder((50, 50, 100))
 
-        # Setup top/sidebars
-        # self.subplots.sub_viewButtons = self.subplots.addLayout(
-        #     col=1, row=1, colspan=1, rowspan=1
-        # )
+        # Setup top
         self.subplots.sub_text = self.subplots.addLayout(
             col=1, row=1, colspan=2, rowspan=1)
-        # self.subplots.sub_sidebar = self.subplots.addLayout(
-        #     col=5, row=1, colspan=1, rowspan=3)
 
         # Setup image plots
         self.subplots.sub1 = self.subplots.addLayout(
@@ -84,12 +79,8 @@ class TargetSelection(QtWidgets.QWidget):  # pg.GraphicsLayoutWidget):
         self.subplots.sub3 = self.subplots.addLayout(
             col=2, row=3, colspan=1, rowspan=1)
 
-        # Constrain top/side bars
-        # self.subplots.sub_viewButtons.setMaximumHeight(30)
-        # self.sub_viewButtons.setMaximumWidth(150)
-
+        # Constrain top
         self.subplots.sub_text.setMaximumHeight(30)
-        # self.subplots.sub_sidebar.setMaximumWidth(200)
 
         # Add viewboxes
         self.subplots.v1 = self.subplots.sub1.addViewBox()
@@ -233,19 +224,17 @@ class TargetSelection(QtWidgets.QWidget):  # pg.GraphicsLayoutWidget):
         layout = QtWidgets.QHBoxLayout()
 
         # Setup buttons
-        self.button1 = QtGui.QPushButton('tra')
-        # self.button1.setGeometry(5, 10, 10, 20)
-
-        self.button2 = QtGui.QPushButton('fro')
-        # self.button2.setGeometry(5, 40, 20, 20)
-
-        self.button3 = QtGui.QPushButton('sag')
-        # self.button3.setGeometry(5, 70, 20, 20)
+        self.button_tra = QtGui.QPushButton('tra')
+        self.button_tra.clicked.connect(self.changeView_tra)
+        self.button_fro = QtGui.QPushButton('fro')
+        self.button_fro.clicked.connect(self.changeView_fro)
+        self.button_sag = QtGui.QPushButton('sag')
+        self.button_sag.clicked.connect(self.changeView_sag)
 
         # Display buttons
-        layout.addWidget(self.button1)
-        layout.addWidget(self.button2)
-        layout.addWidget(self.button3)
+        layout.addWidget(self.button_tra)
+        layout.addWidget(self.button_fro)
+        layout.addWidget(self.button_sag)
 
         self.topBar.setLayout(layout)
 
@@ -314,6 +303,8 @@ class TargetSelection(QtWidgets.QWidget):  # pg.GraphicsLayoutWidget):
 
         self.target_points.append(target_point)
 
+        self.updateImages
+
     def zoomImage(self, delta, img_str):
         """Zooms in/out on a certain image"""
         scale_factor = 1.0 + delta * 0.1
@@ -343,6 +334,96 @@ class TargetSelection(QtWidgets.QWidget):  # pg.GraphicsLayoutWidget):
             self.subplots.v3.scaleBy(
                 s=[scale_factor, scale_factor],
                 center=(x_scale, y_scale))
+
+    def changeView_tra(self):
+        """Handles clicking on the 'tra' button"""
+        view = "tra"
+        self.changeView(view)
+
+    def changeView_fro(self):
+        """Handles clicking on the 'fro' button"""
+        view = "fro"
+        self.changeView(view)
+
+    def changeView_sag(self):
+        """Handles clicking on the 'sag' button"""
+        view = "sag"
+        self.changeView(view)
+
+    def changeView(self, view):
+        """Handles changing views via button presses"""
+
+        # Obtain current views
+        current_v1 = self.view_v1
+        current_v2 = self.view_v2
+        current_v3 = self.view_v3
+
+        # Define new views
+        if view == "tra":
+            new_v1 = "tra"
+            new_v2 = "sag"
+            new_v3 = "fro"
+            new_tra = "v1"
+            new_fro = "v3"
+            new_sag = "v2"
+        elif view == "fro":
+            new_v1 = "fro"
+            new_v2 = "sag"
+            new_v3 = "tra"
+            new_tra = "v3"
+            new_fro = "v1"
+            new_sag = "v2"
+        elif view == "sag":
+            new_v1 = "sag"
+            new_v2 = "fro"
+            new_v3 = "tra"
+            new_tra = "v3"
+            new_fro = "v2"
+            new_sag = "v1"
+
+        print(
+            f"""
+            V1: {current_v1} --> {new_v1}
+            V2: {current_v2} --> {new_v2}
+            V3: {current_v3} --> {new_v3}
+            """)
+
+        # Make the switch if necessary
+        if current_v1 is not new_v1:
+            # Loop over viewboxes and replace images
+            for v, new in [
+                (self.subplots.v3, new_v3),
+                (self.subplots.v2, new_v2),
+                (self.subplots.v1, new_v1)
+            ]:
+                # Remove old images
+                v.clear()
+
+                # Add new image
+                if new == "tra":
+                    v.addItem(self.subplots.img_tra)
+                    v.addItem(self.subplots.tar_tra)
+                    v.addItem(self.subplots.cur_tra)
+                elif new == "fro":
+                    v.addItem(self.subplots.img_fro)
+                    v.addItem(self.subplots.tar_fro)
+                    v.addItem(self.subplots.cur_fro)
+                elif new == "sag":
+                    v.addItem(self.subplots.img_sag)
+                    v.addItem(self.subplots.tar_sag)
+                    v.addItem(self.subplots.cur_sag)
+
+                # Adjust range
+                v.autoRange()
+
+            # Update params
+            self.view_v1 = new_v1
+            self.view_v2 = new_v2
+            self.view_v3 = new_v3
+
+            self.view_tra = new_tra
+            self.view_fro = new_fro
+            self.view_sag = new_sag
 
     def imageHoverEvent_tra(self, event):
         """Handles hover event on transverse plane"""
