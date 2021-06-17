@@ -3,12 +3,13 @@
 
 import sys
 import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore, QtGui
+from PyQt5 import QtCore, QtGui, QtWidgets
+# from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
 import numpy as np
 import nibabel as nib
 
 
-class TargetSelection(QtGui.QMainWindow):  # pg.GraphicsLayoutWidget):
+class TargetSelection(QtWidgets.QWidget):  # pg.GraphicsLayoutWidget):
 
     def __init__(self):
         """Main window initialization"""
@@ -16,18 +17,17 @@ class TargetSelection(QtGui.QMainWindow):  # pg.GraphicsLayoutWidget):
 
         # Setup main window
         self.initScreen()
-
         # Setup data
         self.initData()
-
         # Setup subplots widget
         self.initSubplots()
+        # Setup top bar
+        self.initTop()
+        # Setup side bar
+        self.initSide()
 
         # Setup main layout
         self.initWindow()
-
-        # # Setup top bar
-        # self.initTop()
 
     def initScreen(self):
         """Screen initialization"""
@@ -41,6 +41,15 @@ class TargetSelection(QtGui.QMainWindow):  # pg.GraphicsLayoutWidget):
         """Main window initialization"""
 
         # Layout of main window
+        # self.setCentralWidget(self.subplots)
+
+        layout = QtGui.QGridLayout()
+
+        layout.addWidget(self.topBar, 0, 0, 1, 1)
+        layout.addWidget(self.sideBar, 0, 5, 2, 1)
+        layout.addWidget(self.subplots, 1, 0, 1, 5)
+
+        self.setLayout(layout)
 
     def initData(self):
         """Data initialization"""
@@ -59,28 +68,28 @@ class TargetSelection(QtGui.QMainWindow):  # pg.GraphicsLayoutWidget):
         self.subplots.ci.setBorder((50, 50, 100))
 
         # Setup top/sidebars
-        self.subplots.sub_viewButtons = self.subplots.addLayout(
-            col=1, row=1, colspan=1, rowspan=1
-        )
+        # self.subplots.sub_viewButtons = self.subplots.addLayout(
+        #     col=1, row=1, colspan=1, rowspan=1
+        # )
         self.subplots.sub_text = self.subplots.addLayout(
-            col=2, row=1, colspan=3, rowspan=1)
-        self.subplots.sub_sidebar = self.subplots.addLayout(
-            col=5, row=1, colspan=1, rowspan=3)
+            col=1, row=1, colspan=2, rowspan=1)
+        # self.subplots.sub_sidebar = self.subplots.addLayout(
+        #     col=5, row=1, colspan=1, rowspan=3)
 
         # Setup image plots
         self.subplots.sub1 = self.subplots.addLayout(
-            col=1, row=2, colspan=4, rowspan=1)
+            col=1, row=2, colspan=2, rowspan=1)
         self.subplots.sub2 = self.subplots.addLayout(
-            col=1, row=3, colspan=2, rowspan=1)
+            col=1, row=3, colspan=1, rowspan=1)
         self.subplots.sub3 = self.subplots.addLayout(
-            col=3, row=3, colspan=2, rowspan=1)
+            col=2, row=3, colspan=1, rowspan=1)
 
         # Constrain top/side bars
-        self.subplots.sub_viewButtons.setMaximumHeight(30)
+        # self.subplots.sub_viewButtons.setMaximumHeight(30)
         # self.sub_viewButtons.setMaximumWidth(150)
 
         self.subplots.sub_text.setMaximumHeight(30)
-        self.subplots.sub_sidebar.setMaximumWidth(200)
+        # self.subplots.sub_sidebar.setMaximumWidth(200)
 
         # Add viewboxes
         self.subplots.v1 = self.subplots.sub1.addViewBox()
@@ -168,6 +177,21 @@ class TargetSelection(QtGui.QMainWindow):  # pg.GraphicsLayoutWidget):
         self.subplots.v2.addItem(self.subplots.cur_fro)
         self.subplots.v3.addItem(self.subplots.cur_tra)
 
+        # Display text bar
+        infoStr = (
+            "Mouse: "
+            f"[{0:4d}, {0:4d}, {0:4d}]"
+            "    |    "
+            "Cursor: "
+            f"[{0:4d}, {0:4d}, {0:4d}]"
+        )
+
+        self.text = pg.LabelItem(
+            infoStr, color=(255, 255, 255), size="10pt"
+        )
+
+        self.subplots.sub_text.addItem(self.text)
+
         # Disable right click menus
         self.subplots.v1.setMenuEnabled(False)
         self.subplots.v2.setMenuEnabled(False)
@@ -191,9 +215,11 @@ class TargetSelection(QtGui.QMainWindow):  # pg.GraphicsLayoutWidget):
         self.subplots.img_fro.mouseDragEvent = self.imageMouseDragEvent_fro
         self.subplots.img_sag.mouseDragEvent = self.imageMouseDragEvent_sag
 
-        self.subplots.img_tra.keyPressEvent = self.imageKeyPressEvent_tra
-        self.subplots.img_fro.keyPressEvent = self.imageKeyPressEvent_fro
-        self.subplots.img_sag.keyPressEvent = self.imageKeyPressEvent_sag
+        # self.subplots.img_tra.keyPressEvent = self.imageKeyPressEvent_tra
+        # self.subplots.img_fro.keyPressEvent = self.imageKeyPressEvent_fro
+        # self.subplots.img_sag.keyPressEvent = self.imageKeyPressEvent_sag
+
+        self.subplots.keyPressEvent = self.keyPressEvent
 
         self.subplots.img_tra.wheelEvent = self.imageWheelEvent_tra
         self.subplots.img_fro.wheelEvent = self.imageWheelEvent_fro
@@ -202,57 +228,52 @@ class TargetSelection(QtGui.QMainWindow):  # pg.GraphicsLayoutWidget):
     def initTop(self):
         """Initialize top bar"""
 
-        # Display buttons
-        self.proxy1 = QtGui.QGraphicsProxyWidget()
-        self.proxy2 = QtGui.QGraphicsProxyWidget()
-        self.proxy3 = QtGui.QGraphicsProxyWidget()
+        self.topBar = QtWidgets.QWidget()
 
-        self.proxy1.setGeometry(QtCore.QRectF(0, 0, 10, 10))
-        self.proxy1.setGeometry(QtCore.QRectF(0, 0, 10, 10))
-        self.proxy1.setGeometry(QtCore.QRectF(0, 0, 10, 10))
+        layout = QtWidgets.QHBoxLayout()
 
+        # Setup buttons
         self.button1 = QtGui.QPushButton('tra')
-        self.button1.setGeometry(0, 0, 10, 10)
-        self.proxy1.setWidget(self.button1)
+        # self.button1.setGeometry(5, 10, 10, 20)
 
         self.button2 = QtGui.QPushButton('fro')
-        self.button2.setGeometry(0, 0, 10, 10)
-        self.proxy2.setWidget(self.button2)
+        # self.button2.setGeometry(5, 40, 20, 20)
 
         self.button3 = QtGui.QPushButton('sag')
-        self.button3.setGeometry(0, 0, 10, 10)
-        self.proxy3.setWidget(self.button3)
+        # self.button3.setGeometry(5, 70, 20, 20)
 
-        self.sub_viewButtons.addItem(self.proxy1, row=1, col=1)
-        self.sub_viewButtons.addItem(self.proxy2, row=1, col=2)
-        self.sub_viewButtons.addItem(self.proxy3, row=1, col=3)
+        # Display buttons
+        layout.addWidget(self.button1)
+        layout.addWidget(self.button2)
+        layout.addWidget(self.button3)
 
-        # Display text bar
-        # infoStr = (
-        #     "Mouse: "
-        #     f"[{0:4d}, {0:4d}, {0:4d}]"
-        #     "    |    "
-        #     "Cursor: "
-        #     f"[{0:4d}, {0:4d}, {0:4d}]"
-        # )
+        self.topBar.setLayout(layout)
 
-        # self.text = pg.LabelItem(
-        #     infoStr, color=(255, 255, 255), size="10pt"
-        # )
+        self.topBar.setMaximumHeight(40)
+        self.topBar.setMaximumWidth(100)
 
-        # self.sub_text.addItem(self.text)
+    def initSide(self):
+        """Initializes the sidebar"""
+
+        self.sideBar = QtWidgets.QWidget()
+
+        layout = QtWidgets.QVBoxLayout()
+
+        self.sideBar.setLayout(layout)
+
+        self.sideBar.setMaximumWidth(100)
 
     def updateImages(self):
         """Updates images on event"""
         # Update images
-        self.img_tra.setImage(self.data[:, :, self.tra_pos])
-        self.img_fro.setImage(self.data[:, self.fro_pos, :])
-        self.img_sag.setImage(self.data[self.sag_pos, :, :])
+        self.subplots.img_tra.setImage(self.data[:, :, self.tra_pos])
+        self.subplots.img_fro.setImage(self.data[:, self.fro_pos, :])
+        self.subplots.img_sag.setImage(self.data[self.sag_pos, :, :])
 
         # Update cursor plots
-        self.cur_tra.setData(pos=[(self.cursor_i, self.cursor_j)])
-        self.cur_fro.setData(pos=[(self.cursor_i, self.cursor_k)])
-        self.cur_sag.setData(pos=[(self.cursor_j, self.cursor_k)])
+        self.subplots.cur_tra.setData(pos=[(self.cursor_i, self.cursor_j)])
+        self.subplots.cur_fro.setData(pos=[(self.cursor_i, self.cursor_k)])
+        self.subplots.cur_sag.setData(pos=[(self.cursor_j, self.cursor_k)])
 
         # Update target plots
         self.target_points_tra = []
@@ -271,9 +292,9 @@ class TargetSelection(QtGui.QMainWindow):  # pg.GraphicsLayoutWidget):
                 self.target_points_sag.append(
                     (target_point[1], target_point[2])
                 )
-        self.tar_tra.setData(pos=self.target_points_tra)
-        self.tar_fro.setData(pos=self.target_points_fro)
-        self.tar_sag.setData(pos=self.target_points_sag)
+        self.subplots.tar_tra.setData(pos=self.target_points_tra)
+        self.subplots.tar_fro.setData(pos=self.target_points_fro)
+        self.subplots.tar_sag.setData(pos=self.target_points_sag)
 
     def updateText(self):
         """Updates text on event"""
@@ -311,15 +332,15 @@ class TargetSelection(QtGui.QMainWindow):  # pg.GraphicsLayoutWidget):
             view = self.view_sag
 
         if view == "v1":
-            self.v1.scaleBy(
+            self.subplots.v1.scaleBy(
                 s=[scale_factor, scale_factor],
                 center=(x_scale, y_scale))
         elif view == "v2":
-            self.v2.scaleBy(
+            self.subplots.v2.scaleBy(
                 s=[scale_factor, scale_factor],
                 center=(x_scale, y_scale))
         elif view == "v3":
-            self.v3.scaleBy(
+            self.subplots.v3.scaleBy(
                 s=[scale_factor, scale_factor],
                 center=(x_scale, y_scale))
 
@@ -471,15 +492,15 @@ class TargetSelection(QtGui.QMainWindow):  # pg.GraphicsLayoutWidget):
 
                 # Update appropriate viewbox
                 if view == "v1":
-                    self.v1.translateBy(
+                    self.subplots.v1.translateBy(
                         x=-(current_x - prev_x), y=-(current_y - prev_y)
                     )
                 elif view == "v2":
-                    self.v2.translateBy(
+                    self.subplots.v2.translateBy(
                         x=-(current_x - prev_x), y=-(current_y - prev_y)
                     )
                 elif view == "v3":
-                    self.v3.translateBy(
+                    self.subplots.v3.translateBy(
                         x=-(current_x - prev_x), y=-(current_y - prev_y)
                     )
 
@@ -490,7 +511,7 @@ class TargetSelection(QtGui.QMainWindow):  # pg.GraphicsLayoutWidget):
 
     def keyPressEvent(self, event):
         """Handles general keypress events"""
-        self.scene().keyPressEvent(event)
+        # self.scene().keyPressEvent(event)
 
         if self.current_hover == "tra":
             self.imageKeyPressEvent_tra(event)
@@ -594,4 +615,4 @@ if __name__ == '__main__':
     target_selection = TargetSelection()
     target_selection.show()
 
-    pg.QtGui.QApplication.exec_()
+    QtGui.QApplication.exec_()
