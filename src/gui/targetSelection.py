@@ -241,13 +241,25 @@ class TargetSelection(QtWidgets.QWidget):
     def initSide(self):
         """Initializes the sidebar"""
 
+        # Initialize widget
         self.sideBar = QtWidgets.QWidget()
 
+        # Setup layout
         layout = QtWidgets.QVBoxLayout()
-
         self.sideBar.setLayout(layout)
+        self.sideBar.setMaximumWidth(200)
 
-        self.sideBar.setMaximumWidth(100)
+        # Add target point list
+        self.targetList = QtWidgets.QListWidget()
+        self.targetList.clicked.connect(self.selectTarget)
+
+        # Add other scans list
+        self.scanList = QtWidgets.QListWidget()
+        self.scanList.clicked.connect(self.selectScan)
+
+        # Add both lists to layout
+        layout.addWidget(self.targetList)
+        layout.addWidget(self.scanList)
 
     def updateImages(self):
         """Updates images on event"""
@@ -296,10 +308,21 @@ class TargetSelection(QtWidgets.QWidget):
 
     def addTarget(self):
         """Adds current cursor position to target list"""
+
+        # Define current target point
         target_point = (self.cursor_i, self.cursor_j, self.cursor_k)
 
+        # Append target point list
         self.target_points.append(target_point)
 
+        # Update target list widget
+        self.targetList.clear()
+        for point_i in range(len(self.target_points)):
+            self.targetList.insertItem(
+                point_i, str(self.target_points[point_i])
+            )
+
+        # Update images
         self.updateImages
 
     def zoomImage(self, delta, img_str):
@@ -416,6 +439,20 @@ class TargetSelection(QtWidgets.QWidget):
             self.view_tra = new_tra
             self.view_fro = new_fro
             self.view_sag = new_sag
+
+    def selectTarget(self, qmodelindex):
+        """Updates currently selected target"""
+
+        # Obtain (cleaned up) target string
+        target_str = self.targetList.currentItem().text()
+        target_str = target_str.replace("(", "").replace(")", "")
+
+        # Split string and store as tuple[int]
+        target_split = target_str.split(", ")
+        self.selectedTarget = tuple([int(target) for target in target_split])
+
+    def selectScan(self, qmodelindex):
+        print(self.scanList.currentItem().text())
 
     def imageHoverEvent_tra(self, event):
         """Handles hover event on transverse plane"""
