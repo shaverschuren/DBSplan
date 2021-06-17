@@ -249,6 +249,10 @@ class TargetSelection(QtWidgets.QWidget):
         self.sideBar.setLayout(layout)
         self.sideBar.setMaximumWidth(200)
 
+        # Add labels
+        self.targetLabel = QtWidgets.QLabel("Target points")
+        self.scanLabel = QtWidgets.QLabel("Scans")
+
         # Add target point list
         self.targetList = QtWidgets.QListWidget()
         self.targetList.clicked.connect(self.selectTarget)
@@ -257,8 +261,10 @@ class TargetSelection(QtWidgets.QWidget):
         self.scanList = QtWidgets.QListWidget()
         self.scanList.clicked.connect(self.selectScan)
 
-        # Add both lists to layout
+        # Add lists and labels to layout
+        layout.addWidget(self.targetLabel)
         layout.addWidget(self.targetList)
+        layout.addWidget(self.scanLabel)
         layout.addWidget(self.scanList)
 
     def updateImages(self):
@@ -450,6 +456,17 @@ class TargetSelection(QtWidgets.QWidget):
         # Split string and store as tuple[int]
         target_split = target_str.split(", ")
         self.selectedTarget = tuple([int(target) for target in target_split])
+
+        # Set view to target
+        self.sag_pos = self.selectedTarget[0]
+        self.fro_pos = self.selectedTarget[1]
+        self.tra_pos = self.selectedTarget[2]
+
+        self.cursor_i = self.selectedTarget[0]
+        self.cursor_j = self.selectedTarget[1]
+        self.cursor_k = self.selectedTarget[2]
+
+        self.updateImages()
 
     def selectScan(self, qmodelindex):
         print(self.scanList.currentItem().text())
@@ -684,6 +701,23 @@ class TargetSelection(QtWidgets.QWidget):
             self.addTarget()
             # Update plots
             self.updateImages()
+
+        elif event.key() == QtCore.Qt.Key_Delete:
+
+            # Delete selected target (if applicable)
+            if "selectedTarget" in dir(self):
+                if self.selectedTarget in self.target_points:
+                    self.target_points.remove(self.selectedTarget)
+
+                # Update target list widget
+                self.targetList.clear()
+                for point_i in range(len(self.target_points)):
+                    self.targetList.insertItem(
+                        point_i, str(self.target_points[point_i])
+                    )
+
+                # Update images
+                self.updateImages()
 
     def imageWheelEvent_tra(self, event):
         """Handles mousewheel event on transverse plane"""
