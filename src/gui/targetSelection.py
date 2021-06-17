@@ -381,23 +381,20 @@ class TargetSelection(QtWidgets.QWidget):  # pg.GraphicsLayoutWidget):
             new_fro = "v2"
             new_sag = "v1"
 
-        print(
-            f"""
-            V1: {current_v1} --> {new_v1}
-            V2: {current_v2} --> {new_v2}
-            V3: {current_v3} --> {new_v3}
-            """)
-
         # Make the switch if necessary
         if current_v1 is not new_v1:
+
+            # Remove old images
+            self.subplots.v1.clear()
+            self.subplots.v2.clear()
+            self.subplots.v3.clear()
+
             # Loop over viewboxes and replace images
             for v, new in [
-                (self.subplots.v3, new_v3),
+                (self.subplots.v1, new_v1),
                 (self.subplots.v2, new_v2),
-                (self.subplots.v1, new_v1)
+                (self.subplots.v3, new_v3)
             ]:
-                # Remove old images
-                v.clear()
 
                 # Add new image
                 if new == "tra":
