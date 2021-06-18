@@ -6,6 +6,7 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
 import numpy as np
 import nibabel as nib
+from util.nifti import load_nifti
 
 
 class TargetSelection(QtWidgets.QWidget):
@@ -53,11 +54,24 @@ class TargetSelection(QtWidgets.QWidget):
 
     def initData(self):
         """Data initialization"""
-        # Load nifti image for tryouts
-        self.img = nib.load(
-            "/home/sjors/Documents/TUe/MSc/DBSplan/tmpData/nifti/SEEGBCI-13/MRI_T1W.nii.gz"
-        )
-        self.data = np.array(self.img.get_fdata())
+        # Load basic images (T1W, T1W-GADO, CT)
+        scan1_arr, scan1_aff, _ = load_nifti(self.paths["T1w"])
+        scan1_name = "T1w"
+        scan2_arr, scan2_aff, _ = load_nifti(self.paths["T1w_gado"])
+        scan2_name = "T1w_gado"
+        scan3_arr, scan3_aff, _ = load_nifti(self.paths["CT"])
+        scan3_name = "CT"
+
+        # Load scans in dict
+        self.scans = {
+            scan1_name: scan1_arr,
+            scan2_name: scan2_arr,
+            scan3_name: scan3_arr,
+        }
+
+        # Set starting data and shape
+        self.data = scan1_arr
+        self.aff = scan1_aff
         self.shape = np.shape(self.data)
 
     def initSubplots(self):
@@ -105,11 +119,14 @@ class TargetSelection(QtWidgets.QWidget):
         self.cursor_j = self.fro_pos
         self.cursor_k = self.tra_pos
 
+        self.hover_i = self.sag_pos
+        self.hover_j = self.fro_pos
+        self.hover_k = self.tra_pos
+
         self.current_hover = None
 
         # Setup viewboxes
         for v in [self.subplots.v1, self.subplots.v2, self.subplots.v3]:
-            v.setAspectLocked(1.0)
             v.setMouseEnabled(x=False, y=False)
             v.setLimits(
                 xMin=-1.5 * max(self.shape), xMax=max(self.shape) * 2.5,
@@ -193,6 +210,9 @@ class TargetSelection(QtWidgets.QWidget):
         self.subplots.v2.autoRange()
         self.subplots.v3.autoRange()
 
+        # Setup aspect ratios (for anisotropic resolutions)
+        self.updateAspectRatios()
+
         # Setup events
         self.subplots.img_tra.hoverEvent = self.imageHoverEvent_tra
         self.subplots.img_fro.hoverEvent = self.imageHoverEvent_fro
@@ -260,9 +280,14 @@ class TargetSelection(QtWidgets.QWidget):
         self.targetList = QtWidgets.QListWidget()
         self.targetList.clicked.connect(self.selectTarget)
 
-        # Add other scans list
+        # Add scans list
         self.scanList = QtWidgets.QListWidget()
         self.scanList.clicked.connect(self.selectScan)
+
+        row = 0
+        for scan_name in self.scans.keys():
+            self.scanList.insertItem(row, scan_name)
+            row += 1
 
         # Add lists and labels to layout
         layout.addWidget(self.targetLabel)
@@ -314,6 +339,32 @@ class TargetSelection(QtWidgets.QWidget):
         )
 
         self.text.setText(updated_string)
+
+    def updateAspectRatios(self):
+        """Updates the aspect ratios of the view boxes"""
+
+        # Extract voxel sizes in i,j,k dimensions
+        dim_i = np.diag(self.aff)[0]
+        dim_j = np.diag(self.aff)[1]
+        dim_k = np.diag(self.aff)[2]
+
+        # Calculate aspect ratios
+        self.aspect_ratio_tra = dim_i / dim_j
+        self.aspect_ratio_fro = dim_i / dim_k
+        self.aspect_ratio_sag = dim_j / dim_k
+
+        # Set aspect ratios to appropriate viewboxes
+        for aspect_ratio, plane in [
+            (self.aspect_ratio_tra, "tra"),
+            (self.aspect_ratio_fro, "fro"),
+            (self.aspect_ratio_sag, "sag"),
+        ]:
+            if self.view_v1 == plane:
+                self.subplots.v1.setAspectLocked(lock=True, ratio=aspect_ratio)
+            elif self.view_v2 == plane:
+                self.subplots.v2.setAspectLocked(lock=True, ratio=aspect_ratio)
+            elif self.view_v3 == plane:
+                self.subplots.v3.setAspectLocked(lock=True, ratio=aspect_ratio)
 
     def addTarget(self):
         """Adds current cursor position to target list"""
@@ -451,10 +502,11 @@ class TargetSelection(QtWidgets.QWidget):
             self.view_sag = new_sag
 
             # Update images
+            self.updateAspectRatios()
             self.updateImages()
             self.updateText()
 
-    def selectTarget(self, qmodelindex):
+    def selectTarget(self):
         """Updates currently selected target"""
 
         # Obtain (cleaned up) target string
@@ -477,8 +529,19 @@ class TargetSelection(QtWidgets.QWidget):
         self.updateImages()
         self.updateText()
 
-    def selectScan(self, qmodelindex):
-        print(self.scanList.currentItem().text())
+    def selectScan(self):
+        """Updates the scan currently in view"""
+
+        # Obtain scan name
+        scan_name = self.scanList.currentItem().text()
+
+        # Update view data field
+        self.data = self.scans[scan_name]
+        self.shape = np.shape(self.data)
+
+        # Update image/text
+        self.updateImages()
+        self.updateText()
 
     def imageHoverEvent_tra(self, event):
         """Handles hover event on transverse plane"""
@@ -771,7 +834,11 @@ def main(subject_paths):
 
     QtGui.QApplication.exec_()
 
-    return target_selection.target_points
+    if len(target_selection.target_points) > 0:
+        return target_selection.target_points
+    else:
+        raise UserWarning("No target points were selected!"
+                          " Exiting...")
 
 
 if __name__ == '__main__':

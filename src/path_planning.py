@@ -67,8 +67,10 @@ def calculate_all_lines(
 
     if len(target_list) > 1:
         return target_list
-    else:
+    elif len(target_list) == 1:
         return target_list[0]
+    else:
+        return None
 
 
 def calculate_valid_lines(
@@ -443,9 +445,15 @@ def generate_possible_paths(subject_paths: dict):
         # (mask_sulci, aff_mask_sulci, "sulci"),
         # (mask_vessels, aff_mask_vessels, "vessels")
     ]:
-        distance_map = generate_distance_map(mask, aff)
-        nib.save(nib.Nifti1Image(distance_map, aff, hdr_mask),
-                 subject_paths["distance_map_" + path_pointer])
+        # Define distance map filename
+        distance_map_path = subject_paths["distance_map_" + path_pointer]
+        # Check whether distance map already exists
+        if not os.path.exists(distance_map_path):
+            distance_map = generate_distance_map(mask, aff)
+            nib.save(nib.Nifti1Image(distance_map, aff, hdr_mask),
+                     distance_map_path)
+        else:
+            distance_map, _, _ = load_nifti(distance_map_path)
 
     # Generate entry points
     entry_points = generate_entry_points(subject_paths)
@@ -458,7 +466,7 @@ def generate_possible_paths(subject_paths: dict):
         entry_points, target_points, distance_map, aff_mask_combined
     )
 
-    np.save(subject_paths["output_path"], trajectories)
+    # TODO: Reinstate this: np.save(subject_paths["output_path"], trajectories)
 
 
 def run_path_planning(paths: dict, settings: dict, verbose: bool = True) \
