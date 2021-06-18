@@ -15,8 +15,6 @@ if src not in sys.path: sys.path.append(src)
 
 # File-specific imports
 from tqdm import tqdm                       # noqa: E402
-from initialization import initialization   # noqa: E402
-from preprocessing import preprocessing     # noqa: E402
 from util.fsl import flirt_registration     # noqa: E402
 from util.style import print_header         # noqa: E402
 from util.general import log_dict           # noqa: E402
@@ -159,5 +157,10 @@ def registration_mri(paths: dict, settings: dict, verbose: bool = True) \
 
 
 if __name__ == "__main__":
+    # Import previous module(s)
+    from initialization import initialization   # noqa: E402
+    from preprocessing import preprocessing     # noqa: E402
+    # Run previous modules
     paths, settings = preprocessing(*initialization())
+    # Run this module
     registration_mri(paths, settings)

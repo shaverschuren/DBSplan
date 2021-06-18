@@ -3,7 +3,7 @@
 This module performs several tasks, which may all
 be called from the `path_planning` function.
 - Generate entry points
-- Generate target points (TODO: Via GUI)
+- Generate target points
 - Generate distance maps
 - Generate possible trajectories
 """
@@ -19,14 +19,13 @@ if src not in sys.path: sys.path.append(src)
 
 # File-specific imports
 from typing import Union                                # noqa: E402
-import warnings                                         # noqa: E402
 import numpy as np                                      # noqa: E402
 import math                                             # noqa: E402
 from tqdm import tqdm                                   # noqa: E402
 import nibabel as nib                                   # noqa: E402
 import scipy.ndimage.morphology as morph                # noqa: E402
 import gui.targetSelection                              # noqa: E402
-from util.style import print_header, print_result       # noqa: E402
+from util.style import print_header                     # noqa: E402
 from util.general import log_dict                       # noqa: E402
 from util.nifti import load_nifti                       # noqa: E402
 
@@ -551,3 +550,21 @@ def path_planning(paths: dict, settings: dict, verbose: bool = True)\
     log_dict(settings, os.path.join(paths["logsDir"], "settings.json"))
 
     return paths, settings
+
+
+if __name__ == "__main__":
+    # Import previous modules
+    from initialization import initialization               # noqa: E402
+    from preprocessing import preprocessing                 # noqa: E402
+    from registration_mri import registration_mri           # noqa: E402
+    from segmentation import segmentation                   # noqa: E402
+    from registration_ct import registration_ct             # noqa: E402
+    # Run previous modules
+    paths, settings = \
+        registration_ct(
+            *segmentation(
+                *registration_mri(*preprocessing(*initialization()))
+            )
+        )
+    # Run this module
+    path_planning(paths, settings)

@@ -23,9 +23,6 @@ if src not in sys.path: sys.path.append(src)
 import numpy as np                                      # noqa: E402
 import nibabel as nib                                   # noqa: E402
 from scipy.ndimage import affine_transform              # noqa: E402
-from initialization import initialization               # noqa: E402
-from preprocessing import preprocessing                 # noqa: E402
-from registration_mri import registration_mri           # noqa: E402
 from seg.fsl import generate_fsl_paths, process_fsl     # noqa: E402
 from seg.ventricles import seg_ventricles               # noqa: E402
 from seg.sulci import seg_sulci                         # noqa: E402
@@ -217,5 +214,11 @@ def segmentation(paths: dict, settings: dict, verbose: bool = True) \
 
 
 if __name__ == "__main__":
+    # Import previous module(s)
+    from initialization import initialization      # noqa: E402
+    from preprocessing import preprocessing        # noqa: E402
+    from registration_mri import registration_mri  # noqa: E402
+    # Run previous modules
     paths, settings = registration_mri(*preprocessing(*initialization()))
+    # Run this module
     segmentation(paths, settings)

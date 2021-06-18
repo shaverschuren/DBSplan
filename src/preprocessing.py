@@ -21,7 +21,6 @@ from tqdm import tqdm                               # noqa: E402
 import shutil                                       # noqa: E402
 import subprocess                                   # noqa: E402
 from datetime import datetime                       # noqa: E402
-from initialization import initialization           # noqa: E402
 from gui.ScanSelection import ScanSelection         # noqa: E402
 from util.style import print_header, print_result   # noqa: E402
 from util.general import log_dict                   # noqa: E402
@@ -370,4 +369,7 @@ def preprocessing(paths: dict, settings: dict, verbose: bool = True) \
 
 
 if __name__ == "__main__":
+    # Import previous module(s)
+    from initialization import initialization   # noqa: E402
+    # Run this module
     preprocessing(*initialization())

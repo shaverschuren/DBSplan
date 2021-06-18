@@ -17,10 +17,6 @@ if src not in sys.path: sys.path.append(src)
 
 # File-specific imports
 from tqdm import tqdm                           # noqa: E402
-from initialization import initialization       # noqa: E402
-from preprocessing import preprocessing         # noqa: E402
-from registration_mri import registration_mri   # noqa: E402
-from segmentation import segmentation           # noqa: E402
 from util.fsl import flirt_registration         # noqa: E402
 from util.style import print_header             # noqa: E402
 from util.general import log_dict               # noqa: E402
@@ -211,6 +207,13 @@ def registration_ct(paths: dict, settings: dict, verbose: bool = True) \
 
 
 if __name__ == "__main__":
+    # Import previous modules
+    from initialization import initialization       # noqa: E402
+    from preprocessing import preprocessing         # noqa: E402
+    from registration_mri import registration_mri   # noqa: E402
+    from segmentation import segmentation           # noqa: E402
+    # Run previous modules
     paths, settings = \
         segmentation(*registration_mri(*preprocessing(*initialization())))
+    # Run this module
     registration_ct(paths, settings)
