@@ -129,11 +129,14 @@ class TargetSelection(QtWidgets.QWidget):
         for v in [self.subplots.v1, self.subplots.v2, self.subplots.v3]:
             v.setMouseEnabled(x=False, y=False)
             v.setLimits(
-                xMin=-1.5 * max(self.shape), xMax=max(self.shape) * 2.5,
+                xMin=-1.0 * max(self.shape), xMax=max(self.shape) * 2.0,
                 minXRange=20, maxXRange=max(self.shape) * 4.,
-                yMin=-1.5 * max(self.shape), yMax=max(self.shape) * 2.5,
+                yMin=-1.0 * max(self.shape), yMax=max(self.shape) * 2.0,
                 minYRange=20, maxYRange=max(self.shape) * 4.
             )
+
+        # Setup aspect ratios (for anisotropic resolutions)
+        self.updateAspectRatios()
 
         # Items for displaying image data
         self.subplots.img_tra = pg.ImageItem(self.data[:, :, self.tra_pos])
@@ -209,9 +212,6 @@ class TargetSelection(QtWidgets.QWidget):
         self.subplots.v1.autoRange()
         self.subplots.v2.autoRange()
         self.subplots.v3.autoRange()
-
-        # Setup aspect ratios (for anisotropic resolutions)
-        self.updateAspectRatios()
 
         # Setup events
         self.subplots.img_tra.hoverEvent = self.imageHoverEvent_tra
@@ -360,11 +360,20 @@ class TargetSelection(QtWidgets.QWidget):
             (self.aspect_ratio_sag, "sag"),
         ]:
             if self.view_v1 == plane:
-                self.subplots.v1.setAspectLocked(lock=True, ratio=aspect_ratio)
+                self.subplots.v1.setAspectLocked(
+                    lock=True, ratio=abs(aspect_ratio))
+                if aspect_ratio < 0:
+                    self.subplots.v1.invertX()
             elif self.view_v2 == plane:
-                self.subplots.v2.setAspectLocked(lock=True, ratio=aspect_ratio)
+                self.subplots.v2.setAspectLocked(
+                    lock=True, ratio=abs(aspect_ratio))
+                if aspect_ratio < 0:
+                    self.subplots.v2.invertX()
             elif self.view_v3 == plane:
-                self.subplots.v3.setAspectLocked(lock=True, ratio=aspect_ratio)
+                self.subplots.v3.setAspectLocked(
+                    lock=True, ratio=abs(aspect_ratio))
+                if aspect_ratio < 0:
+                    self.subplots.v3.invertX()
 
     def addTarget(self):
         """Adds current cursor position to target list"""
