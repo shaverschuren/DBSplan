@@ -10,9 +10,12 @@ import nibabel as nib
 
 class TargetSelection(QtWidgets.QWidget):
 
-    def __init__(self):
+    def __init__(self, paths):
         """Main window initialization"""
         super().__init__()
+
+        # Load paths and settings
+        self.paths = paths
 
         # Setup main window
         self.initScreen()
@@ -52,7 +55,7 @@ class TargetSelection(QtWidgets.QWidget):
         """Data initialization"""
         # Load nifti image for tryouts
         self.img = nib.load(
-            "/mnt/d/DBSplan/tmpData/nifti/SEEGBCI-13/MRI_T1W.nii.gz"
+            "/home/sjors/Documents/TUe/MSc/DBSplan/tmpData/nifti/SEEGBCI-13/MRI_T1W.nii.gz"
         )
         self.data = np.array(self.img.get_fdata())
         self.shape = np.shape(self.data)
@@ -329,7 +332,8 @@ class TargetSelection(QtWidgets.QWidget):
             )
 
         # Update images
-        self.updateImages
+        self.updateImages()
+        self.updateText()
 
     def zoomImage(self, delta, img_str):
         """Zooms in/out on a certain image"""
@@ -446,6 +450,10 @@ class TargetSelection(QtWidgets.QWidget):
             self.view_fro = new_fro
             self.view_sag = new_sag
 
+            # Update images
+            self.updateImages()
+            self.updateText()
+
     def selectTarget(self, qmodelindex):
         """Updates currently selected target"""
 
@@ -467,6 +475,7 @@ class TargetSelection(QtWidgets.QWidget):
         self.cursor_k = self.selectedTarget[2]
 
         self.updateImages()
+        self.updateText()
 
     def selectScan(self, qmodelindex):
         print(self.scanList.currentItem().text())
@@ -752,11 +761,18 @@ class TargetSelection(QtWidgets.QWidget):
         self.updateText()
 
 
-if __name__ == '__main__':
+def main(subject_paths):
+    """Main function for target point selection GUI"""
 
     app = QtGui.QApplication(sys.argv)
 
-    target_selection = TargetSelection()
+    target_selection = TargetSelection(subject_paths)
     target_selection.show()
 
     QtGui.QApplication.exec_()
+
+    return target_selection.target_points
+
+
+if __name__ == '__main__':
+    main({})

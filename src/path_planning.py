@@ -25,6 +25,7 @@ import math                                             # noqa: E402
 from tqdm import tqdm                                   # noqa: E402
 import nibabel as nib                                   # noqa: E402
 import scipy.ndimage.morphology as morph                # noqa: E402
+import gui.targetSelection                              # noqa: E402
 from util.style import print_header, print_result       # noqa: E402
 from util.general import log_dict                       # noqa: E402
 from util.nifti import load_nifti                       # noqa: E402
@@ -355,23 +356,17 @@ def generate_entry_points(subject_paths: dict, n_points: int = 10000) \
     return entry_points_down
 
 
-def generate_target_points(subject_paths: dict) -> \
+def generate_target_points(subject_paths) -> \
         Union[np.ndarray, list[np.ndarray]]:
     """
     This function generates the coordinates for a
     target point or list of target points.
-    TODO: Implement a GUI for this.
-    For now, just define a certain point.
+    It calls upon a GUI implemented in gui.targetSelection
     """
 
-    # Temporarily, just hard-code points
-    point_1 = np.array([312, 277, 94])
-    point_2 = np.array([225, 261, 100])
+    target_points = gui.targetSelection.main(subject_paths)
 
-    warnings.warn(message="WARNING: TODO: Implement target point selection",
-                  category=UserWarning)
-
-    return [point_1, point_2]
+    return [np.array(point) for point in target_points]
 
 
 def generate_trajectories(
