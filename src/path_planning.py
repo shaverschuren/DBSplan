@@ -24,7 +24,8 @@ import math                                             # noqa: E402
 from tqdm import tqdm                                   # noqa: E402
 import nibabel as nib                                   # noqa: E402
 import scipy.ndimage.morphology as morph                # noqa: E402
-import gui                                              # noqa: E402
+import gui.targetSelection                              # noqa: E402
+import gui.pathSelection                                # noqa: E402
 from util.style import print_header                     # noqa: E402
 from util.general import log_dict                       # noqa: E402
 from util.nifti import load_nifti                       # noqa: E402
@@ -362,7 +363,7 @@ def generate_target_points(subject_paths) -> \
     """
     This function generates the coordinates for a
     target point or list of target points.
-    It calls upon a GUI implemented in gui.targetSelection
+    It calls upon a GUI implemented in `gui.targetSelection`
     """
 
     target_points = gui.targetSelection.main(subject_paths)
