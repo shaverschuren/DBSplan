@@ -11,12 +11,13 @@ from util.nifti import load_nifti
 
 class PathSelection(QtWidgets.QWidget):
 
-    def __init__(self, paths):
+    def __init__(self, paths, all_trajectories):
         """Main window initialization"""
         super().__init__()
 
-        # Load paths and settings
+        # Load paths and trajectories
         self.paths = paths
+        self.all_trajectories = all_trajectories
 
         # Setup main window
         self.initScreen()
@@ -74,6 +75,9 @@ class PathSelection(QtWidgets.QWidget):
         self.aff = scan1_aff
         self.shape = np.shape(self.data)
 
+        # Setup trajectories
+        self.n_targets = np.shape(self.all_trajectories)[0]
+
     def initSubplots(self):
         """Subplot initialization"""
 
@@ -87,154 +91,144 @@ class PathSelection(QtWidgets.QWidget):
 
         # Setup image plots
         self.subplots.sub1 = self.subplots.addLayout(
-            col=1, row=2, colspan=2, rowspan=1)
+            col=1, row=2, colspan=1, rowspan=1)
         self.subplots.sub2 = self.subplots.addLayout(
-            col=1, row=3, colspan=1, rowspan=1)
+            col=2, row=2, colspan=1, rowspan=1)
         self.subplots.sub3 = self.subplots.addLayout(
-            col=2, row=3, colspan=1, rowspan=1)
+            col=1, row=3, colspan=2, rowspan=1)
 
-        # Constrain top
+        # Constrain top + graph
         self.subplots.sub_text.setMaximumHeight(30)
+        self.subplots.sub3.setMaximumHeight(100)
 
-        # Add viewboxes
-        self.subplots.v1 = self.subplots.sub1.addViewBox()
-        self.subplots.v2 = self.subplots.sub2.addViewBox()
-        self.subplots.v3 = self.subplots.sub3.addViewBox()
+        # Add viewbox for probe view
+        self.subplots.v_probe = self.subplots.sub1.addViewBox()
 
-        # Add labels for image viewboxes
-        self.view_v1 = "sag"
-        self.view_v2 = "fro"
-        self.view_v3 = "tra"
-
-        self.view_sag = "v1"
-        self.view_fro = "v2"
-        self.view_tra = "v3"
-
-        # Define starting positions
-        self.tra_pos = self.shape[2] // 2
-        self.sag_pos = self.shape[0] // 2
-        self.fro_pos = self.shape[1] // 2
-
-        self.cursor_i = self.sag_pos
-        self.cursor_j = self.fro_pos
-        self.cursor_k = self.tra_pos
-
-        self.hover_i = self.sag_pos
-        self.hover_j = self.fro_pos
-        self.hover_k = self.tra_pos
-
-        self.current_hover = None
-
-        # Setup viewboxes
-        for v in [self.subplots.v1, self.subplots.v2, self.subplots.v3]:
-            v.setMouseEnabled(x=False, y=False)
-            v.setLimits(
-                xMin=-1.0 * max(self.shape), xMax=max(self.shape) * 2.0,
-                minXRange=20, maxXRange=max(self.shape) * 4.,
-                yMin=-1.0 * max(self.shape), yMax=max(self.shape) * 2.0,
-                minYRange=20, maxYRange=max(self.shape) * 4.
-            )
-
-        # Setup aspect ratios (for anisotropic resolutions)
-        self.updateAspectRatios()
-
-        # Items for displaying image data
-        self.subplots.img_tra = pg.ImageItem(self.data[:, :, self.tra_pos])
-        self.subplots.img_fro = pg.ImageItem(self.data[:, self.fro_pos, :])
-        self.subplots.img_sag = pg.ImageItem(self.data[self.sag_pos, :, :])
-
-        self.subplots.v1.addItem(self.subplots.img_sag)
-        self.subplots.v2.addItem(self.subplots.img_fro)
-        self.subplots.v3.addItem(self.subplots.img_tra)
-
-        # Add target point plots in all 3 images
-        self.target_points = []
-        self.target_points_sag = []
-        self.target_points_fro = []
-        self.target_points_tra = []
-
-        self.subplots.tar_sag = pg.ScatterPlotItem(
-            pos=self.target_points_sag,
-            symbol="o", brush="b", pen="b", size=8
-        )
-        self.subplots.tar_fro = pg.ScatterPlotItem(
-            pos=self.target_points_fro,
-            symbol="o", brush="b", pen="b", size=8
-        )
-        self.subplots.tar_tra = pg.ScatterPlotItem(
-            pos=self.target_points_tra,
-            symbol="o", brush="b", pen="b", size=8
+        self.subplots.v_probe.setMouseEnabled(x=False, y=False)
+        self.subplots.v_probe.setLimits(
+            xMin=-1.0 * max(self.shape), xMax=max(self.shape) * 2.0,
+            minXRange=20, maxXRange=max(self.shape) * 4.,
+            yMin=-1.0 * max(self.shape), yMax=max(self.shape) * 2.0,
+            minYRange=20, maxYRange=max(self.shape) * 4.
         )
 
-        self.subplots.v1.addItem(self.subplots.tar_sag)
-        self.subplots.v2.addItem(self.subplots.tar_fro)
-        self.subplots.v3.addItem(self.subplots.tar_tra)
+        # slice_func = pg.functions.affineSlice()
 
-        # Add cursor in all 3 images
-        self.subplots.cur_sag = pg.ScatterPlotItem(
-            pos=[(self.cursor_j, self.cursor_k)],
-            symbol="+", brush="r", pen="r", size=6
-        )
-        self.subplots.cur_fro = pg.ScatterPlotItem(
-            pos=[(self.cursor_i, self.cursor_k)],
-            symbol="+", brush="r", pen="r", size=6
-        )
-        self.subplots.cur_tra = pg.ScatterPlotItem(
-            pos=[(self.cursor_i, self.cursor_j)],
-            symbol="+", brush="r", pen="r", size=6
-        )
+        # # Define starting positions
+        # self.tra_pos = self.shape[2] // 2
+        # self.sag_pos = self.shape[0] // 2
+        # self.fro_pos = self.shape[1] // 2
 
-        self.subplots.v1.addItem(self.subplots.cur_sag)
-        self.subplots.v2.addItem(self.subplots.cur_fro)
-        self.subplots.v3.addItem(self.subplots.cur_tra)
+        # self.cursor_i = self.sag_pos
+        # self.cursor_j = self.fro_pos
+        # self.cursor_k = self.tra_pos
 
-        # Display text bar
-        infoStr = (
-            "Mouse: "
-            f"[{0:4d}, {0:4d}, {0:4d}]"
-            "    |    "
-            "Cursor: "
-            f"[{0:4d}, {0:4d}, {0:4d}]"
-        )
+        # self.hover_i = self.sag_pos
+        # self.hover_j = self.fro_pos
+        # self.hover_k = self.tra_pos
 
-        self.text = pg.LabelItem(
-            infoStr, color=(255, 255, 255), size="10pt"
-        )
+        # self.current_hover = None
 
-        self.subplots.sub_text.addItem(self.text)
+        # # Setup aspect ratios (for anisotropic resolutions)
+        # self.updateAspectRatios()
 
-        # Disable right click menus
-        self.subplots.v1.setMenuEnabled(False)
-        self.subplots.v2.setMenuEnabled(False)
-        self.subplots.v3.setMenuEnabled(False)
+        # # Items for displaying image data
+        # self.subplots.img_tra = pg.ImageItem(self.data[:, :, self.tra_pos])
+        # self.subplots.img_fro = pg.ImageItem(self.data[:, self.fro_pos, :])
+        # self.subplots.img_sag = pg.ImageItem(self.data[self.sag_pos, :, :])
 
-        # Fix scaling
-        self.subplots.v1.autoRange()
-        self.subplots.v2.autoRange()
-        self.subplots.v3.autoRange()
+        # self.subplots.v1.addItem(self.subplots.img_sag)
+        # self.subplots.v2.addItem(self.subplots.img_fro)
+        # self.subplots.v3.addItem(self.subplots.img_tra)
 
-        # Setup events
-        self.subplots.img_tra.hoverEvent = self.imageHoverEvent_tra
-        self.subplots.img_fro.hoverEvent = self.imageHoverEvent_fro
-        self.subplots.img_sag.hoverEvent = self.imageHoverEvent_sag
+        # # Add target point plots in all 3 images
+        # self.target_points = []
+        # self.target_points_sag = []
+        # self.target_points_fro = []
+        # self.target_points_tra = []
 
-        self.subplots.img_tra.mouseClickEvent = self.imageMouseClickEvent_tra
-        self.subplots.img_fro.mouseClickEvent = self.imageMouseClickEvent_fro
-        self.subplots.img_sag.mouseClickEvent = self.imageMouseClickEvent_sag
+        # self.subplots.tar_sag = pg.ScatterPlotItem(
+        #     pos=self.target_points_sag,
+        #     symbol="o", brush="b", pen="b", size=8
+        # )
+        # self.subplots.tar_fro = pg.ScatterPlotItem(
+        #     pos=self.target_points_fro,
+        #     symbol="o", brush="b", pen="b", size=8
+        # )
+        # self.subplots.tar_tra = pg.ScatterPlotItem(
+        #     pos=self.target_points_tra,
+        #     symbol="o", brush="b", pen="b", size=8
+        # )
 
-        self.subplots.img_tra.mouseDragEvent = self.imageMouseDragEvent_tra
-        self.subplots.img_fro.mouseDragEvent = self.imageMouseDragEvent_fro
-        self.subplots.img_sag.mouseDragEvent = self.imageMouseDragEvent_sag
+        # self.subplots.v1.addItem(self.subplots.tar_sag)
+        # self.subplots.v2.addItem(self.subplots.tar_fro)
+        # self.subplots.v3.addItem(self.subplots.tar_tra)
 
-        # self.subplots.img_tra.keyPressEvent = self.imageKeyPressEvent_tra
-        # self.subplots.img_fro.keyPressEvent = self.imageKeyPressEvent_fro
-        # self.subplots.img_sag.keyPressEvent = self.imageKeyPressEvent_sag
+        # # Add cursor in all 3 images
+        # self.subplots.cur_sag = pg.ScatterPlotItem(
+        #     pos=[(self.cursor_j, self.cursor_k)],
+        #     symbol="+", brush="r", pen="r", size=6
+        # )
+        # self.subplots.cur_fro = pg.ScatterPlotItem(
+        #     pos=[(self.cursor_i, self.cursor_k)],
+        #     symbol="+", brush="r", pen="r", size=6
+        # )
+        # self.subplots.cur_tra = pg.ScatterPlotItem(
+        #     pos=[(self.cursor_i, self.cursor_j)],
+        #     symbol="+", brush="r", pen="r", size=6
+        # )
 
-        self.subplots.keyPressEvent = self.keyPressEvent
+        # self.subplots.v1.addItem(self.subplots.cur_sag)
+        # self.subplots.v2.addItem(self.subplots.cur_fro)
+        # self.subplots.v3.addItem(self.subplots.cur_tra)
 
-        self.subplots.img_tra.wheelEvent = self.imageWheelEvent_tra
-        self.subplots.img_fro.wheelEvent = self.imageWheelEvent_fro
-        self.subplots.img_sag.wheelEvent = self.imageWheelEvent_sag
+        # # Display text bar
+        # infoStr = (
+        #     "Mouse: "
+        #     f"[{0:4d}, {0:4d}, {0:4d}]"
+        #     "    |    "
+        #     "Cursor: "
+        #     f"[{0:4d}, {0:4d}, {0:4d}]"
+        # )
+
+        # self.text = pg.LabelItem(
+        #     infoStr, color=(255, 255, 255), size="10pt"
+        # )
+
+        # self.subplots.sub_text.addItem(self.text)
+
+        # # Disable right click menus
+        # self.subplots.v1.setMenuEnabled(False)
+        # self.subplots.v2.setMenuEnabled(False)
+        # self.subplots.v3.setMenuEnabled(False)
+
+        # # Fix scaling
+        # self.subplots.v1.autoRange()
+        # self.subplots.v2.autoRange()
+        # self.subplots.v3.autoRange()
+
+        # # Setup events
+        # self.subplots.img_tra.hoverEvent = self.imageHoverEvent_tra
+        # self.subplots.img_fro.hoverEvent = self.imageHoverEvent_fro
+        # self.subplots.img_sag.hoverEvent = self.imageHoverEvent_sag
+
+        # self.subplots.img_tra.mouseClickEvent = self.imageMouseClickEvent_tra
+        # self.subplots.img_fro.mouseClickEvent = self.imageMouseClickEvent_fro
+        # self.subplots.img_sag.mouseClickEvent = self.imageMouseClickEvent_sag
+
+        # self.subplots.img_tra.mouseDragEvent = self.imageMouseDragEvent_tra
+        # self.subplots.img_fro.mouseDragEvent = self.imageMouseDragEvent_fro
+        # self.subplots.img_sag.mouseDragEvent = self.imageMouseDragEvent_sag
+
+        # # self.subplots.img_tra.keyPressEvent = self.imageKeyPressEvent_tra
+        # # self.subplots.img_fro.keyPressEvent = self.imageKeyPressEvent_fro
+        # # self.subplots.img_sag.keyPressEvent = self.imageKeyPressEvent_sag
+
+        # self.subplots.keyPressEvent = self.keyPressEvent
+
+        # self.subplots.img_tra.wheelEvent = self.imageWheelEvent_tra
+        # self.subplots.img_fro.wheelEvent = self.imageWheelEvent_fro
+        # self.subplots.img_sag.wheelEvent = self.imageWheelEvent_sag
 
     def initTop(self):
         """Initialize top bar"""
@@ -349,31 +343,13 @@ class PathSelection(QtWidgets.QWidget):
         dim_k = np.diag(self.aff)[2]
 
         # Calculate aspect ratios
+        self.dim_i = dim_i
+        self.dim_j = dim_j
+        self.dim_k = dim_k
+
         self.aspect_ratio_tra = dim_i / dim_j
         self.aspect_ratio_fro = dim_i / dim_k
         self.aspect_ratio_sag = dim_j / dim_k
-
-        # Set aspect ratios to appropriate viewboxes
-        for aspect_ratio, plane in [
-            (self.aspect_ratio_tra, "tra"),
-            (self.aspect_ratio_fro, "fro"),
-            (self.aspect_ratio_sag, "sag"),
-        ]:
-            if self.view_v1 == plane:
-                self.subplots.v1.setAspectLocked(
-                    lock=True, ratio=abs(aspect_ratio))
-                if aspect_ratio < 0:
-                    self.subplots.v1.invertX()
-            elif self.view_v2 == plane:
-                self.subplots.v2.setAspectLocked(
-                    lock=True, ratio=abs(aspect_ratio))
-                if aspect_ratio < 0:
-                    self.subplots.v2.invertX()
-            elif self.view_v3 == plane:
-                self.subplots.v3.setAspectLocked(
-                    lock=True, ratio=abs(aspect_ratio))
-                if aspect_ratio < 0:
-                    self.subplots.v3.invertX()
 
     def addTarget(self):
         """Adds current cursor position to target list"""
@@ -833,12 +809,13 @@ class PathSelection(QtWidgets.QWidget):
         self.updateText()
 
 
-def main(subject_paths):
+def main(subject_paths, suggested_trajectories):
     """Main function for path selection GUI"""
 
     app = QtGui.QApplication(sys.argv)
 
-    path_selection = PathSelection(subject_paths)
+    path_selection = PathSelection(
+        subject_paths, suggested_trajectories)
     path_selection.show()
 
     QtGui.QApplication.exec_()

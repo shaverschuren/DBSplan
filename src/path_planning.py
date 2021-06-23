@@ -271,7 +271,8 @@ def generate_planning_paths(paths: dict, settings: dict) -> tuple[list, dict]:
         distance_map_vessels_path = \
             os.path.join(raw_dir, "distance_map_vessels.nii.gz")
 
-        output_txt = os.path.join(subject_dir, "paths.npy")
+        inter_txt = os.path.join(subject_dir, "possible_paths.npy")
+        output_txt = os.path.join(subject_dir, "final_paths.npy")
 
         # Assemble subject path dict
         subject_dict = {
@@ -294,6 +295,7 @@ def generate_planning_paths(paths: dict, settings: dict) -> tuple[list, dict]:
             "distance_map_ventricles": distance_map_ventricles_path,
             "distance_map_sulci": distance_map_sulci_path,
             "distance_map_vessels": distance_map_vessels_path,
+            "intermediate_path": inter_txt,
             "output_path": output_txt
         }
 
@@ -468,7 +470,7 @@ def generate_possible_paths(subject_paths: dict) -> np.ndarray:
     )
 
     # Save/return trajectories
-    np.save(subject_paths["output_path"], trajectories)
+    np.save(subject_paths["intermediate_path"], trajectories)
 
     return trajectories
 
@@ -481,7 +483,13 @@ def select_paths(
     from a list of proposed possible paths. We use a GUI, as
     is defined in `gui.pathSelection` for this purpose."""
 
-    selected_trajectories = gui.pathSelection.main(subject_paths)
+    # Select final paths from list of proposed ones via GUI
+    selected_trajectories = gui.pathSelection.main(
+        subject_paths, possible_trajectories
+    )
+
+    # Save final output
+    # TODO: np.save(subject_paths["output_path"], selected_trajectories)
 
     return selected_trajectories
 
@@ -512,7 +520,10 @@ def run_path_planning(paths: dict, settings: dict, verbose: bool = True) \
     # Main loop
     for sub_paths in iterator:
         # Check whether output already there
-        output_ok = os.path.exists(sub_paths["output_path"])
+        output_ok = (
+            os.path.exists(sub_paths["output_path"]) and
+            os.path.exists(sub_paths["intermediate_path"])
+        )
 
         # Determine whether to skip subject
         if output_ok:
@@ -531,7 +542,12 @@ def run_path_planning(paths: dict, settings: dict, verbose: bool = True) \
                                  "Please check the config file (config.json).")
         else:
             # Generate possible trajectories
-            possible_trajectories = generate_possible_paths(sub_paths)
+            if not os.path.exists(sub_paths["intermediate_path"]):
+                possible_trajectories = generate_possible_paths(sub_paths)
+            else:
+                possible_trajectories = np.load(
+                    sub_paths["intermediate_path"], allow_pickle=True)
+
             # Choose appropriate trajectories (via GUI)
             selected_trajectories = select_paths(
                 sub_paths, possible_trajectories)
