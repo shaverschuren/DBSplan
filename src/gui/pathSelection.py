@@ -5,7 +5,6 @@ import sys
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
 import numpy as np
-import nibabel as nib
 from util.nifti import load_nifti
 
 
@@ -63,6 +62,10 @@ class PathSelection(QtWidgets.QWidget):
         scan3_arr, scan3_aff, _ = load_nifti(self.paths["CT"])
         scan3_name = "CT"
 
+        # Load distance map
+        self.distance_map, dist_aff, _ = \
+            load_nifti(self.paths["distance_map_combined"])
+
         # Load scans in dict
         self.scans = {
             scan1_name: scan1_arr,
@@ -77,6 +80,15 @@ class PathSelection(QtWidgets.QWidget):
 
         # Setup trajectories
         self.n_targets = np.shape(self.all_trajectories)[0]
+
+        self.current_trajectory = self.all_trajectories[0][0]
+
+        self.current_direction = tuple(self.current_trajectory[0])
+        self.current_entry = tuple(self.current_trajectory[1])
+        self.current_target = tuple(self.current_trajectory[2])
+        self.current_pos = self.current_target
+
+        self.define_checkpoints()
 
     def initSubplots(self):
         """Subplot initialization"""
@@ -103,16 +115,26 @@ class PathSelection(QtWidgets.QWidget):
 
         # Add viewbox for probe view
         self.subplots.v_probe = self.subplots.sub1.addViewBox()
+        self.subplots.v_graph = self.subplots.sub3.addViewBox()
 
-        self.subplots.v_probe.setMouseEnabled(x=False, y=False)
-        self.subplots.v_probe.setLimits(
-            xMin=-1.0 * max(self.shape), xMax=max(self.shape) * 2.0,
-            minXRange=20, maxXRange=max(self.shape) * 4.,
-            yMin=-1.0 * max(self.shape), yMax=max(self.shape) * 2.0,
-            minYRange=20, maxYRange=max(self.shape) * 4.
+        # self.subplots.v_probe.setMouseEnabled(x=False, y=False)
+        # self.subplots.v_probe.setLimits(
+        #     xMin=-1.0 * max(self.shape), xMax=max(self.shape) * 2.0,
+        #     minXRange=20, maxXRange=max(self.shape) * 4.,
+        #     yMin=-1.0 * max(self.shape), yMax=max(self.shape) * 2.0,
+        #     minYRange=20, maxYRange=max(self.shape) * 4.
+        # )
+
+        self.updateProbeView()
+
+        self.subplots.v_probe.addItem(
+            pg.ImageItem(self.current_slice)
         )
 
-        # slice_func = pg.functions.affineSlice()
+        self.dist_graph = pg.PlotDataItem(self.trajectory_distances)
+        self.subplots.v_graph.addItem(self.dist_graph)
+        self.subplots.v_graph.setMouseEnabled(x=False, y=False)
+        # self.subplots.sub3.addItem(pg.LinearRegionItem([20, 30]))
 
         # # Define starting positions
         # self.tra_pos = self.shape[2] // 2
@@ -350,6 +372,59 @@ class PathSelection(QtWidgets.QWidget):
         self.aspect_ratio_tra = dim_i / dim_j
         self.aspect_ratio_fro = dim_i / dim_k
         self.aspect_ratio_sag = dim_j / dim_k
+
+    def updateProbeView(self):
+        """Updates the probe eye view and performs data slicing"""
+
+        # Define proper vectors. These vectors should both be
+        # perpendicular to the trajectory direction vector and
+        # to each other.
+        n = np.array(object=self.current_direction)
+        n = n / (n[0] ** 2 + n[1] ** 2 + n[2] ** 2)
+
+        vector1 = (
+            np.array([1, 1, -(n[0] + n[1]) / n[2]]) /
+            (1 ** 2 + 1 ** 2 + (-(n[0] + n[1]) / n[2]) ** 2)
+        )
+        vector2 = np.cross(n, vector1)
+
+        self.vectors = tuple((tuple(vector1), tuple(vector2)))
+
+        # Define origin
+        self.slice_shape = (512, 512)
+        self.slice_origin = tuple(
+            np.array(self.current_pos) - 256 * (vector1 + vector2)
+        )
+
+        # Perform slicing
+        self.current_slice = pg.functions.affineSlice(
+            self.data, self.slice_shape, self.slice_origin, self.vectors,
+            axes=(0, 1, 2), order=1
+        )
+
+    def define_checkpoints(self):
+        """Define checkpoints along current trajectory"""
+
+        start = np.array(self.current_entry)
+        stop = np.array(self.current_target)
+
+        trajectory_vector = stop - start
+
+        self.trajectory_checkpoints = np.zeros((100, 3))
+        self.trajectory_distances = np.zeros(100)
+
+        for i in range(100):
+            checkpoint = start + trajectory_vector * (i / 99)
+
+            checkpoint_idx = np.round(checkpoint)
+            distance = self.distance_map[
+                int(checkpoint_idx[0]),
+                int(checkpoint_idx[1]),
+                int(checkpoint_idx[2])
+            ]
+
+            self.trajectory_checkpoints[i] = checkpoint
+            self.trajectory_distances[i] = distance
 
     def addTarget(self):
         """Adds current cursor position to target list"""
