@@ -78,6 +78,8 @@ class PathSelection(QtWidgets.QWidget):
         self.aff = scan1_aff
         self.shape = np.shape(self.data)
 
+        self.vox_dims = np.diag(self.aff)[:-1]
+
         # Setup trajectories
         self.n_targets = np.shape(self.all_trajectories)[0]
 
@@ -99,15 +101,15 @@ class PathSelection(QtWidgets.QWidget):
 
         # Setup top
         self.subplots.sub_text = self.subplots.addLayout(
-            col=1, row=1, colspan=2, rowspan=1)
+            col=0, row=0, colspan=2, rowspan=1)
 
         # Setup image plots
         self.subplots.sub1 = self.subplots.addLayout(
-            col=1, row=2, colspan=1, rowspan=1)
+            col=0, row=1, colspan=1, rowspan=1)
         self.subplots.sub2 = self.subplots.addLayout(
-            col=2, row=2, colspan=1, rowspan=1)
+            col=1, row=1, colspan=1, rowspan=1)
         self.subplots.sub3 = self.subplots.addLayout(
-            col=1, row=3, colspan=2, rowspan=1)
+            col=0, row=2, colspan=2, rowspan=1)
 
         # Constrain top + graph
         self.subplots.sub_text.setMaximumHeight(30)
@@ -115,21 +117,33 @@ class PathSelection(QtWidgets.QWidget):
 
         # Add viewbox for probe view
         self.subplots.v_probe = self.subplots.sub1.addViewBox()
+        self.subplots.v_3d = self.subplots.sub2.addViewBox()
         self.subplots.v_graph = self.subplots.sub3.addViewBox()
 
-        # self.subplots.v_probe.setMouseEnabled(x=False, y=False)
-        # self.subplots.v_probe.setLimits(
-        #     xMin=-1.0 * max(self.shape), xMax=max(self.shape) * 2.0,
-        #     minXRange=20, maxXRange=max(self.shape) * 4.,
-        #     yMin=-1.0 * max(self.shape), yMax=max(self.shape) * 2.0,
-        #     minYRange=20, maxYRange=max(self.shape) * 4.
-        # )
-
+        # Init probe-eye view
         self.updateProbeView()
 
         self.subplots.v_probe.addItem(
             pg.ImageItem(self.current_slice)
         )
+
+        # TODO: For testing ...
+        self.subplots.v_3d.addItem(
+            pg.ImageItem(self.current_slice)
+        )
+
+        for v in [self.subplots.v_probe, self.subplots.v_3d]:
+            v.setMouseEnabled(x=False, y=False)
+            # v.setLimits(
+            #     xMin=-1.0 * max(self.shape), xMax=max(self.shape) * 2.0,
+            #     minXRange=20, maxXRange=max(self.shape) * 4.,
+            #     yMin=-1.0 * max(self.shape), yMax=max(self.shape) * 2.0,
+            #     minYRange=20, maxYRange=max(self.shape) * 4.
+            # )
+            v.setAspectLocked(1.0)
+
+        self.subplots.v_graph.autoRange()
+        self.subplots.v_3d.autoRange()
 
         self.dist_graph = pg.PlotDataItem(self.trajectory_distances)
         self.subplots.v_graph.addItem(self.dist_graph)
@@ -311,67 +325,67 @@ class PathSelection(QtWidgets.QWidget):
         layout.addWidget(self.scanLabel)
         layout.addWidget(self.scanList)
 
-    def updateImages(self):
-        """Updates images on event"""
-        # Update images
-        self.subplots.img_tra.setImage(self.data[:, :, self.tra_pos])
-        self.subplots.img_fro.setImage(self.data[:, self.fro_pos, :])
-        self.subplots.img_sag.setImage(self.data[self.sag_pos, :, :])
+    # def updateImages(self):
+    #     """Updates images on event"""
+    #     # Update images
+    #     self.subplots.img_tra.setImage(self.data[:, :, self.tra_pos])
+    #     self.subplots.img_fro.setImage(self.data[:, self.fro_pos, :])
+    #     self.subplots.img_sag.setImage(self.data[self.sag_pos, :, :])
 
-        # Update cursor plots
-        self.subplots.cur_tra.setData(pos=[(self.cursor_i, self.cursor_j)])
-        self.subplots.cur_fro.setData(pos=[(self.cursor_i, self.cursor_k)])
-        self.subplots.cur_sag.setData(pos=[(self.cursor_j, self.cursor_k)])
+    #     # Update cursor plots
+    #     self.subplots.cur_tra.setData(pos=[(self.cursor_i, self.cursor_j)])
+    #     self.subplots.cur_fro.setData(pos=[(self.cursor_i, self.cursor_k)])
+    #     self.subplots.cur_sag.setData(pos=[(self.cursor_j, self.cursor_k)])
 
-        # Update target plots
-        self.target_points_tra = []
-        self.target_points_fro = []
-        self.target_points_sag = []
-        for target_point in self.target_points:
-            if self.tra_pos == target_point[2]:
-                self.target_points_tra.append(
-                    (target_point[0], target_point[1])
-                )
-            if self.fro_pos == target_point[1]:
-                self.target_points_fro.append(
-                    (target_point[0], target_point[2])
-                )
-            if self.sag_pos == target_point[0]:
-                self.target_points_sag.append(
-                    (target_point[1], target_point[2])
-                )
-        self.subplots.tar_tra.setData(pos=self.target_points_tra)
-        self.subplots.tar_fro.setData(pos=self.target_points_fro)
-        self.subplots.tar_sag.setData(pos=self.target_points_sag)
+    #     # Update target plots
+    #     self.target_points_tra = []
+    #     self.target_points_fro = []
+    #     self.target_points_sag = []
+    #     for target_point in self.target_points:
+    #         if self.tra_pos == target_point[2]:
+    #             self.target_points_tra.append(
+    #                 (target_point[0], target_point[1])
+    #             )
+    #         if self.fro_pos == target_point[1]:
+    #             self.target_points_fro.append(
+    #                 (target_point[0], target_point[2])
+    #             )
+    #         if self.sag_pos == target_point[0]:
+    #             self.target_points_sag.append(
+    #                 (target_point[1], target_point[2])
+    #             )
+    #     self.subplots.tar_tra.setData(pos=self.target_points_tra)
+    #     self.subplots.tar_fro.setData(pos=self.target_points_fro)
+    #     self.subplots.tar_sag.setData(pos=self.target_points_sag)
 
-    def updateText(self):
-        """Updates text on event"""
-        updated_string = (
-            "Mouse: "
-            f"[{self.hover_i:4d}, {self.hover_j:4d}, {self.hover_k:4d}]"
-            "   |   "
-            "Cursor: "
-            f"[{self.cursor_i:4d}, {self.cursor_j:4d}, {self.cursor_k:4d}]"
-        )
+    # def updateText(self):
+    #     """Updates text on event"""
+    #     updated_string = (
+    #         "Mouse: "
+    #         f"[{self.hover_i:4d}, {self.hover_j:4d}, {self.hover_k:4d}]"
+    #         "   |   "
+    #         "Cursor: "
+    #         f"[{self.cursor_i:4d}, {self.cursor_j:4d}, {self.cursor_k:4d}]"
+    #     )
 
-        self.text.setText(updated_string)
+    #     self.text.setText(updated_string)
 
-    def updateAspectRatios(self):
-        """Updates the aspect ratios of the view boxes"""
+    # def updateAspectRatios(self):
+    #     """Updates the aspect ratios of the view boxes"""
 
-        # Extract voxel sizes in i,j,k dimensions
-        dim_i = np.diag(self.aff)[0]
-        dim_j = np.diag(self.aff)[1]
-        dim_k = np.diag(self.aff)[2]
+    #     # Extract voxel sizes in i,j,k dimensions
+    #     dim_i = np.diag(self.aff)[0]
+    #     dim_j = np.diag(self.aff)[1]
+    #     dim_k = np.diag(self.aff)[2]
 
-        # Calculate aspect ratios
-        self.dim_i = dim_i
-        self.dim_j = dim_j
-        self.dim_k = dim_k
+    #     # Calculate aspect ratios
+    #     self.dim_i = dim_i
+    #     self.dim_j = dim_j
+    #     self.dim_k = dim_k
 
-        self.aspect_ratio_tra = dim_i / dim_j
-        self.aspect_ratio_fro = dim_i / dim_k
-        self.aspect_ratio_sag = dim_j / dim_k
+    #     self.aspect_ratio_tra = dim_i / dim_j
+    #     self.aspect_ratio_fro = dim_i / dim_k
+    #     self.aspect_ratio_sag = dim_j / dim_k
 
     def updateProbeView(self):
         """Updates the probe eye view and performs data slicing"""
@@ -388,15 +402,26 @@ class PathSelection(QtWidgets.QWidget):
         )
         vector2 = np.cross(n, vector1)
 
-        self.vectors = tuple((tuple(vector1), tuple(vector2)))
-
         # Define origin
-        self.slice_shape = (512, 512)
+        self.slice_shape = (max(self.shape), max(self.shape))
         self.slice_origin = tuple(
-            np.array(self.current_pos) - 256 * (vector1 + vector2)
+            np.array(self.current_pos) -
+            (max(self.shape) // 2) * (vector1 + vector2)
         )
 
+        # Determine proper aspect ratios
+        aspect_1 = np.sqrt(sum(
+            [(vector1[i] * self.vox_dims[i]) ** 2 for i in range(3)]
+        ))
+        aspect_2 = np.sqrt(sum(
+            [(vector2[i] * self.vox_dims[i]) ** 2 for i in range(3)]
+        ))
+
+        vector2 = vector2 * (aspect_2 / aspect_1)
+
         # Perform slicing
+        self.vectors = tuple((tuple(vector1), tuple(vector2)))
+
         self.current_slice = pg.functions.affineSlice(
             self.data, self.slice_shape, self.slice_origin, self.vectors,
             axes=(0, 1, 2), order=1
