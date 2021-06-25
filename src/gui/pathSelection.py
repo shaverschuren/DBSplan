@@ -122,9 +122,9 @@ class PathSelection(QtWidgets.QWidget):
         self.updateProbeView()
 
         # Add probe-eye slice
-        self.subplots.im_probe = pg.ImageItem(self.current_slice)
+        self.subplots.img_probe = pg.ImageItem(self.current_slice)
         self.subplots.v_probe.addItem(
-            self.subplots.im_probe
+            self.subplots.img_probe
         )
 
         # Add probe marker
@@ -192,7 +192,7 @@ class PathSelection(QtWidgets.QWidget):
 
         self.subplots.keyPressEvent = self.keyPressEvent
 
-        # self.subplots.img_tra.wheelEvent = self.imageWheelEvent_tra
+        self.subplots.img_probe.wheelEvent = self.imageWheelEvent_probe
         # self.subplots.img_fro.wheelEvent = self.imageWheelEvent_fro
         # self.subplots.img_sag.wheelEvent = self.imageWheelEvent_sag
 
@@ -205,11 +205,11 @@ class PathSelection(QtWidgets.QWidget):
 
         # Setup buttons
         self.button_tra = QtGui.QPushButton('tra')
-        self.button_tra.clicked.connect(self.changeView_tra)
+        # self.button_tra.clicked.connect(self.changeView_tra)
         self.button_fro = QtGui.QPushButton('fro')
-        self.button_fro.clicked.connect(self.changeView_fro)
+        # self.button_fro.clicked.connect(self.changeView_fro)
         self.button_sag = QtGui.QPushButton('sag')
-        self.button_sag.clicked.connect(self.changeView_sag)
+        # self.button_sag.clicked.connect(self.changeView_sag)
 
         # Display buttons
         layout.addWidget(self.button_tra)
@@ -261,7 +261,7 @@ class PathSelection(QtWidgets.QWidget):
         # Update slice
         self.updateProbeView()
         # Update image
-        self.subplots.im_probe.setImage(self.current_slice)
+        self.subplots.img_probe.setImage(self.current_slice)
 
     def updateProbeView(self):
         """Updates the probe eye view and performs data slicing"""
@@ -391,121 +391,14 @@ class PathSelection(QtWidgets.QWidget):
         """Zooms in/out on a certain image"""
         scale_factor = 1.0 + delta * 0.1
 
-        if img_str == "tra":
-            x_scale = self.hover_i
-            y_scale = self.hover_j
-            view = self.view_tra
-        elif img_str == "fro":
-            x_scale = self.hover_i
-            y_scale = self.hover_k
-            view = self.view_fro
-        elif img_str == "sag":
-            x_scale = self.hover_j
-            y_scale = self.hover_k
-            view = self.view_sag
-
-        if view == "v1":
-            self.subplots.v1.scaleBy(
+        if img_str == "probe":
+            x_scale = self.slice_shape[0] // 2
+            y_scale = self.slice_shape[1] // 2
+            self.subplots.v_probe.scaleBy(
                 s=[scale_factor, scale_factor],
                 center=(x_scale, y_scale))
-        elif view == "v2":
-            self.subplots.v2.scaleBy(
-                s=[scale_factor, scale_factor],
-                center=(x_scale, y_scale))
-        elif view == "v3":
-            self.subplots.v3.scaleBy(
-                s=[scale_factor, scale_factor],
-                center=(x_scale, y_scale))
-
-    def changeView_tra(self):
-        """Handles clicking on the 'tra' button"""
-        view = "tra"
-        self.changeView(view)
-
-    def changeView_fro(self):
-        """Handles clicking on the 'fro' button"""
-        view = "fro"
-        self.changeView(view)
-
-    def changeView_sag(self):
-        """Handles clicking on the 'sag' button"""
-        view = "sag"
-        self.changeView(view)
-
-    def changeView(self, view):
-        """Handles changing views via button presses"""
-
-        # Obtain current views
-        current_v1 = self.view_v1
-
-        # Define new views
-        if view == "tra":
-            new_v1 = "tra"
-            new_v2 = "sag"
-            new_v3 = "fro"
-            new_tra = "v1"
-            new_fro = "v3"
-            new_sag = "v2"
-        elif view == "fro":
-            new_v1 = "fro"
-            new_v2 = "sag"
-            new_v3 = "tra"
-            new_tra = "v3"
-            new_fro = "v1"
-            new_sag = "v2"
-        elif view == "sag":
-            new_v1 = "sag"
-            new_v2 = "fro"
-            new_v3 = "tra"
-            new_tra = "v3"
-            new_fro = "v2"
-            new_sag = "v1"
-
-        # Make the switch if necessary
-        if current_v1 is not new_v1:
-
-            # Remove old images
-            self.subplots.v1.clear()
-            self.subplots.v2.clear()
-            self.subplots.v3.clear()
-
-            # Loop over viewboxes and replace images
-            for v, new in [
-                (self.subplots.v1, new_v1),
-                (self.subplots.v2, new_v2),
-                (self.subplots.v3, new_v3)
-            ]:
-
-                # Add new image
-                if new == "tra":
-                    v.addItem(self.subplots.img_tra)
-                    v.addItem(self.subplots.tar_tra)
-                    v.addItem(self.subplots.cur_tra)
-                elif new == "fro":
-                    v.addItem(self.subplots.img_fro)
-                    v.addItem(self.subplots.tar_fro)
-                    v.addItem(self.subplots.cur_fro)
-                elif new == "sag":
-                    v.addItem(self.subplots.img_sag)
-                    v.addItem(self.subplots.tar_sag)
-                    v.addItem(self.subplots.cur_sag)
-
-                # Adjust range
-                v.autoRange()
-
-            # Update params
-            self.view_v1 = new_v1
-            self.view_v2 = new_v2
-            self.view_v3 = new_v3
-
-            self.view_tra = new_tra
-            self.view_fro = new_fro
-            self.view_sag = new_sag
-
-            # Update images
-            self.updateAspectRatios()
-            self.updateImages()
-            self.updateText()
+        elif img_str == "3d":
+            pass
 
     def selectTarget(self):
         """Updates currently selected target"""
@@ -769,19 +662,14 @@ class PathSelection(QtWidgets.QWidget):
                 # Update images
                 self.updateImages()
 
-    def imageWheelEvent_tra(self, event):
-        """Handles mousewheel event on transverse plane"""
-        view = "tra"
+    def imageWheelEvent_probe(self, event):
+        """Handles mousewheel event on probe view"""
+        view = "probe"
         self.imageWheelEvent(event, view)
 
-    def imageWheelEvent_fro(self, event):
-        """Handles mousewheel event on frontal plane"""
-        view = "fro"
-        self.imageWheelEvent(event, view)
-
-    def imageWheelEvent_sag(self, event):
-        """Handles mousewheel event on saggital plane"""
-        view = "sag"
+    def imageWheelEvent_3d(self, event):
+        """Handles mousewheel event on 3d view"""
+        view = "3d"
         self.imageWheelEvent(event, view)
 
     def imageWheelEvent(self, event, view):
@@ -799,7 +687,7 @@ class PathSelection(QtWidgets.QWidget):
         self.zoomImage(delta, view)
 
         # Update text
-        self.updateText()
+        # self.updateText()
 
 
 def main(subject_paths, suggested_trajectories):
