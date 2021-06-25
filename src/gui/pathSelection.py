@@ -115,10 +115,12 @@ class PathSelection(QtWidgets.QWidget):
         self.subplots.sub_text.setMaximumHeight(30)
         self.subplots.sub3.setMaximumHeight(100)
 
-        # Add viewbox for probe view
+        # Add viewboxes
         self.subplots.v_probe = self.subplots.sub1.addViewBox()
         self.subplots.v_3d = self.subplots.sub2.addViewBox()
-        self.subplots.v_graph = self.subplots.sub3.addViewBox()
+
+        self.subplots.v_graph = pg.PlotItem()
+        self.subplots.sub3.addItem(self.subplots.v_graph)
 
         # Init probe-eye view
         self.updateProbeView()
@@ -146,6 +148,7 @@ class PathSelection(QtWidgets.QWidget):
             pg.ImageItem(self.current_slice)
         )
 
+        # Setup viewbox limits + disable default mouse commands
         for v in [self.subplots.v_probe, self.subplots.v_3d]:
             v.setMouseEnabled(x=False, y=False)
             v.setLimits(
@@ -159,10 +162,10 @@ class PathSelection(QtWidgets.QWidget):
         self.subplots.v_graph.autoRange()
         self.subplots.v_3d.autoRange()
 
-        self.dist_graph = pg.PlotDataItem(self.trajectory_distances)
-        self.subplots.v_graph.addItem(self.dist_graph)
+        # Setup distance plot
+        self.subplots.v_graph.plot(
+            x=self.trajectory_dist2entryList, y=self.trajectory_distances)
         self.subplots.v_graph.setMouseEnabled(x=False, y=False)
-        # self.subplots.sub3.addItem(pg.LinearRegionItem([20, 30]))
 
         # # Define starting positions
         # self.tra_pos = self.shape[2] // 2
@@ -338,38 +341,13 @@ class PathSelection(QtWidgets.QWidget):
         layout.addWidget(self.scanLabel)
         layout.addWidget(self.scanList)
 
-    # def updateImages(self):
-    #     """Updates images on event"""
-    #     # Update images
-    #     self.subplots.img_tra.setImage(self.data[:, :, self.tra_pos])
-    #     self.subplots.img_fro.setImage(self.data[:, self.fro_pos, :])
-    #     self.subplots.img_sag.setImage(self.data[self.sag_pos, :, :])
+    def updateImages(self):
+        """Updates images on event"""
 
-    #     # Update cursor plots
-    #     self.subplots.cur_tra.setData(pos=[(self.cursor_i, self.cursor_j)])
-    #     self.subplots.cur_fro.setData(pos=[(self.cursor_i, self.cursor_k)])
-    #     self.subplots.cur_sag.setData(pos=[(self.cursor_j, self.cursor_k)])
-
-    #     # Update target plots
-    #     self.target_points_tra = []
-    #     self.target_points_fro = []
-    #     self.target_points_sag = []
-    #     for target_point in self.target_points:
-    #         if self.tra_pos == target_point[2]:
-    #             self.target_points_tra.append(
-    #                 (target_point[0], target_point[1])
-    #             )
-    #         if self.fro_pos == target_point[1]:
-    #             self.target_points_fro.append(
-    #                 (target_point[0], target_point[2])
-    #             )
-    #         if self.sag_pos == target_point[0]:
-    #             self.target_points_sag.append(
-    #                 (target_point[1], target_point[2])
-    #             )
-    #     self.subplots.tar_tra.setData(pos=self.target_points_tra)
-    #     self.subplots.tar_fro.setData(pos=self.target_points_fro)
-    #     self.subplots.tar_sag.setData(pos=self.target_points_sag)
+        # Update slice
+        self.updateProbeView()
+        # Update image
+        self.subplots.v_probe.setImage(self.current_slice)
 
     # def updateText(self):
     #     """Updates text on event"""
@@ -447,19 +425,27 @@ class PathSelection(QtWidgets.QWidget):
         trajectory_vector = stop - start
 
         self.trajectory_checkpoints = np.zeros((100, 3))
+        self.trajectory_dist2entryList = np.zeros(100)
         self.trajectory_distances = np.zeros(100)
 
         for i in range(100):
+            # Define checkpoint coordinates
             checkpoint = start + trajectory_vector * (i / 99)
-
+            # Define distance to entry (mm)
+            dist2entry = np.sqrt(np.sum(
+                [(self.vox_dims[j] * trajectory_vector[j] * (i / 99)) ** 2
+                    for j in range(3)]
+            ))
+            # Define distance to critical structure
             checkpoint_idx = np.round(checkpoint)
             distance = self.distance_map[
                 int(checkpoint_idx[0]),
                 int(checkpoint_idx[1]),
                 int(checkpoint_idx[2])
             ]
-
+            # Store found results
             self.trajectory_checkpoints[i] = checkpoint
+            self.trajectory_dist2entryList[i] = dist2entry
             self.trajectory_distances[i] = distance
 
     def addTarget(self):
