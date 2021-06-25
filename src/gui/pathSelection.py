@@ -80,17 +80,13 @@ class PathSelection(QtWidgets.QWidget):
 
         self.vox_dims = np.diag(self.aff)[:-1]
 
-        # Setup trajectories
+        # Setup initial trajectory
         self.n_targets = np.shape(self.all_trajectories)[0]
 
-        self.current_trajectory = self.all_trajectories[0][0]
+        self.target_i = 0
+        self.trajectory_i = 0
 
-        self.current_direction = tuple(self.current_trajectory[0])
-        self.current_entry = tuple(self.current_trajectory[1])
-        self.current_target = tuple(self.current_trajectory[2])
-        self.current_pos = self.current_target
-
-        self.define_checkpoints()
+        self.updateTrajectory()
 
     def initSubplots(self):
         """Subplot initialization"""
@@ -126,8 +122,9 @@ class PathSelection(QtWidgets.QWidget):
         self.updateProbeView()
 
         # Add probe-eye slice
+        self.subplots.im_probe = pg.ImageItem(self.current_slice)
         self.subplots.v_probe.addItem(
-            pg.ImageItem(self.current_slice)
+            self.subplots.im_probe
         )
 
         # Add probe marker
@@ -166,89 +163,6 @@ class PathSelection(QtWidgets.QWidget):
         self.subplots.v_graph.plot(
             x=self.trajectory_dist2entryList, y=self.trajectory_distances)
         self.subplots.v_graph.setMouseEnabled(x=False, y=False)
-
-        # # Define starting positions
-        # self.tra_pos = self.shape[2] // 2
-        # self.sag_pos = self.shape[0] // 2
-        # self.fro_pos = self.shape[1] // 2
-
-        # self.cursor_i = self.sag_pos
-        # self.cursor_j = self.fro_pos
-        # self.cursor_k = self.tra_pos
-
-        # self.hover_i = self.sag_pos
-        # self.hover_j = self.fro_pos
-        # self.hover_k = self.tra_pos
-
-        # self.current_hover = None
-
-        # # Setup aspect ratios (for anisotropic resolutions)
-        # self.updateAspectRatios()
-
-        # # Items for displaying image data
-        # self.subplots.img_tra = pg.ImageItem(self.data[:, :, self.tra_pos])
-        # self.subplots.img_fro = pg.ImageItem(self.data[:, self.fro_pos, :])
-        # self.subplots.img_sag = pg.ImageItem(self.data[self.sag_pos, :, :])
-
-        # self.subplots.v1.addItem(self.subplots.img_sag)
-        # self.subplots.v2.addItem(self.subplots.img_fro)
-        # self.subplots.v3.addItem(self.subplots.img_tra)
-
-        # # Add target point plots in all 3 images
-        # self.target_points = []
-        # self.target_points_sag = []
-        # self.target_points_fro = []
-        # self.target_points_tra = []
-
-        # self.subplots.tar_sag = pg.ScatterPlotItem(
-        #     pos=self.target_points_sag,
-        #     symbol="o", brush="b", pen="b", size=8
-        # )
-        # self.subplots.tar_fro = pg.ScatterPlotItem(
-        #     pos=self.target_points_fro,
-        #     symbol="o", brush="b", pen="b", size=8
-        # )
-        # self.subplots.tar_tra = pg.ScatterPlotItem(
-        #     pos=self.target_points_tra,
-        #     symbol="o", brush="b", pen="b", size=8
-        # )
-
-        # self.subplots.v1.addItem(self.subplots.tar_sag)
-        # self.subplots.v2.addItem(self.subplots.tar_fro)
-        # self.subplots.v3.addItem(self.subplots.tar_tra)
-
-        # # Add cursor in all 3 images
-        # self.subplots.cur_sag = pg.ScatterPlotItem(
-        #     pos=[(self.cursor_j, self.cursor_k)],
-        #     symbol="+", brush="r", pen="r", size=6
-        # )
-        # self.subplots.cur_fro = pg.ScatterPlotItem(
-        #     pos=[(self.cursor_i, self.cursor_k)],
-        #     symbol="+", brush="r", pen="r", size=6
-        # )
-        # self.subplots.cur_tra = pg.ScatterPlotItem(
-        #     pos=[(self.cursor_i, self.cursor_j)],
-        #     symbol="+", brush="r", pen="r", size=6
-        # )
-
-        # self.subplots.v1.addItem(self.subplots.cur_sag)
-        # self.subplots.v2.addItem(self.subplots.cur_fro)
-        # self.subplots.v3.addItem(self.subplots.cur_tra)
-
-        # # Display text bar
-        # infoStr = (
-        #     "Mouse: "
-        #     f"[{0:4d}, {0:4d}, {0:4d}]"
-        #     "    |    "
-        #     "Cursor: "
-        #     f"[{0:4d}, {0:4d}, {0:4d}]"
-        # )
-
-        # self.text = pg.LabelItem(
-        #     infoStr, color=(255, 255, 255), size="10pt"
-        # )
-
-        # self.subplots.sub_text.addItem(self.text)
 
         # # Disable right click menus
         self.subplots.v_probe.setMenuEnabled(False)
@@ -347,7 +261,7 @@ class PathSelection(QtWidgets.QWidget):
         # Update slice
         self.updateProbeView()
         # Update image
-        self.subplots.v_probe.setImage(self.current_slice)
+        self.subplots.im_probe.setImage(self.current_slice)
 
     # def updateText(self):
     #     """Updates text on event"""
@@ -381,40 +295,10 @@ class PathSelection(QtWidgets.QWidget):
     def updateProbeView(self):
         """Updates the probe eye view and performs data slicing"""
 
-        # Define proper vectors. These vectors should both be
-        # perpendicular to the trajectory direction vector and
-        # to each other.
-        n = np.array(object=self.current_direction)
-        n = n / (n[0] ** 2 + n[1] ** 2 + n[2] ** 2)
+        # Update current position
+        self.current_pos = self.trajectory_checkpoints[self.checkpoint_i]
 
-        vector1 = (
-            np.array([1, 1, -(n[0] + n[1]) / n[2]]) /
-            (1 ** 2 + 1 ** 2 + (-(n[0] + n[1]) / n[2]) ** 2)
-        )
-        vector2 = np.cross(n, vector1)
-
-        # Define origin
-        self.slice_shape = (max(self.shape), max(self.shape))
-        self.slice_origin = tuple(
-            np.array(self.current_pos) -
-            (max(self.shape) // 2) * (vector1 + vector2)
-        )
-
-        # Determine proper aspect ratios
-        self.aspect_y = np.sqrt(sum(
-            [(vector1[i] * self.vox_dims[i]) ** 2 for i in range(3)]
-        ))
-        self.aspect_x = np.sqrt(sum(
-            [(vector2[i] * self.vox_dims[i]) ** 2 for i in range(3)]
-        ))
-
-        # Perform slicing
-        self.vectors = tuple((tuple(vector1), tuple(vector2)))
-
-        self.current_slice = pg.functions.affineSlice(
-            self.data, self.slice_shape, self.slice_origin, self.vectors,
-            axes=(0, 1, 2), order=1
-        )
+        self.current_slice = self.trajectory_slices[self.checkpoint_i]
 
     def define_checkpoints(self):
         """Define checkpoints along current trajectory"""
@@ -447,6 +331,70 @@ class PathSelection(QtWidgets.QWidget):
             self.trajectory_checkpoints[i] = checkpoint
             self.trajectory_dist2entryList[i] = dist2entry
             self.trajectory_distances[i] = distance
+
+    def updateTrajectory(self):
+        """Handles selection of new trajectory"""
+
+        # Select new current trajectory
+        self.current_trajectory = \
+            self.all_trajectories[self.target_i][self.trajectory_i]
+
+        # Store direction, entry, target
+        self.current_direction = tuple(self.current_trajectory[0])
+        self.current_entry = tuple(self.current_trajectory[1])
+        self.current_target = tuple(self.current_trajectory[2])
+
+        # Define checkpoints
+        self.define_checkpoints()
+
+        # Define proper vectors. These vectors should both be
+        # perpendicular to the trajectory direction vector and
+        # to each other.
+        n = np.array(object=self.current_direction)
+        n = n / (n[0] ** 2 + n[1] ** 2 + n[2] ** 2)
+
+        vector1 = (
+            np.array([1, 1, -(n[0] + n[1]) / n[2]]) /
+            (1 ** 2 + 1 ** 2 + (-(n[0] + n[1]) / n[2]) ** 2)
+        )
+        vector2 = np.cross(n, vector1)
+
+        # Define shape
+        self.slice_shape = (max(self.shape), max(self.shape))
+
+        # Determine proper aspect ratios
+        self.aspect_y = np.sqrt(sum(
+            [(vector1[i] * self.vox_dims[i]) ** 2 for i in range(3)]
+        ))
+        self.aspect_x = np.sqrt(sum(
+            [(vector2[i] * self.vox_dims[i]) ** 2 for i in range(3)]
+        ))
+
+        # Setup vectors in appropriate format
+        self.vectors = tuple((tuple(vector1), tuple(vector2)))
+
+        # Loop over checkpoints and slice data
+        self.trajectory_slices = np.zeros((
+            len(self.trajectory_checkpoints),
+            self.slice_shape[0],
+            self.slice_shape[1]
+        ))
+
+        for checkpoint_i in range(len(self.trajectory_checkpoints)):
+            slice_origin = tuple(
+                np.array(self.trajectory_checkpoints[checkpoint_i]) -
+                (max(self.shape) // 2) * (vector1 + vector2)
+            )
+
+            self.trajectory_slices[checkpoint_i] = pg.functions.affineSlice(
+                self.data, self.slice_shape, slice_origin, self.vectors,
+                axes=(0, 1, 2), order=1
+            )
+
+        # Setup current position to target checkpoint
+        self.checkpoint_i = len(self.trajectory_checkpoints) - 1
+        self.current_pos = \
+            tuple(self.trajectory_checkpoints[self.checkpoint_i])
 
     def addTarget(self):
         """Adds current cursor position to target list"""
@@ -794,29 +742,31 @@ class PathSelection(QtWidgets.QWidget):
         """Handles general keypress events"""
         # self.scene().keyPressEvent(event)
 
-        if self.current_hover == "tra":
-            self.imageKeyPressEvent_tra(event)
-        if self.current_hover == "fro":
-            self.imageKeyPressEvent_fro(event)
-        if self.current_hover == "sag":
-            self.imageKeyPressEvent_sag(event)
+        self.imageKeyPressEvent(event)
 
-    def imageKeyPressEvent_tra(self, event):
-        """Handles keypress event on transverse plane"""
-        view = "tra"
-        self.imageKeyPressEvent(event, view)
+        # if self.current_hover == "tra":
+        #     self.imageKeyPressEvent_tra(event)
+        # if self.current_hover == "fro":
+        #     self.imageKeyPressEvent_fro(event)
+        # if self.current_hover == "sag":
+        #     self.imageKeyPressEvent_sag(event)
 
-    def imageKeyPressEvent_fro(self, event):
-        """Handles keypress event on frontal plane"""
-        view = "fro"
-        self.imageKeyPressEvent(event, view)
+    # def imageKeyPressEvent_tra(self, event):
+    #     """Handles keypress event on transverse plane"""
+    #     view = "tra"
+    #     self.imageKeyPressEvent(event, view)
 
-    def imageKeyPressEvent_sag(self, event):
-        """Handles keypress event on saggital plane"""
-        view = "sag"
-        self.imageKeyPressEvent(event, view)
+    # def imageKeyPressEvent_fro(self, event):
+    #     """Handles keypress event on frontal plane"""
+    #     view = "fro"
+    #     self.imageKeyPressEvent(event, view)
 
-    def imageKeyPressEvent(self, event, view):
+    # def imageKeyPressEvent_sag(self, event):
+    #     """Handles keypress event on saggital plane"""
+    #     view = "sag"
+    #     self.imageKeyPressEvent(event, view)
+
+    def imageKeyPressEvent(self, event):
         """ Handles key presses
         - Up/down -> scrolling
         - Return -> Add target point
@@ -830,24 +780,20 @@ class PathSelection(QtWidgets.QWidget):
             elif event.key() == QtCore.Qt.Key_Down:
                 scroll = -1
 
-            # Adjust cursor + view position
-            if view == "tra":
-                if self.cursor_k > 0 and self.cursor_k < self.shape[2] - 1:
-                    self.tra_pos += scroll
-                    self.cursor_k += scroll
-            elif view == "fro":
-                if self.cursor_j > 0 and self.cursor_j < self.shape[1] - 1:
-                    self.fro_pos += scroll
-                    self.cursor_j += scroll
-            elif view == "sag":
-                if self.cursor_i > 0 and self.cursor_i < self.shape[0] - 1:
-                    self.sag_pos += scroll
-                    self.cursor_i += scroll
+            # Setup new checkpoint (if not on edge)
+            if ((
+                scroll > 0 and
+                self.checkpoint_i >= len(self.trajectory_checkpoints) - 1
+            ) or (
+                scroll < 0 and self.checkpoint_i == 0
+            )):
+                pass
+            else:
+                self.checkpoint_i += scroll
 
-            # Update images
+            # Update probe view
+            # self.updateProbeView()
             self.updateImages()
-            # Update text
-            self.updateText()
 
         # Checks for a Return/Enter key (add Target)
         elif event.key() == QtCore.Qt.Key_Return:
@@ -917,11 +863,13 @@ def main(subject_paths, suggested_trajectories):
 
     QtGui.QApplication.exec_()
 
-    if len(path_selection.target_points) > 0:
-        return path_selection.target_points
-    else:
-        raise UserWarning("No target points were selected!"
-                          " Exiting...")
+    return path_selection.all_trajectories
+
+    # if len(path_selection.target_points) > 0:
+    #     return path_selection.target_points
+    # else:
+    #     raise UserWarning("No target points were selected!"
+    #                       " Exiting...")
 
 
 if __name__ == '__main__':
