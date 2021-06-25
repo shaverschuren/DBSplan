@@ -200,11 +200,29 @@ class PathSelection(QtWidgets.QWidget):
         )
 
         # Setup 3D render
-        self.subplots.v_3d.opts['distance'] = 200
-        self.subplots.v_3d.mousePressEvent = self.print_test
-        g = gl.GLGridItem()
-        g.scale(10, 10, 1)
-        self.subplots.v_3d.addItem(g)
+        # self.subplots.v_3d.opts['distance'] = 200
+        # self.subplots.v_3d.mousePressEvent = self.print_test
+        # g = gl.GLGridItem()
+        # g.scale(10, 10, 1)
+        # self.subplots.v_3d.addItem(g)
+        d2 = np.zeros(self.data.shape + (4,))
+        d2[..., 3] = self.data**1 * 255  # alpha
+        d2[..., 0] = d2[..., 3]  # red
+        d2[..., 1] = d2[..., 3]  # green
+        d2[..., 2] = d2[..., 3]  # blue
+        v = gl.GLVolumeItem(d2)  # , sliceDensity=1, smooth=True)
+        v.translate(
+            dx=-self.shape[0] / 2,
+            dy=-self.shape[1] / 2,
+            dz=-self.shape[2] / 3
+        )
+        self.subplots.v_3d.addItem(v)
+        # pts = np.array([
+        #     (0, 0, 0),
+        #     tuple(np.array(self.current_target) - np.array(self.current_entry))
+        # ])
+        # sh1 = gl.GLLinePlotItem(pos=pts, width=1, antialias=False)
+        # self.subplots.v_3d.addItem(sh1)
 
         # Disable right click menus
         self.subplots.v_probe.setMenuEnabled(False)
