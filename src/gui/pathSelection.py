@@ -112,18 +112,18 @@ class PathSelection(QtWidgets.QWidget):
         self.subplots.sub_text.setMaximumHeight(30)
         self.subplots.sub3.setMaximumHeight(150)
 
-        # Add viewboxes
+        # Make sure image columns are the same size
+        qGraphicsGridLayout = self.subplots.ci.layout
+        qGraphicsGridLayout.setColumnStretchFactor(0, 2)
+        qGraphicsGridLayout.setColumnStretchFactor(1, 1)
+
+        # Add viewboxes / proxys
         self.subplots.v_probe = self.subplots.sub1.addViewBox()
 
-        # QtGui.QGraphicsWidget
-        # self.subplots.viewboxLayout = QtGui.QGraphicsItem()
-        self.subplots.v_3d = QtGui.QGraphicsView()
-        self.subplots.v_3d.setViewport(gl.GLViewWidget())
-        # self.subplots.viewboxLayout.addWidget(self.subplots.v_3d, 0, 0)
-        # self.subplots.sub2.setLayout(self.subplots.viewboxLayout)
-        # self.subplots.sub2.setCentralWidget(self.subplots.v_3d)
-
-        self.subplots.sub2.addItem(self.subplots.v_3d)
+        self.subplots.proxy_3d = QtGui.QGraphicsProxyWidget()
+        self.subplots.v_3d = gl.GLViewWidget()
+        self.subplots.proxy_3d.setWidget(self.subplots.v_3d)
+        self.subplots.sub2.addItem(self.subplots.proxy_3d)
 
         self.subplots.v_graph = pg.PlotItem(
             labels={'left': "Margin [mm]", 'bottom': "Depth [mm]"}
@@ -167,13 +167,8 @@ class PathSelection(QtWidgets.QWidget):
         self.subplots.probe_margin.setPen(self.margin_pen)
         self.subplots.v_probe.addItem(self.subplots.probe_margin)
 
-        # # TODO: For testing ...
-        # self.subplots.v_3d.addItem(
-        #     pg.ImageItem(self.current_slice)
-        # )
-
         # Setup viewbox limits + disable default mouse commands
-        for v in [self.subplots.v_probe, self.subplots.v_3d]:
+        for v in [self.subplots.v_probe]:  # TODO: , self.subplots.v_3d]:
             v.setMouseEnabled(x=False, y=False)
             v.setLimits(
                 xMin=-1.0 * max(self.shape), xMax=max(self.shape) * 2.0,
@@ -203,6 +198,13 @@ class PathSelection(QtWidgets.QWidget):
         self.subplots.v_graph.setLimits(
             xMin=0, xMax=self.trajectory_dist2entryList[-1]
         )
+
+        # Setup 3D render
+        self.subplots.v_3d.opts['distance'] = 200
+        self.subplots.v_3d.mousePressEvent = self.print_test
+        g = gl.GLGridItem()
+        g.scale(10, 10, 1)
+        self.subplots.v_3d.addItem(g)
 
         # Disable right click menus
         self.subplots.v_probe.setMenuEnabled(False)
@@ -237,6 +239,9 @@ class PathSelection(QtWidgets.QWidget):
         self.subplots.img_probe.wheelEvent = self.imageWheelEvent_probe
         # self.subplots.img_fro.wheelEvent = self.imageWheelEvent_fro
         # self.subplots.img_sag.wheelEvent = self.imageWheelEvent_sag
+
+    def print_test(self, event):
+        print("OK")
 
     def initTop(self):
         """Initialize top bar"""
