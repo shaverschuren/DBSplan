@@ -86,7 +86,7 @@ class PathSelection(QtWidgets.QWidget):
         self.target_i = 0
         self.trajectory_i = 0
 
-        self.updateTrajectory()
+        self.updateTrajectory(initial_pass=True)
 
     def initSubplots(self):
         """Subplot initialization"""
@@ -109,13 +109,15 @@ class PathSelection(QtWidgets.QWidget):
 
         # Constrain top + graph
         self.subplots.sub_text.setMaximumHeight(30)
-        self.subplots.sub3.setMaximumHeight(100)
+        self.subplots.sub3.setMaximumHeight(150)
 
         # Add viewboxes
         self.subplots.v_probe = self.subplots.sub1.addViewBox()
         self.subplots.v_3d = self.subplots.sub2.addViewBox()
 
-        self.subplots.v_graph = pg.PlotItem()
+        self.subplots.v_graph = pg.PlotItem(
+            labels={'left': "Margin [mm]", 'bottom': "Depth [mm]"}
+        )
         self.subplots.sub3.addItem(self.subplots.v_graph)
 
         # Init probe-eye view
@@ -164,16 +166,29 @@ class PathSelection(QtWidgets.QWidget):
             x=self.trajectory_dist2entryList, y=self.trajectory_distances)
         self.subplots.v_graph.setMouseEnabled(x=False, y=False)
 
-        # # Disable right click menus
+        # Setup vertical line marker
+        self.subplots.v_line = pg.InfiniteLine(
+            pos=self.trajectory_dist2entryList[self.checkpoint_i],
+            angle=90, movable=True,
+            bounds=[0, self.trajectory_dist2entryList[-1]]
+        )
+        self.subplots.v_graph.addItem(self.subplots.v_line)
+
+        # Setup appropriate graph range
+        self.subplots.v_graph.setLimits(
+            xMin=0, xMax=self.trajectory_dist2entryList[-1]
+        )
+
+        # Disable right click menus
         self.subplots.v_probe.setMenuEnabled(False)
         self.subplots.v_3d.setMenuEnabled(False)
         self.subplots.v_graph.setMenuEnabled(False)
 
-        # # Fix scaling
+        # Fix scaling
         self.subplots.v_probe.autoRange()
         self.subplots.v_graph.autoRange()
 
-        # # Setup events
+        # Setup events
         # self.subplots.img_tra.hoverEvent = self.imageHoverEvent_tra
         # self.subplots.img_fro.hoverEvent = self.imageHoverEvent_fro
         # self.subplots.img_sag.hoverEvent = self.imageHoverEvent_sag
@@ -186,9 +201,11 @@ class PathSelection(QtWidgets.QWidget):
         # self.subplots.img_fro.mouseDragEvent = self.imageMouseDragEvent_fro
         # self.subplots.img_sag.mouseDragEvent = self.imageMouseDragEvent_sag
 
-        # # self.subplots.img_tra.keyPressEvent = self.imageKeyPressEvent_tra
-        # # self.subplots.img_fro.keyPressEvent = self.imageKeyPressEvent_fro
-        # # self.subplots.img_sag.keyPressEvent = self.imageKeyPressEvent_sag
+        # self.subplots.img_tra.keyPressEvent = self.imageKeyPressEvent_tra
+        # self.subplots.img_fro.keyPressEvent = self.imageKeyPressEvent_fro
+        # self.subplots.img_sag.keyPressEvent = self.imageKeyPressEvent_sag
+
+        self.subplots.v_line.sigDragged.connect(self.lineDragged)
 
         self.subplots.keyPressEvent = self.keyPressEvent
 
@@ -270,19 +287,27 @@ class PathSelection(QtWidgets.QWidget):
         self.current_pos = self.trajectory_checkpoints[self.checkpoint_i]
         # Update current slice
         self.current_slice = self.trajectory_slices[self.checkpoint_i]
+        # Update vertical line pos
+        if "v_line" in dir(self.subplots):
+            self.subplots.v_line.setValue(
+                self.trajectory_dist2entryList[self.checkpoint_i])
 
     def define_checkpoints(self):
         """Define checkpoints along current trajectory"""
 
+        # Define start/stop points
         start = np.array(self.current_entry)
         stop = np.array(self.current_target)
 
+        # Determine trajectory vector
         trajectory_vector = stop - start
 
+        # Setup arrays
         self.trajectory_checkpoints = np.zeros((100, 3))
         self.trajectory_dist2entryList = np.zeros(100)
         self.trajectory_distances = np.zeros(100)
 
+        # Loop over checkpoints and fill arrays
         for i in range(100):
             # Define checkpoint coordinates
             checkpoint = start + trajectory_vector * (i / 99)
@@ -303,7 +328,7 @@ class PathSelection(QtWidgets.QWidget):
             self.trajectory_dist2entryList[i] = dist2entry
             self.trajectory_distances[i] = distance
 
-    def updateTrajectory(self):
+    def updateTrajectory(self, initial_pass: bool = False):
         """Handles selection of new trajectory"""
 
         # Select new current trajectory
@@ -363,9 +388,16 @@ class PathSelection(QtWidgets.QWidget):
             )
 
         # Setup current position to target checkpoint
-        self.checkpoint_i = len(self.trajectory_checkpoints) - 1
+        if initial_pass:
+            self.checkpoint_i = len(self.trajectory_checkpoints) - 1
         self.current_pos = \
             tuple(self.trajectory_checkpoints[self.checkpoint_i])
+
+        # Setup appropriate graph range
+        if not initial_pass:
+            self.subplots.v_graph.setLimits(
+                xMin=0, xMax=self.trajectory_dist2entryList[-1]
+            )
 
     def addTarget(self):
         """Adds current cursor position to target list"""
@@ -688,6 +720,28 @@ class PathSelection(QtWidgets.QWidget):
 
         # Update text
         # self.updateText()
+
+    def lineDragged(self):
+        """Handles dragging of vertical line"""
+
+        # Extract position
+        dist2entry = self.subplots.v_line.value()
+
+        # Loop over checkpoints and check for the best fit
+        opt_checkpoint_i = 0
+        min_diff = 100
+
+        for checkpoint_i in range(len(self.trajectory_checkpoints)):
+            actual_dist = self.trajectory_dist2entryList[checkpoint_i]
+            diff = abs(dist2entry - actual_dist)
+
+            if diff < min_diff:
+                opt_checkpoint_i = checkpoint_i
+                min_diff = diff
+
+        # Update checkpoint and images
+        self.checkpoint_i = int(opt_checkpoint_i)
+        self.updateImages()
 
 
 def main(subject_paths, suggested_trajectories):
