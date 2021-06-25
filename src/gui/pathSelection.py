@@ -179,7 +179,6 @@ class PathSelection(QtWidgets.QWidget):
             v.setAspectLocked(self.aspect_y / self.aspect_x)
 
         self.subplots.v_graph.autoRange()
-        # self.subplots.v_3d.autoRange()
 
         # Setup distance plot
         self.subplots.v_graph.plot(
@@ -200,7 +199,6 @@ class PathSelection(QtWidgets.QWidget):
         )
 
         # Setup 3D render
-        self.subplots.v_3d.mousePressEvent = self.print_test
         g = gl.GLGridItem()
         g.scale(10, 10, 1)
         self.subplots.v_3d.addItem(g)
@@ -228,7 +226,6 @@ class PathSelection(QtWidgets.QWidget):
 
         # Disable right click menus
         self.subplots.v_probe.setMenuEnabled(False)
-        # self.subplots.v_3d.setMenuEnabled(False)
         self.subplots.v_graph.setMenuEnabled(False)
 
         # Fix scaling
@@ -251,6 +248,10 @@ class PathSelection(QtWidgets.QWidget):
         # self.subplots.img_tra.keyPressEvent = self.imageKeyPressEvent_tra
         # self.subplots.img_fro.keyPressEvent = self.imageKeyPressEvent_fro
         # self.subplots.img_sag.keyPressEvent = self.imageKeyPressEvent_sag
+
+        self.subplots.v_3d.mousePressEvent = self.print_test
+        # self.subplots.v_3d.dragMoveEvent = ...
+        self.subplots.sub2.wheelEvent = self.imageWheelEvent_3d
 
         self.subplots.v_line.sigDragged.connect(self.lineDragged)
 
@@ -480,7 +481,15 @@ class PathSelection(QtWidgets.QWidget):
                 s=[scale_factor, scale_factor],
                 center=(x_scale, y_scale))
         elif img_str == "3d":
-            pass
+            current_distance = self.subplots.v_3d.opts['distance']
+            current_elevation = self.subplots.v_3d.opts['elevation']
+            current_azimuth = self.subplots.v_3d.opts['azimuth']
+
+            self.subplots.v_3d.setCameraPosition(
+                distance=current_distance / scale_factor,
+                elevation=current_elevation, azimuth=current_azimuth)
+
+            self.subplots.proxy_3d.update()
 
     def selectTarget(self):
         """Updates currently selected target"""
