@@ -263,41 +263,12 @@ class PathSelection(QtWidgets.QWidget):
         # Update image
         self.subplots.im_probe.setImage(self.current_slice)
 
-    # def updateText(self):
-    #     """Updates text on event"""
-    #     updated_string = (
-    #         "Mouse: "
-    #         f"[{self.hover_i:4d}, {self.hover_j:4d}, {self.hover_k:4d}]"
-    #         "   |   "
-    #         "Cursor: "
-    #         f"[{self.cursor_i:4d}, {self.cursor_j:4d}, {self.cursor_k:4d}]"
-    #     )
-
-    #     self.text.setText(updated_string)
-
-    # def updateAspectRatios(self):
-    #     """Updates the aspect ratios of the view boxes"""
-
-    #     # Extract voxel sizes in i,j,k dimensions
-    #     dim_i = np.diag(self.aff)[0]
-    #     dim_j = np.diag(self.aff)[1]
-    #     dim_k = np.diag(self.aff)[2]
-
-    #     # Calculate aspect ratios
-    #     self.dim_i = dim_i
-    #     self.dim_j = dim_j
-    #     self.dim_k = dim_k
-
-    #     self.aspect_ratio_tra = dim_i / dim_j
-    #     self.aspect_ratio_fro = dim_i / dim_k
-    #     self.aspect_ratio_sag = dim_j / dim_k
-
     def updateProbeView(self):
         """Updates the probe eye view and performs data slicing"""
 
         # Update current position
         self.current_pos = self.trajectory_checkpoints[self.checkpoint_i]
-
+        # Update current slice
         self.current_slice = self.trajectory_slices[self.checkpoint_i]
 
     def define_checkpoints(self):
@@ -557,7 +528,7 @@ class PathSelection(QtWidgets.QWidget):
         self.cursor_k = self.selectedTarget[2]
 
         self.updateImages()
-        self.updateText()
+        # self.updateText()
 
     def selectScan(self):
         """Updates the scan currently in view"""
@@ -569,9 +540,11 @@ class PathSelection(QtWidgets.QWidget):
         self.data = self.scans[scan_name]
         self.shape = np.shape(self.data)
 
+        # Update slicing
+        self.updateTrajectory()
         # Update image/text
         self.updateImages()
-        self.updateText()
+        # self.updateText()
 
     def imageHoverEvent_tra(self, event):
         """Handles hover event on transverse plane"""
@@ -740,31 +713,8 @@ class PathSelection(QtWidgets.QWidget):
 
     def keyPressEvent(self, event):
         """Handles general keypress events"""
-        # self.scene().keyPressEvent(event)
 
         self.imageKeyPressEvent(event)
-
-        # if self.current_hover == "tra":
-        #     self.imageKeyPressEvent_tra(event)
-        # if self.current_hover == "fro":
-        #     self.imageKeyPressEvent_fro(event)
-        # if self.current_hover == "sag":
-        #     self.imageKeyPressEvent_sag(event)
-
-    # def imageKeyPressEvent_tra(self, event):
-    #     """Handles keypress event on transverse plane"""
-    #     view = "tra"
-    #     self.imageKeyPressEvent(event, view)
-
-    # def imageKeyPressEvent_fro(self, event):
-    #     """Handles keypress event on frontal plane"""
-    #     view = "fro"
-    #     self.imageKeyPressEvent(event, view)
-
-    # def imageKeyPressEvent_sag(self, event):
-    #     """Handles keypress event on saggital plane"""
-    #     view = "sag"
-    #     self.imageKeyPressEvent(event, view)
 
     def imageKeyPressEvent(self, event):
         """ Handles key presses
