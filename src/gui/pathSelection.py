@@ -123,9 +123,23 @@ class PathSelection(QtWidgets.QWidget):
         # Init probe-eye view
         self.updateProbeView()
 
+        # Add probe-eye slice
         self.subplots.v_probe.addItem(
             pg.ImageItem(self.current_slice)
         )
+
+        # Add probe marker
+        self.subplots.probe_marker = pg.ScatterPlotItem(
+            pos=[(max(self.shape) // 2, max(self.shape) // 2)],
+            symbol="o", brush="b", pen="b", size=6
+        )
+        self.subplots.v_probe.addItem(self.subplots.probe_marker)
+        # Add probe margin
+        self.subplots.probe_margin = pg.ScatterPlotItem(
+            pos=[(max(self.shape) // 2, max(self.shape) // 2)],
+            symbol="o", brush=(0, 100, 100, 100), pen="b", size=24
+        )
+        self.subplots.v_probe.addItem(self.subplots.probe_margin)
 
         # TODO: For testing ...
         self.subplots.v_3d.addItem(
@@ -134,13 +148,13 @@ class PathSelection(QtWidgets.QWidget):
 
         for v in [self.subplots.v_probe, self.subplots.v_3d]:
             v.setMouseEnabled(x=False, y=False)
-            # v.setLimits(
-            #     xMin=-1.0 * max(self.shape), xMax=max(self.shape) * 2.0,
-            #     minXRange=20, maxXRange=max(self.shape) * 4.,
-            #     yMin=-1.0 * max(self.shape), yMax=max(self.shape) * 2.0,
-            #     minYRange=20, maxYRange=max(self.shape) * 4.
-            # )
-            v.setAspectLocked(1.0)
+            v.setLimits(
+                xMin=-1.0 * max(self.shape), xMax=max(self.shape) * 2.0,
+                minXRange=20, maxXRange=max(self.shape) * 4.,
+                yMin=-1.0 * max(self.shape), yMax=max(self.shape) * 2.0,
+                minYRange=20, maxYRange=max(self.shape) * 4.
+            )
+            v.setAspectLocked(self.aspect_y / self.aspect_x)
 
         self.subplots.v_graph.autoRange()
         self.subplots.v_3d.autoRange()
@@ -234,14 +248,13 @@ class PathSelection(QtWidgets.QWidget):
         # self.subplots.sub_text.addItem(self.text)
 
         # # Disable right click menus
-        # self.subplots.v1.setMenuEnabled(False)
-        # self.subplots.v2.setMenuEnabled(False)
-        # self.subplots.v3.setMenuEnabled(False)
+        self.subplots.v_probe.setMenuEnabled(False)
+        self.subplots.v_3d.setMenuEnabled(False)
+        self.subplots.v_graph.setMenuEnabled(False)
 
         # # Fix scaling
-        # self.subplots.v1.autoRange()
-        # self.subplots.v2.autoRange()
-        # self.subplots.v3.autoRange()
+        self.subplots.v_probe.autoRange()
+        self.subplots.v_graph.autoRange()
 
         # # Setup events
         # self.subplots.img_tra.hoverEvent = self.imageHoverEvent_tra
@@ -260,7 +273,7 @@ class PathSelection(QtWidgets.QWidget):
         # # self.subplots.img_fro.keyPressEvent = self.imageKeyPressEvent_fro
         # # self.subplots.img_sag.keyPressEvent = self.imageKeyPressEvent_sag
 
-        # self.subplots.keyPressEvent = self.keyPressEvent
+        self.subplots.keyPressEvent = self.keyPressEvent
 
         # self.subplots.img_tra.wheelEvent = self.imageWheelEvent_tra
         # self.subplots.img_fro.wheelEvent = self.imageWheelEvent_fro
@@ -410,14 +423,12 @@ class PathSelection(QtWidgets.QWidget):
         )
 
         # Determine proper aspect ratios
-        aspect_1 = np.sqrt(sum(
+        self.aspect_y = np.sqrt(sum(
             [(vector1[i] * self.vox_dims[i]) ** 2 for i in range(3)]
         ))
-        aspect_2 = np.sqrt(sum(
+        self.aspect_x = np.sqrt(sum(
             [(vector2[i] * self.vox_dims[i]) ** 2 for i in range(3)]
         ))
-
-        vector2 = vector2 * (aspect_2 / aspect_1)
 
         # Perform slicing
         self.vectors = tuple((tuple(vector1), tuple(vector2)))
