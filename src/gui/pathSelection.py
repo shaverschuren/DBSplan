@@ -132,14 +132,29 @@ class PathSelection(QtWidgets.QWidget):
         # Add probe marker
         self.subplots.probe_marker = pg.ScatterPlotItem(
             pos=[(max(self.shape) // 2, max(self.shape) // 2)],
-            symbol="o", brush="b", pen="b", size=6
+            symbol="o", brush="r", pen="r", size=3
         )
+        self.subplots.markerH = pg.InfiniteLine(
+            pos=max(self.shape) // 2, angle=0)
+        self.subplots.markerV = pg.InfiniteLine(
+            pos=max(self.shape) // 2, angle=90)
         self.subplots.v_probe.addItem(self.subplots.probe_marker)
-        # Add probe margin
-        self.subplots.probe_margin = pg.ScatterPlotItem(
-            pos=[(max(self.shape) // 2, max(self.shape) // 2)],
-            symbol="o", brush=(0, 100, 100, 100), pen="b", size=24
+        self.subplots.v_probe.addItem(self.subplots.markerH)
+        self.subplots.v_probe.addItem(self.subplots.markerV)
+
+        # Add probe margin plot
+        self.margin_pen = QtGui.QPen(QtCore.Qt.darkRed)
+        self.margin_pen.setWidth(0.5)
+
+        self.margin = 3
+        self.margin_pix = self.margin / self.aspect_x
+
+        self.subplots.probe_margin = QtWidgets.QGraphicsEllipseItem(
+            max(self.shape) // 2 - self.margin_pix,
+            max(self.shape) // 2 - self.margin_pix,
+            2 * self.margin_pix, 2 * self.margin_pix
         )
+        self.subplots.probe_margin.setPen(self.margin_pen)
         self.subplots.v_probe.addItem(self.subplots.probe_margin)
 
         # TODO: For testing ...
