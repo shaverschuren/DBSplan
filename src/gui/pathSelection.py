@@ -359,7 +359,7 @@ class PathSelection(QtWidgets.QWidget):
 
             self.trajectory_slices[checkpoint_i] = pg.functions.affineSlice(
                 self.data, self.slice_shape, slice_origin, self.vectors,
-                axes=(0, 1, 2), order=1
+                axes=(0, 1, 2), order=0
             )
 
         # Setup current position to target checkpoint
