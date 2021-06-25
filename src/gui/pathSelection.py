@@ -3,6 +3,7 @@
 
 import sys
 import pyqtgraph as pg
+import pyqtgraph.opengl as gl
 from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
 import numpy as np
 from util.nifti import load_nifti
@@ -113,7 +114,16 @@ class PathSelection(QtWidgets.QWidget):
 
         # Add viewboxes
         self.subplots.v_probe = self.subplots.sub1.addViewBox()
-        self.subplots.v_3d = self.subplots.sub2.addViewBox()
+
+        # QtGui.QGraphicsWidget
+        # self.subplots.viewboxLayout = QtGui.QGraphicsItem()
+        self.subplots.v_3d = QtGui.QGraphicsView()
+        self.subplots.v_3d.setViewport(gl.GLViewWidget())
+        # self.subplots.viewboxLayout.addWidget(self.subplots.v_3d, 0, 0)
+        # self.subplots.sub2.setLayout(self.subplots.viewboxLayout)
+        # self.subplots.sub2.setCentralWidget(self.subplots.v_3d)
+
+        self.subplots.sub2.addItem(self.subplots.v_3d)
 
         self.subplots.v_graph = pg.PlotItem(
             labels={'left': "Margin [mm]", 'bottom': "Depth [mm]"}
@@ -157,10 +167,10 @@ class PathSelection(QtWidgets.QWidget):
         self.subplots.probe_margin.setPen(self.margin_pen)
         self.subplots.v_probe.addItem(self.subplots.probe_margin)
 
-        # TODO: For testing ...
-        self.subplots.v_3d.addItem(
-            pg.ImageItem(self.current_slice)
-        )
+        # # TODO: For testing ...
+        # self.subplots.v_3d.addItem(
+        #     pg.ImageItem(self.current_slice)
+        # )
 
         # Setup viewbox limits + disable default mouse commands
         for v in [self.subplots.v_probe, self.subplots.v_3d]:
@@ -174,7 +184,7 @@ class PathSelection(QtWidgets.QWidget):
             v.setAspectLocked(self.aspect_y / self.aspect_x)
 
         self.subplots.v_graph.autoRange()
-        self.subplots.v_3d.autoRange()
+        # self.subplots.v_3d.autoRange()
 
         # Setup distance plot
         self.subplots.v_graph.plot(
@@ -196,7 +206,7 @@ class PathSelection(QtWidgets.QWidget):
 
         # Disable right click menus
         self.subplots.v_probe.setMenuEnabled(False)
-        self.subplots.v_3d.setMenuEnabled(False)
+        # self.subplots.v_3d.setMenuEnabled(False)
         self.subplots.v_graph.setMenuEnabled(False)
 
         # Fix scaling
