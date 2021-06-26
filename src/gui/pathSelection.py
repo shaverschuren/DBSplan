@@ -2,7 +2,7 @@
 """
 
 import sys
-from typing import Optional
+from typing import Optional, Union
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
@@ -69,8 +69,12 @@ class PathSelection(QtWidgets.QWidget):
             load_nifti(self.paths["distance_map_combined"])
 
         # Load masks
-        self.vesselMask, mask_aff, _ = \
+        self.ventricleMask, _, _ = \
             load_nifti(self.paths["ventricle_mask"])
+        self.sulcusMask, _, _ = \
+            load_nifti(self.paths["sulcus_mask"])
+        self.vesselMask, _, _ = \
+            load_nifti(self.paths["vessel_mask"])
 
         # Load scans in dict
         self.scans = {
@@ -89,8 +93,7 @@ class PathSelection(QtWidgets.QWidget):
         # Setup initial trajectory
         self.n_targets = np.shape(self.all_trajectories)[0]
 
-        self.target_i = 0
-        self.trajectory_i = 0
+        self.sortTrajectories()
 
         self.updateTrajectory(initial_pass=True)
 
@@ -198,9 +201,18 @@ class PathSelection(QtWidgets.QWidget):
         )
         self.subplots.v_graph.addItem(self.subplots.v_line)
 
+        # Setup horizontal line marker
+        self.subplots.h_line = pg.InfiniteLine(
+            pos=self.margin,
+            angle=0, movable=True,
+            bounds=[0, 10]
+        )
+        self.subplots.v_graph.addItem(self.subplots.h_line)
+
         # Setup appropriate graph range
         self.subplots.v_graph.setLimits(
-            xMin=0, xMax=self.trajectory_dist2entryList[-1]
+            xMin=0, xMax=self.trajectory_dist2entryList[-1],
+            yMin=0
         )
 
         # Setup 3D render
@@ -235,7 +247,8 @@ class PathSelection(QtWidgets.QWidget):
         self.subplots.sub2.hoverEvent = self.update_3d
         self.subplots.sub2.wheelEvent = self.imageWheelEvent_3d
 
-        self.subplots.v_line.sigDragged.connect(self.lineDragged)
+        self.subplots.v_line.sigDragged.connect(self.vLineDragged)
+        self.subplots.h_line.sigDragged.connect(self.hLineDragged)
 
         self.subplots.keyPressEvent = self.keyPressEvent
 
@@ -254,7 +267,11 @@ class PathSelection(QtWidgets.QWidget):
 
         # Setup data
         volData = self.convert_volume_to_opengl(
-            self.data, [self.vesselMask], ["red"])
+            self.data,
+            [self.ventricleMask, self.vesselMask],
+            ["blue", (255, 0, 0)],
+            [1.0, 0.005]
+        )
 
         # Plot volume
         self.subplots.vol = \
@@ -273,14 +290,15 @@ class PathSelection(QtWidgets.QWidget):
         # Plot trajectories
         self.trajectoryPlots = {}
         for target_i in range(self.n_targets):
-            for i in range(len(self.all_trajectories[target_i])):
+            for i in range(len(self.sorted_trajectories[target_i]) // 10):
                 identifyer = f"{str(target_i)}_{str(i)}"
                 pts = np.array([
-                    self.all_trajectories[target_i][i][1],
-                    self.all_trajectories[target_i][i][2]
+                    self.sorted_trajectories[target_i][i][1] -
+                    self.sorted_trajectories[target_i][i][0] * 50,
+                    self.sorted_trajectories[target_i][i][2]
                 ])
                 self.trajectoryPlots[identifyer] = \
-                    gl.GLLinePlotItem(pos=pts, width=2, color=(1., 0., 0., 1.))
+                    gl.GLLinePlotItem(pos=pts, width=2, color=(1., 0., 0., 0.5))
                 self.trajectoryPlots[identifyer].translate(
                     dx=-self.shape[0] / 2,
                     dy=-self.shape[1] / 2,
@@ -357,7 +375,8 @@ class PathSelection(QtWidgets.QWidget):
             self,
             data: np.ndarray,
             masks: Optional[list[np.ndarray]] = None,
-            colors: Optional[list[str]] = None) -> np.ndarray:
+            colors: Optional[list[Union[str, tuple]]] = None,
+            alphas: Optional[list[float]] = None) -> np.ndarray:
         """Converts numpy arrays to single opengl array"""
 
         # Create empty array
@@ -378,32 +397,75 @@ class PathSelection(QtWidgets.QWidget):
             else:
                 # Iteratively add masks to volume
                 for mask_i in range(len(masks)):
+                    # Extract mask, color and alpha (if applicable)
                     mask = masks[mask_i]
                     color = colors[mask_i]
 
+                    if alphas:
+                        if len(alphas) == len(masks):
+                            alpha = 255 * alphas[mask_i]
+                        else:
+                            raise ValueError(
+                                "length of alphas should match masks"
+                            )
+                    else:
+                        alpha = 255
+
                     # Colors: RGBA
                     if color == "red":
-                        d[..., 3][mask > 1e-2] = 255  # alpha
-                        d[..., 0][mask > 1e-2] = 255  # red
-                        d[..., 1][mask > 1e-2] = 0    # green
-                        d[..., 2][mask > 1e-2] = 0    # blue
+                        d[..., 3][mask > 1e-2] = alpha  # alpha
+                        d[..., 0][mask > 1e-2] = 255    # red
+                        d[..., 1][mask > 1e-2] = 0      # green
+                        d[..., 2][mask > 1e-2] = 0      # blue
                     elif color == "green":
-                        d[..., 3][mask > 1e-2] = 255  # alpha
-                        d[..., 0][mask > 1e-2] = 0    # red
-                        d[..., 1][mask > 1e-2] = 255  # green
-                        d[..., 2][mask > 1e-2] = 0    # blue
+                        d[..., 3][mask > 1e-2] = alpha  # alpha
+                        d[..., 0][mask > 1e-2] = 0      # red
+                        d[..., 1][mask > 1e-2] = 255    # green
+                        d[..., 2][mask > 1e-2] = 0      # blue
                     elif color == "blue":
-                        d[..., 3][mask > 1e-2] = 255  # alpha
-                        d[..., 0][mask > 1e-2] = 0    # red
-                        d[..., 1][mask > 1e-2] = 0    # green
-                        d[..., 2][mask > 1e-2] = 255  # blue
+                        d[..., 3][mask > 1e-2] = alpha  # alpha
+                        d[..., 0][mask > 1e-2] = 0      # red
+                        d[..., 1][mask > 1e-2] = 0      # green
+                        d[..., 2][mask > 1e-2] = 255    # blue
+                    elif type(color) == tuple and len(color) == 3:
+                        d[..., 3][mask > 1e-2] = alpha     # alpha
+                        d[..., 0][mask > 1e-2] = color[0]  # red
+                        d[..., 1][mask > 1e-2] = color[1]  # green
+                        d[..., 2][mask > 1e-2] = color[2]  # blue
                     else:
                         raise ValueError(
                             "Only the colors 'red', 'green' and 'blue' "
-                            "are supported"
+                            "or RGB tuples are supported"
                         )
 
         return d
+
+    def sortTrajectories(self):
+        """Organises and sorts trajectories"""
+
+        # Create new empty sorted array
+        sorted_trajectories = [
+            np.zeros(np.shape(array)) for array in self.all_trajectories
+        ]
+
+        # Loop over trajectories and insert them in the sorted array
+        for target_i in range(len(sorted_trajectories)):
+            margin_list = []
+            for trajectory_i in range(len(sorted_trajectories[target_i])):
+                margin_list.append(float(
+                    self.all_trajectories[target_i][trajectory_i][3][0]
+                ))
+
+            idx_list = np.argsort(margin_list)[::-1]
+
+            for id_i in range(len(idx_list)):
+                idx = idx_list[id_i]
+                sorted_trajectories[target_i][id_i] = \
+                    self.all_trajectories[target_i][idx]
+
+        self.sorted_trajectories = np.array(sorted_trajectories, dtype=object)
+        self.target_i = 0
+        self.trajectory_i = 1  # TODO: should be 0
 
     def updateImages(self):
         """Updates images on event"""
@@ -436,7 +498,17 @@ class PathSelection(QtWidgets.QWidget):
         """Define checkpoints along current trajectory"""
 
         # Define start/stop points
-        start = np.array(self.current_entry)
+        # Start some distance before entry and end 3mm after target
+        start = (
+            np.array(self.current_entry) - (
+                np.array(self.current_direction) / np.sqrt(
+                    self.current_direction[0] ** 2 +
+                    self.current_direction[1] ** 2 +
+                    self.current_direction[2] ** 2
+                ) * 50
+
+            )
+        )
         stop = np.array(self.current_target)
 
         # Determine trajectory vector
@@ -473,7 +545,7 @@ class PathSelection(QtWidgets.QWidget):
 
         # Select new current trajectory
         self.current_trajectory = \
-            self.all_trajectories[self.target_i][self.trajectory_i]
+            self.sorted_trajectories[self.target_i][self.trajectory_i]
 
         # Store direction, entry, target
         self.current_direction = tuple(self.current_trajectory[0])
@@ -485,13 +557,13 @@ class PathSelection(QtWidgets.QWidget):
 
         # Define proper vectors. These vectors should both be
         # perpendicular to the trajectory direction vector and
-        # to each other.
+        # to each other. We set vector1 to (1, 0, v3)
         n = np.array(object=self.current_direction)
-        n = n / (n[0] ** 2 + n[1] ** 2 + n[2] ** 2)
+        n = n / np.sqrt(n[0] ** 2 + n[1] ** 2 + n[2] ** 2)
 
         vector1 = (
-            np.array([1, 1, -(n[0] + n[1]) / n[2]]) /
-            (1 ** 2 + 1 ** 2 + (-(n[0] + n[1]) / n[2]) ** 2)
+            np.array([1, 0, -(n[0] / n[2])]) /
+            np.sqrt(1 ** 2 + 1 ** 2 + (-(n[0] / n[2])) ** 2)
         )
         vector2 = np.cross(n, vector1)
 
@@ -829,7 +901,7 @@ class PathSelection(QtWidgets.QWidget):
         # Update text
         # self.updateText()
 
-    def lineDragged(self):
+    def vLineDragged(self):
         """Handles dragging of vertical line"""
 
         # Extract position
@@ -850,6 +922,26 @@ class PathSelection(QtWidgets.QWidget):
         # Update checkpoint and images
         self.checkpoint_i = int(opt_checkpoint_i)
         self.updateImages()
+
+    def hLineDragged(self):
+        """Handles dragging of horizontal line"""
+
+        # Extract position
+        new_margin = self.subplots.h_line.value()
+        # Set new margin
+        self.margin = new_margin
+        self.margin_pix = self.margin / self.aspect_x
+        # Remove old plot
+        self.subplots.v_probe.removeItem(self.subplots.probe_margin)
+        # Set new plot
+        self.subplots.probe_margin = QtWidgets.QGraphicsEllipseItem(
+            max(self.shape) // 2 - self.margin_pix,
+            max(self.shape) // 2 - self.margin_pix,
+            2 * self.margin_pix, 2 * self.margin_pix
+        )
+        self.subplots.probe_margin.setPen(self.margin_pen)
+        # Replace plot
+        self.subplots.v_probe.addItem(self.subplots.probe_margin)
 
 
 def main(subject_paths, suggested_trajectories):
