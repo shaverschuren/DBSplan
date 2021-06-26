@@ -217,6 +217,7 @@ class PathSelection(QtWidgets.QWidget):
         self.subplots.v_3d.setCameraPosition(distance=500, elevation=50, azimuth=0)
         self.subplots.v_3d.pan(0, 0, 10)
         self.subplots.v_3d.addItem(v)
+
         # pts = np.array([
         #     (0, 0, 0),
         #     tuple(np.array(self.current_target) - np.array(self.current_entry))
@@ -249,8 +250,8 @@ class PathSelection(QtWidgets.QWidget):
         # self.subplots.img_fro.keyPressEvent = self.imageKeyPressEvent_fro
         # self.subplots.img_sag.keyPressEvent = self.imageKeyPressEvent_sag
 
-        self.subplots.v_3d.mousePressEvent = self.print_test
-        # self.subplots.v_3d.dragMoveEvent = ...
+        # self.subplots.sub2.mouseDragEvent = self.imageMouseDragEvent_3d
+        self.subplots.sub2.hoverEvent = self.update_3d
         self.subplots.sub2.wheelEvent = self.imageWheelEvent_3d
 
         self.subplots.v_line.sigDragged.connect(self.lineDragged)
@@ -261,8 +262,9 @@ class PathSelection(QtWidgets.QWidget):
         # self.subplots.img_fro.wheelEvent = self.imageWheelEvent_fro
         # self.subplots.img_sag.wheelEvent = self.imageWheelEvent_sag
 
-    def print_test(self, event):
-        print("OK")
+    def ignore(self, event):
+        """Ignores events"""
+        pass
 
     def initTop(self):
         """Initialize top bar"""
@@ -330,6 +332,12 @@ class PathSelection(QtWidgets.QWidget):
         self.updateProbeView()
         # Update image
         self.subplots.img_probe.setImage(self.current_slice)
+
+    def update_3d(self, event):
+        """Updates 3D render"""
+        print("OK")
+        self.subplots.v_3d.update()
+        self.subplots.proxy_3d.update()
 
     def updateProbeView(self):
         """Updates the probe eye view and performs data slicing"""
@@ -449,26 +457,6 @@ class PathSelection(QtWidgets.QWidget):
             self.subplots.v_graph.setLimits(
                 xMin=0, xMax=self.trajectory_dist2entryList[-1]
             )
-
-    def addTarget(self):
-        """Adds current cursor position to target list"""
-
-        # Define current target point
-        target_point = (self.cursor_i, self.cursor_j, self.cursor_k)
-
-        # Append target point list
-        self.target_points.append(target_point)
-
-        # Update target list widget
-        self.targetList.clear()
-        for point_i in range(len(self.target_points)):
-            self.targetList.insertItem(
-                point_i, str(self.target_points[point_i])
-            )
-
-        # Update images
-        self.updateImages()
-        self.updateText()
 
     def zoomImage(self, delta, img_str):
         """Zooms in/out on a certain image"""
@@ -629,19 +617,9 @@ class PathSelection(QtWidgets.QWidget):
             self.updateImages()
             self.updateText()
 
-    def imageMouseDragEvent_tra(self, event):
-        """Handles drag event on transverse plane"""
-        view = "tra"
-        self.imageMouseDragEvent(event, view)
-
-    def imageMouseDragEvent_fro(self, event):
-        """Handles drag event on frontal plane"""
-        view = "fro"
-        self.imageMouseDragEvent(event, view)
-
-    def imageMouseDragEvent_sag(self, event):
-        """Handles drag event on saggital plane"""
-        view = "sag"
+    def imageMouseDragEvent_3d(self, event):
+        """Handles drag event on 3D render"""
+        view = "3d"
         self.imageMouseDragEvent(event, view)
 
     def imageMouseDragEvent(self, event, view):
@@ -651,49 +629,40 @@ class PathSelection(QtWidgets.QWidget):
         event.accept()
 
         # Check for right-click drag
-        if event.button() == QtCore.Qt.RightButton:
+        if event.button() == QtCore.Qt.LeftButton:
             # Extract start position + update is this is a start
-            if event.isStart():
-                self.drag_startpos = event.buttonDownPos()
-                self.drag_prevpos = event.pos()
-            # Reset if this is the end
-            elif event.isFinish():
-                self.drag_startpos = None
-                self.drag_prevpos = None
-            # Translate image upon dragging
-            else:
-                prev_x = self.drag_prevpos.x()
-                prev_y = self.drag_prevpos.y()
+            print("OK")
+            # if event.isStart():
+            #     self.drag_startpos = event.buttonDownPos()
+            #     self.drag_startElevation = self.subplots.v_3d.opts['elevation']
+            #     self.drag_startAzimuth = self.subplots.v_3d.opts['azimuth']
+            # # Reset if this is the end
+            # elif event.isFinish():
+            #     self.drag_startpos = None
+            #     self.drag_startElevation = None
+            #     self.drag_startAzimuth = None
+            # # Translate image upon dragging
+            # else:
+            #     start_x = self.drag_startpos.x()
+            #     start_y = self.drag_startpos.y()
 
-                current_x = event.pos().x()
-                current_y = event.pos().y()
+            #     current_x = event.pos().x()
+            #     current_y = event.pos().y()
 
-                # Check which viewbox to update
-                if view == "tra":
-                    view = self.view_tra
-                elif view == "fro":
-                    view = self.view_fro
-                elif view == "sag":
-                    view = self.view_sag
+            #     # Update view
+            #     current_distance = self.subplots.v_3d.opts['distance']
+            #     current_elevation = \
+            #         self.drag_startElevation + (current_y - start_y)
+            #     current_azimuth = \
+            #         self.drag_startAzimuth + (current_x - start_x)
 
-                # Update appropriate viewbox
-                if view == "v1":
-                    self.subplots.v1.translateBy(
-                        x=-(current_x - prev_x), y=-(current_y - prev_y)
-                    )
-                elif view == "v2":
-                    self.subplots.v2.translateBy(
-                        x=-(current_x - prev_x), y=-(current_y - prev_y)
-                    )
-                elif view == "v3":
-                    self.subplots.v3.translateBy(
-                        x=-(current_x - prev_x), y=-(current_y - prev_y)
-                    )
+            #     self.subplots.v_3d.setCameraPosition(
+            #         distance=current_distance,
+            #         elevation=current_elevation,
+            #         azimuth=current_azimuth
+            #     )
 
-                # Update "previous" position
-                self.drag_prevpos = event.pos()
-
-        self.updateText()
+            #     self.subplots.proxy_3d.update()
 
     def keyPressEvent(self, event):
         """Handles general keypress events"""
