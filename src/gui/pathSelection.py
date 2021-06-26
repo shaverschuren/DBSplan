@@ -369,7 +369,7 @@ class PathSelection(QtWidgets.QWidget):
         """Converts numpy array to opengl data"""
 
         d = np.zeros(data.shape + (4,))
-        d[..., 3] = data / 100      # alpha
+        d[..., 3] = data / np.mean(data)      # alpha
         if color == "white":
             d[..., 0] = d[..., 3]       # red
             d[..., 1] = d[..., 3]       # green
@@ -377,9 +377,9 @@ class PathSelection(QtWidgets.QWidget):
         elif color == "red":
             d[..., 0] = d[..., 3]       # red
         elif color == "green":
-            d[..., 1] = d[..., 3]       # red
+            d[..., 1] = d[..., 3]       # green
         elif color == "blue":
-            d[..., 2] = d[..., 3]       # red
+            d[..., 2] = d[..., 3]       # blue
         else:
             d[..., 0] = d[..., 3]       # red
             d[..., 1] = d[..., 3]       # green
