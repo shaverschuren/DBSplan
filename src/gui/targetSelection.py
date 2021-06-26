@@ -9,11 +9,11 @@ import nibabel as nib
 from util.nifti import load_nifti
 
 
-class TargetSelection(QtGui.QMainWindow):
+class TargetSelection(QtWidgets.QWidget):
 
     def __init__(self, paths):
         """Main window initialization"""
-        super(TargetSelection, self).__init__()
+        super().__init__()
 
         # Load paths and settings
         self.paths = paths
@@ -50,10 +50,7 @@ class TargetSelection(QtGui.QMainWindow):
         layout.addWidget(self.sideBar, 0, 5, 2, 1)
         layout.addWidget(self.subplots, 1, 0, 1, 5)
 
-        self.mainWidget = QtGui.QWidget(parent=self)
-
-        self.mainWidget.setLayout(layout)
-        self.setCentralWidget(self.mainWidget)
+        self.setLayout(layout)
 
     def initData(self):
         """Data initialization"""
@@ -81,8 +78,8 @@ class TargetSelection(QtGui.QMainWindow):
         """Subplot initialization"""
 
         # Create PyQtGraph graphics widget
-        pg.mkQApp()
-        self.subplots = pg.GraphicsLayoutWidget()
+        # pg.mkQApp()
+        self.subplots = pg.GraphicsLayoutWidget(parent=self)
         self.subplots.ci.setBorder((50, 50, 100))
 
         # Setup top
@@ -848,7 +845,9 @@ def main(subject_paths):
     QtGui.QApplication.exec_()
 
     if len(target_selection.target_points) > 0:
-        return target_selection.target_points
+        target_points = target_selection.target_points
+        target_selection = None
+        return target_points
     else:
         raise UserWarning("No target points were selected!"
                           " Exiting...")
