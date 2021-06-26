@@ -417,7 +417,17 @@ def generate_trajectories(
         valid_trajectories, distance_map
     )
 
-    return margin_trajectories
+    # If there are any valid trajectories, return them
+    if all([
+        len(margin_trajectories[i]) > 0
+        for i in range(len(margin_trajectories))
+    ]):
+        return margin_trajectories
+    else:
+        raise UserWarning(
+            "No possible paths found. "
+            "Please check the validity of your target points."
+        )
 
 
 def generate_possible_paths(subject_paths: dict) -> np.ndarray:
