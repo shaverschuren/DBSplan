@@ -168,7 +168,7 @@ class PathSelection(QtWidgets.QWidget):
         self.subplots.v_probe.addItem(self.subplots.probe_margin)
 
         # Setup viewbox limits + disable default mouse commands
-        for v in [self.subplots.v_probe]:  # TODO: , self.subplots.v_3d]:
+        for v in [self.subplots.v_probe]:
             v.setMouseEnabled(x=False, y=False)
             v.setLimits(
                 xMin=-1.0 * max(self.shape), xMax=max(self.shape) * 2.0,
@@ -199,9 +199,12 @@ class PathSelection(QtWidgets.QWidget):
         )
 
         # Setup 3D render
-        g = gl.GLGridItem()
-        g.scale(10, 10, 1)
-        self.subplots.v_3d.addItem(g)
+        self.render_transform = QtGui.QMatrix4x4([
+            self.vox_dims[0], 0., 0., 0.,
+            0., self.vox_dims[1], 0., 0.,
+            0., 0., self.vox_dims[2], 0.,
+            0., 0., 0., 1.
+        ])
 
         d2 = np.zeros(self.data.shape + (4,))
         d2[..., 3] = self.data / 100  # alpha
@@ -214,16 +217,25 @@ class PathSelection(QtWidgets.QWidget):
             dy=-self.shape[1] / 2,
             dz=-self.shape[2] / 3
         )
-        self.subplots.v_3d.setCameraPosition(distance=500, elevation=50, azimuth=0)
+        v.applyTransform(self.render_transform, False)
+        self.subplots.v_3d.setCameraPosition(
+            distance=500, elevation=50, azimuth=0
+        )
         self.subplots.v_3d.pan(0, 0, 10)
         self.subplots.v_3d.addItem(v)
 
-        # pts = np.array([
-        #     (0, 0, 0),
-        #     tuple(np.array(self.current_target) - np.array(self.current_entry))
-        # ])
-        # sh1 = gl.GLLinePlotItem(pos=pts, width=1, antialias=False)
-        # self.subplots.v_3d.addItem(sh1)
+        pts = np.array([
+            self.current_entry,
+            self.current_target
+        ])
+        sh1 = gl.GLLinePlotItem(pos=pts, width=2, color=(1., 0., 0., 1.))
+        sh1.translate(
+            dx=-self.shape[0] / 2,
+            dy=-self.shape[1] / 2,
+            dz=-self.shape[2] / 3
+        )
+        sh1.applyTransform(self.render_transform, False)
+        self.subplots.v_3d.addItem(sh1)
 
         # Disable right click menus
         self.subplots.v_probe.setMenuEnabled(False)
