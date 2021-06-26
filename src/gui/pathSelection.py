@@ -266,8 +266,7 @@ class PathSelection(QtWidgets.QWidget):
         self.subplots.v_3d.setCameraPosition(
             distance=500, elevation=50, azimuth=0
         )
-        self.subplots.v_3d.pan(0, 0, 10)
-        self.subplots.v_3d.addItem(self.subplots.vol)
+        # self.subplots.v_3d.addItem(self.subplots.vol)
 
         # Plot vessel mask
         maskData = self.convert_volume_to_opengl(
@@ -281,7 +280,7 @@ class PathSelection(QtWidgets.QWidget):
             dz=-self.shape[2] / 2
         )
         self.subplots.vesselMask.applyTransform(self.render_transform, False)
-        # self.subplots.v_3d.addItem(self.subplots.vesselMask)
+        self.subplots.v_3d.addItem(self.subplots.vesselMask)
 
         # Plot trajectories
         self.trajectoryPlots = {}
