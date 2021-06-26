@@ -67,6 +67,10 @@ class PathSelection(QtWidgets.QWidget):
         self.distance_map, dist_aff, _ = \
             load_nifti(self.paths["distance_map_combined"])
 
+        # Load masks
+        self.vesselMask, mask_aff, _ = \
+            load_nifti(self.paths["vessel_mask"])
+
         # Load scans in dict
         self.scans = {
             scan1_name: scan1_arr,
@@ -199,43 +203,7 @@ class PathSelection(QtWidgets.QWidget):
         )
 
         # Setup 3D render
-        self.render_transform = QtGui.QMatrix4x4([
-            self.vox_dims[0], 0., 0., 0.,
-            0., self.vox_dims[1], 0., 0.,
-            0., 0., self.vox_dims[2], 0.,
-            0., 0., 0., 1.
-        ])
-
-        d2 = np.zeros(self.data.shape + (4,))
-        d2[..., 3] = self.data / 100  # alpha
-        d2[..., 0] = d2[..., 3]       # red
-        d2[..., 1] = d2[..., 3]       # green
-        d2[..., 2] = d2[..., 3]       # blue
-        v = gl.GLVolumeItem(d2, sliceDensity=1, smooth=True)
-        v.translate(
-            dx=-self.shape[0] / 2,
-            dy=-self.shape[1] / 2,
-            dz=-self.shape[2] / 3
-        )
-        v.applyTransform(self.render_transform, False)
-        self.subplots.v_3d.setCameraPosition(
-            distance=500, elevation=50, azimuth=0
-        )
-        self.subplots.v_3d.pan(0, 0, 10)
-        self.subplots.v_3d.addItem(v)
-
-        pts = np.array([
-            self.current_entry,
-            self.current_target
-        ])
-        sh1 = gl.GLLinePlotItem(pos=pts, width=2, color=(1., 0., 0., 1.))
-        sh1.translate(
-            dx=-self.shape[0] / 2,
-            dy=-self.shape[1] / 2,
-            dz=-self.shape[2] / 3
-        )
-        sh1.applyTransform(self.render_transform, False)
-        self.subplots.v_3d.addItem(sh1)
+        self.init3DRender()
 
         # Disable right click menus
         self.subplots.v_probe.setMenuEnabled(False)
@@ -271,8 +239,68 @@ class PathSelection(QtWidgets.QWidget):
         self.subplots.keyPressEvent = self.keyPressEvent
 
         self.subplots.img_probe.wheelEvent = self.imageWheelEvent_probe
-        # self.subplots.img_fro.wheelEvent = self.imageWheelEvent_fro
-        # self.subplots.img_sag.wheelEvent = self.imageWheelEvent_sag
+
+    def init3DRender(self):
+        """Ïnitializes the 3D render"""
+
+        # Setup transform (anisotropic voxel size)
+        self.render_transform = QtGui.QMatrix4x4([
+            self.vox_dims[0], 0., 0., 0.,
+            0., self.vox_dims[1], 0., 0.,
+            0., 0., self.vox_dims[2], 0.,
+            0., 0., 0., 1.
+        ])
+
+        # Setup data
+        volData = self.convert_volume_to_opengl(self.data)
+
+        # Plot volume
+        self.subplots.vol = \
+            gl.GLVolumeItem(volData, sliceDensity=1, smooth=True)
+        self.subplots.vol.translate(
+            dx=-self.shape[0] / 2,
+            dy=-self.shape[1] / 2,
+            dz=-self.shape[2] / 3
+        )
+        self.subplots.vol.applyTransform(self.render_transform, False)
+        self.subplots.v_3d.setCameraPosition(
+            distance=500, elevation=50, azimuth=0
+        )
+        self.subplots.v_3d.pan(0, 0, 10)
+        self.subplots.v_3d.addItem(self.subplots.vol)
+
+        # Plot vessel mask
+        maskData = self.convert_volume_to_opengl(self.vesselMask, color="red")
+        self.subplots.vesselMask = \
+            gl.GLVolumeItem(maskData, sliceDensity=1, smooth=True)
+
+        self.subplots.vesselMask.translate(
+            dx=-self.shape[0] / 2,
+            dy=-self.shape[1] / 2,
+            dz=-self.shape[2] / 3
+        )
+        self.subplots.vesselMask.applyTransform(self.render_transform, False)
+        self.subplots.v_3d.addItem(self.subplots.vesselMask)
+
+        # Plot trajectories
+        self.trajectoryPlots = {}
+        for target_i in range(self.n_targets):
+            for i in range(len(self.all_trajectories[target_i])):
+                identifyer = f"{str(target_i)}_{str(i)}"
+                pts = np.array([
+                    self.all_trajectories[target_i][i][1],
+                    self.all_trajectories[target_i][i][2]
+                ])
+                self.trajectoryPlots[identifyer] = \
+                    gl.GLLinePlotItem(pos=pts, width=2, color=(1., 0., 0., 1.))
+                self.trajectoryPlots[identifyer].translate(
+                    dx=-self.shape[0] / 2,
+                    dy=-self.shape[1] / 2,
+                    dz=-self.shape[2] / 3
+                )
+                self.trajectoryPlots[identifyer].applyTransform(
+                    self.render_transform, False)
+                self.subplots.v_3d.addItem(self.trajectoryPlots[identifyer])
 
     def ignore(self, event):
         """Ignores events"""
@@ -336,6 +364,28 @@ class PathSelection(QtWidgets.QWidget):
         layout.addWidget(self.targetList)
         layout.addWidget(self.scanLabel)
         layout.addWidget(self.scanList)
+
+    def convert_volume_to_opengl(self, data: np.ndarray, color="white"):
+        """Converts numpy array to opengl data"""
+
+        d = np.zeros(data.shape + (4,))
+        d[..., 3] = data / 100      # alpha
+        if color == "white":
+            d[..., 0] = d[..., 3]       # red
+            d[..., 1] = d[..., 3]       # green
+            d[..., 2] = d[..., 3]       # blue
+        elif color == "red":
+            d[..., 0] = d[..., 3]       # red
+        elif color == "green":
+            d[..., 1] = d[..., 3]       # red
+        elif color == "blue":
+            d[..., 2] = d[..., 3]       # red
+        else:
+            d[..., 0] = d[..., 3]       # red
+            d[..., 1] = d[..., 3]       # green
+            d[..., 2] = d[..., 3]       # blue
+
+        return d
 
     def updateImages(self):
         """Updates images on event"""
@@ -644,38 +694,37 @@ class PathSelection(QtWidgets.QWidget):
         # Check for right-click drag
         if event.button() == QtCore.Qt.LeftButton:
             # Extract start position + update is this is a start
-            print("OK")
-            # if event.isStart():
-            #     self.drag_startpos = event.buttonDownPos()
-            #     self.drag_startElevation = self.subplots.v_3d.opts['elevation']
-            #     self.drag_startAzimuth = self.subplots.v_3d.opts['azimuth']
-            # # Reset if this is the end
-            # elif event.isFinish():
-            #     self.drag_startpos = None
-            #     self.drag_startElevation = None
-            #     self.drag_startAzimuth = None
-            # # Translate image upon dragging
-            # else:
-            #     start_x = self.drag_startpos.x()
-            #     start_y = self.drag_startpos.y()
+            if event.isStart():
+                self.drag_startpos = event.buttonDownPos()
+                self.drag_startElevation = self.subplots.v_3d.opts['elevation']
+                self.drag_startAzimuth = self.subplots.v_3d.opts['azimuth']
+            # Reset if this is the end
+            elif event.isFinish():
+                self.drag_startpos = None
+                self.drag_startElevation = None
+                self.drag_startAzimuth = None
+            # Translate image upon dragging
+            else:
+                start_x = self.drag_startpos.x()
+                start_y = self.drag_startpos.y()
 
-            #     current_x = event.pos().x()
-            #     current_y = event.pos().y()
+                current_x = event.pos().x()
+                current_y = event.pos().y()
 
-            #     # Update view
-            #     current_distance = self.subplots.v_3d.opts['distance']
-            #     current_elevation = \
-            #         self.drag_startElevation + (current_y - start_y)
-            #     current_azimuth = \
-            #         self.drag_startAzimuth + (current_x - start_x)
+                # Update view
+                current_distance = self.subplots.v_3d.opts['distance']
+                current_elevation = \
+                    self.drag_startElevation + (current_y - start_y)
+                current_azimuth = \
+                    self.drag_startAzimuth + (current_x - start_x)
 
-            #     self.subplots.v_3d.setCameraPosition(
-            #         distance=current_distance,
-            #         elevation=current_elevation,
-            #         azimuth=current_azimuth
-            #     )
+                self.subplots.v_3d.setCameraPosition(
+                    distance=current_distance,
+                    elevation=current_elevation,
+                    azimuth=current_azimuth
+                )
 
-            #     self.subplots.proxy_3d.update()
+                self.subplots.proxy_3d.update()
 
     def keyPressEvent(self, event):
         """Handles general keypress events"""
