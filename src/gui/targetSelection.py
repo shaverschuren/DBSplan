@@ -9,11 +9,11 @@ import nibabel as nib
 from util.nifti import load_nifti
 
 
-class TargetSelection(QtWidgets.QWidget):
+class TargetSelection(QtGui.QMainWindow):
 
     def __init__(self, paths):
         """Main window initialization"""
-        super().__init__()
+        super(TargetSelection, self).__init__()
 
         # Load paths and settings
         self.paths = paths
@@ -50,7 +50,10 @@ class TargetSelection(QtWidgets.QWidget):
         layout.addWidget(self.sideBar, 0, 5, 2, 1)
         layout.addWidget(self.subplots, 1, 0, 1, 5)
 
-        self.setLayout(layout)
+        self.mainWidget = QtGui.QWidget(parent=self)
+
+        self.mainWidget.setLayout(layout)
+        self.setCentralWidget(self.mainWidget)
 
     def initData(self):
         """Data initialization"""
@@ -78,6 +81,7 @@ class TargetSelection(QtWidgets.QWidget):
         """Subplot initialization"""
 
         # Create PyQtGraph graphics widget
+        pg.mkQApp()
         self.subplots = pg.GraphicsLayoutWidget()
         self.subplots.ci.setBorder((50, 50, 100))
 

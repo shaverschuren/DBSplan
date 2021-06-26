@@ -10,11 +10,11 @@ import numpy as np
 from util.nifti import load_nifti
 
 
-class PathSelection(QtWidgets.QWidget):
+class PathSelection(QtGui.QMainWindow):
 
     def __init__(self, paths, all_trajectories):
         """Main window initialization"""
-        super().__init__()
+        super(PathSelection, self).__init__()
 
         # Load paths and trajectories
         self.paths = paths
@@ -52,7 +52,10 @@ class PathSelection(QtWidgets.QWidget):
         layout.addWidget(self.sideBar, 0, 5, 2, 1)
         layout.addWidget(self.subplots, 1, 0, 1, 5)
 
-        self.setLayout(layout)
+        self.mainWidget = QtGui.QWidget(parent=self)
+
+        self.mainWidget.setLayout(layout)
+        self.setCentralWidget(self.mainWidget)
 
     def initData(self):
         """Data initialization"""
@@ -101,6 +104,7 @@ class PathSelection(QtWidgets.QWidget):
         """Subplot initialization"""
 
         # Create PyQtGraph graphics widget
+        pg.mkQApp()
         self.subplots = pg.GraphicsLayoutWidget()
         self.subplots.ci.setBorder((50, 50, 100))
 
