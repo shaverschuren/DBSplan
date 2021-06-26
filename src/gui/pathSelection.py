@@ -280,8 +280,8 @@ class PathSelection(QtWidgets.QWidget):
                     self.sorted_trajectories[target_i][i][0] * 50,
                     self.sorted_trajectories[target_i][i][2]
                 ])
-                self.trajectoryPlots[identifyer] = \
-                    gl.GLLinePlotItem(pos=pts, width=2, color=(1., 0., 0., 0.5))
+                self.trajectoryPlots[identifyer] = gl.GLLinePlotItem(
+                    pos=pts, width=2, color=(1., 0., 0., 0.5))
                 self.trajectoryPlots[identifyer].translate(
                     dx=-self.shape[0] / 2,
                     dy=-self.shape[1] / 2,
@@ -337,7 +337,7 @@ class PathSelection(QtWidgets.QWidget):
 
         # Add target point list
         self.targetList = QtWidgets.QListWidget()
-        self.targetList.clicked.connect(self.selectTarget)
+        # self.targetList.clicked.connect(self.selectTarget)
 
         # Add scans list
         self.scanList = QtWidgets.QListWidget()
