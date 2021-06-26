@@ -227,23 +227,6 @@ class PathSelection(QtWidgets.QWidget):
         self.subplots.v_graph.autoRange()
 
         # Setup events
-        # self.subplots.img_tra.hoverEvent = self.imageHoverEvent_tra
-        # self.subplots.img_fro.hoverEvent = self.imageHoverEvent_fro
-        # self.subplots.img_sag.hoverEvent = self.imageHoverEvent_sag
-
-        # self.subplots.img_tra.mouseClickEvent = self.imageMouseClickEvent_tra
-        # self.subplots.img_fro.mouseClickEvent = self.imageMouseClickEvent_fro
-        # self.subplots.img_sag.mouseClickEvent = self.imageMouseClickEvent_sag
-
-        # self.subplots.img_tra.mouseDragEvent = self.imageMouseDragEvent_tra
-        # self.subplots.img_fro.mouseDragEvent = self.imageMouseDragEvent_fro
-        # self.subplots.img_sag.mouseDragEvent = self.imageMouseDragEvent_sag
-
-        # self.subplots.img_tra.keyPressEvent = self.imageKeyPressEvent_tra
-        # self.subplots.img_fro.keyPressEvent = self.imageKeyPressEvent_fro
-        # self.subplots.img_sag.keyPressEvent = self.imageKeyPressEvent_sag
-
-        # self.subplots.sub2.mouseDragEvent = self.imageMouseDragEvent_3d
         self.subplots.sub2.hoverEvent = self.update_3d
         self.subplots.sub2.wheelEvent = self.imageWheelEvent_3d
 
@@ -632,29 +615,6 @@ class PathSelection(QtWidgets.QWidget):
 
             self.subplots.proxy_3d.update()
 
-    def selectTarget(self):
-        """Updates currently selected target"""
-
-        # Obtain (cleaned up) target string
-        target_str = self.targetList.currentItem().text()
-        target_str = target_str.replace("(", "").replace(")", "")
-
-        # Split string and store as tuple[int]
-        target_split = target_str.split(", ")
-        self.selectedTarget = tuple([int(target) for target in target_split])
-
-        # Set view to target
-        self.sag_pos = self.selectedTarget[0]
-        self.fro_pos = self.selectedTarget[1]
-        self.tra_pos = self.selectedTarget[2]
-
-        self.cursor_i = self.selectedTarget[0]
-        self.cursor_j = self.selectedTarget[1]
-        self.cursor_k = self.selectedTarget[2]
-
-        self.updateImages()
-        # self.updateText()
-
     def selectScan(self):
         """Updates the scan currently in view"""
 
@@ -670,105 +630,6 @@ class PathSelection(QtWidgets.QWidget):
         # Update image/text
         self.updateImages()
         # self.updateText()
-
-    def imageHoverEvent_tra(self, event):
-        """Handles hover event on transverse plane"""
-        view = "tra"
-        self.current_hover = "tra"
-        self.imageHoverEvent(event, view)
-
-    def imageHoverEvent_fro(self, event):
-        """Handles hover event on frontal plane"""
-        view = "fro"
-        self.current_hover = "fro"
-        self.imageHoverEvent(event, view)
-
-    def imageHoverEvent_sag(self, event):
-        """Handles hover event on saggital plane"""
-        view = "sag"
-        self.current_hover = "sag"
-        self.imageHoverEvent(event, view)
-
-    def imageHoverEvent(self, event, view):
-        """Show the voxel position under the mouse cursor."""
-
-        if event.isExit():
-            self.hover_i = 0
-            self.hover_j = 0
-            self.hover_k = 0
-
-            self.updateText()
-            return
-
-        pos = event.pos()
-        x, y = pos.y(), pos.x()
-
-        if view == "tra":
-            self.hover_i = int(np.clip(y, 0, self.shape[0] - 1))
-            self.hover_j = int(np.clip(x, 0, self.shape[1] - 1))
-            self.hover_k = int(self.tra_pos)
-        elif view == "fro":
-            self.hover_i = int(np.clip(y, 0, self.shape[0] - 1))
-            self.hover_j = int(self.fro_pos)
-            self.hover_k = int(np.clip(x, 0, self.shape[2] - 1))
-        elif view == "sag":
-            self.hover_i = int(self.sag_pos)
-            self.hover_j = int(np.clip(y, 0, self.shape[1] - 1))
-            self.hover_k = int(np.clip(x, 0, self.shape[2] - 1))
-
-        if QtCore.Qt.LeftButton == event.buttons():
-            self.sag_pos = self.hover_i
-            self.fro_pos = self.hover_j
-            self.tra_pos = self.hover_k
-
-            self.cursor_i = self.hover_i
-            self.cursor_j = self.hover_j
-            self.cursor_k = self.hover_k
-
-            self.updateImages()
-
-        self.updateText()
-
-    def imageMouseClickEvent_tra(self, event):
-        """Handles click event on transverse plane"""
-        view = "tra"
-        self.imageMouseClickEvent(event, view)
-
-    def imageMouseClickEvent_fro(self, event):
-        """Handles click event on frontal plane"""
-        view = "fro"
-        self.imageMouseClickEvent(event, view)
-
-    def imageMouseClickEvent_sag(self, event):
-        """Handles click event on saggital plane"""
-        view = "sag"
-        self.imageMouseClickEvent(event, view)
-
-    def imageMouseClickEvent(self, event, view):
-        """ Update the current target/view point"""
-
-        # Extract click position
-        pos = event.pos()
-        x, y = pos.y(), pos.x()
-
-        if event.buttons() == QtCore.Qt.LeftButton:
-            # Update view
-            if view == "tra":
-                self.sag_pos = int(np.clip(y, 0, self.shape[0] - 1))
-                self.fro_pos = int(np.clip(x, 0, self.shape[1] - 1))
-            elif view == "fro":
-                self.sag_pos = int(np.clip(y, 0, self.shape[0] - 1))
-                self.tra_pos = int(np.clip(x, 0, self.shape[2] - 1))
-            elif view == "sag":
-                self.fro_pos = int(np.clip(y, 0, self.shape[1] - 1))
-                self.tra_pos = int(np.clip(x, 0, self.shape[2] - 1))
-
-            self.cursor_i = self.sag_pos
-            self.cursor_j = self.fro_pos
-            self.cursor_k = self.tra_pos
-
-            self.updateImages()
-            self.updateText()
 
     def imageMouseDragEvent_3d(self, event):
         """Handles drag event on 3D render"""
@@ -824,7 +685,6 @@ class PathSelection(QtWidgets.QWidget):
     def imageKeyPressEvent(self, event):
         """ Handles key presses
         - Up/down -> scrolling
-        - Return -> Add target point
         """
 
         # Checks for up/down key presses (scroll)
@@ -846,33 +706,8 @@ class PathSelection(QtWidgets.QWidget):
             else:
                 self.checkpoint_i += scroll
 
-            # Update probe view
-            # self.updateProbeView()
+            # Update probe view            # self.updateProbeView()
             self.updateImages()
-
-        # Checks for a Return/Enter key (add Target)
-        elif event.key() == QtCore.Qt.Key_Return:
-            # Add target
-            self.addTarget()
-            # Update plots
-            self.updateImages()
-
-        elif event.key() == QtCore.Qt.Key_Delete:
-
-            # Delete selected target (if applicable)
-            if "selectedTarget" in dir(self):
-                if self.selectedTarget in self.target_points:
-                    self.target_points.remove(self.selectedTarget)
-
-                # Update target list widget
-                self.targetList.clear()
-                for point_i in range(len(self.target_points)):
-                    self.targetList.insertItem(
-                        point_i, str(self.target_points[point_i])
-                    )
-
-                # Update images
-                self.updateImages()
 
     def imageWheelEvent_probe(self, event):
         """Handles mousewheel event on probe view"""
