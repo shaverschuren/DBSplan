@@ -69,7 +69,7 @@ class PathSelection(QtWidgets.QWidget):
 
         # Load masks
         self.vesselMask, mask_aff, _ = \
-            load_nifti(self.paths["vessel_mask"])
+            load_nifti(self.paths["ventricle_mask"])
 
         # Load scans in dict
         self.scans = {
@@ -260,7 +260,7 @@ class PathSelection(QtWidgets.QWidget):
         self.subplots.vol.translate(
             dx=-self.shape[0] / 2,
             dy=-self.shape[1] / 2,
-            dz=-self.shape[2] / 3
+            dz=-self.shape[2] / 2
         )
         self.subplots.vol.applyTransform(self.render_transform, False)
         self.subplots.v_3d.setCameraPosition(
@@ -270,17 +270,18 @@ class PathSelection(QtWidgets.QWidget):
         self.subplots.v_3d.addItem(self.subplots.vol)
 
         # Plot vessel mask
-        maskData = self.convert_volume_to_opengl(self.vesselMask, color="red")
+        maskData = self.convert_volume_to_opengl(
+            self.vesselMask, color="red", less_alpha=False)
         self.subplots.vesselMask = \
             gl.GLVolumeItem(maskData, sliceDensity=1, smooth=True)
 
         self.subplots.vesselMask.translate(
             dx=-self.shape[0] / 2,
             dy=-self.shape[1] / 2,
-            dz=-self.shape[2] / 3
+            dz=-self.shape[2] / 2
         )
         self.subplots.vesselMask.applyTransform(self.render_transform, False)
-        self.subplots.v_3d.addItem(self.subplots.vesselMask)
+        # self.subplots.v_3d.addItem(self.subplots.vesselMask)
 
         # Plot trajectories
         self.trajectoryPlots = {}
@@ -296,7 +297,7 @@ class PathSelection(QtWidgets.QWidget):
                 self.trajectoryPlots[identifyer].translate(
                     dx=-self.shape[0] / 2,
                     dy=-self.shape[1] / 2,
-                    dz=-self.shape[2] / 3
+                    dz=-self.shape[2] / 2
                 )
                 self.trajectoryPlots[identifyer].applyTransform(
                     self.render_transform, False)
@@ -365,25 +366,37 @@ class PathSelection(QtWidgets.QWidget):
         layout.addWidget(self.scanLabel)
         layout.addWidget(self.scanList)
 
-    def convert_volume_to_opengl(self, data: np.ndarray, color="white"):
+    def convert_volume_to_opengl(
+            self,
+            data: np.ndarray,
+            color: str = "greyscale",
+            less_alpha: bool = True) -> np.ndarray:
         """Converts numpy array to opengl data"""
 
         d = np.zeros(data.shape + (4,))
-        d[..., 3] = data / np.mean(data)      # alpha
-        if color == "white":
-            d[..., 0] = d[..., 3]       # red
-            d[..., 1] = d[..., 3]       # green
-            d[..., 2] = d[..., 3]       # blue
+
+        if color == "greyscale":
+            d[..., 3] = data * 255 / (10 * np.max(data))           # alpha
+            d[..., 0] = d[..., 3]                                 # red
+            d[..., 1] = d[..., 3]                                 # green
+            d[..., 2] = d[..., 3]                                 # blue
         elif color == "red":
-            d[..., 0] = d[..., 3]       # red
+            d[..., 3] = np.array((data > 1e-2), dtype=int) * 255  # alpha
+            d[..., 0] = d[..., 3]                                 # red
         elif color == "green":
-            d[..., 1] = d[..., 3]       # green
+            d[..., 3] = np.array((data > 1e-2), dtype=int) * 255  # alpha
+            d[..., 1] = d[..., 3]                                 # green
         elif color == "blue":
-            d[..., 2] = d[..., 3]       # blue
+            d[..., 3] = np.array((data > 1e-2), dtype=int) * 255  # alpha
+            d[..., 2] = d[..., 3]                                 # blue
         else:
-            d[..., 0] = d[..., 3]       # red
-            d[..., 1] = d[..., 3]       # green
-            d[..., 2] = d[..., 3]       # blue
+            d[..., 3] = np.array((data > 1e-2), dtype=int) * 255  # alpha
+            d[..., 0] = d[..., 3]                                 # red
+            d[..., 1] = d[..., 3]                                 # green
+            d[..., 2] = d[..., 3]                                 # blue
+        
+        if less_alpha:
+            d[..., 3] = d[..., 3] / 2
 
         return d
 
