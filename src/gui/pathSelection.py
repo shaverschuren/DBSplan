@@ -335,9 +335,10 @@ class PathSelection(QtWidgets.QWidget):
 
     def update_3d(self, event):
         """Updates 3D render"""
-        print("OK")
-        self.subplots.v_3d.update()
-        self.subplots.proxy_3d.update()
+
+        if event.buttons():
+            self.subplots.v_3d.update()
+            self.subplots.proxy_3d.update()
 
     def updateProbeView(self):
         """Updates the probe eye view and performs data slicing"""
