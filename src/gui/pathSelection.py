@@ -2,6 +2,7 @@
 """
 
 import sys
+from typing import Optional
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
@@ -252,7 +253,8 @@ class PathSelection(QtWidgets.QWidget):
         ])
 
         # Setup data
-        volData = self.convert_volume_to_opengl(self.data)
+        volData = self.convert_volume_to_opengl(
+            self.data, [self.vesselMask], ["red"])
 
         # Plot volume
         self.subplots.vol = \
@@ -264,23 +266,9 @@ class PathSelection(QtWidgets.QWidget):
         )
         self.subplots.vol.applyTransform(self.render_transform, False)
         self.subplots.v_3d.setCameraPosition(
-            distance=500, elevation=50, azimuth=0
+            distance=300, elevation=50, azimuth=0
         )
-        # self.subplots.v_3d.addItem(self.subplots.vol)
-
-        # Plot vessel mask
-        maskData = self.convert_volume_to_opengl(
-            self.vesselMask, color="red", less_alpha=False)
-        self.subplots.vesselMask = \
-            gl.GLVolumeItem(maskData, sliceDensity=1, smooth=True)
-
-        self.subplots.vesselMask.translate(
-            dx=-self.shape[0] / 2,
-            dy=-self.shape[1] / 2,
-            dz=-self.shape[2] / 2
-        )
-        self.subplots.vesselMask.applyTransform(self.render_transform, False)
-        self.subplots.v_3d.addItem(self.subplots.vesselMask)
+        self.subplots.v_3d.addItem(self.subplots.vol)
 
         # Plot trajectories
         self.trajectoryPlots = {}
@@ -368,34 +356,52 @@ class PathSelection(QtWidgets.QWidget):
     def convert_volume_to_opengl(
             self,
             data: np.ndarray,
-            color: str = "greyscale",
-            less_alpha: bool = True) -> np.ndarray:
-        """Converts numpy array to opengl data"""
+            masks: Optional[list[np.ndarray]] = None,
+            colors: Optional[list[str]] = None) -> np.ndarray:
+        """Converts numpy arrays to single opengl array"""
 
+        # Create empty array
         d = np.zeros(data.shape + (4,))
 
-        if color == "greyscale":
-            d[..., 3] = data * 255 / (10 * np.max(data))           # alpha
-            d[..., 0] = d[..., 3]                                 # red
-            d[..., 1] = d[..., 3]                                 # green
-            d[..., 2] = d[..., 3]                                 # blue
-        elif color == "red":
-            d[..., 3] = np.array((data > 1e-2), dtype=int) * 255  # alpha
-            d[..., 0] = d[..., 3]                                 # red
-        elif color == "green":
-            d[..., 3] = np.array((data > 1e-2), dtype=int) * 255  # alpha
-            d[..., 1] = d[..., 3]                                 # green
-        elif color == "blue":
-            d[..., 3] = np.array((data > 1e-2), dtype=int) * 255  # alpha
-            d[..., 2] = d[..., 3]                                 # blue
-        else:
-            d[..., 3] = np.array((data > 1e-2), dtype=int) * 255  # alpha
-            d[..., 0] = d[..., 3]                                 # red
-            d[..., 1] = d[..., 3]                                 # green
-            d[..., 2] = d[..., 3]                                 # blue
-        
-        if less_alpha:
-            d[..., 3] = d[..., 3] / 2
+        # Fill array with greyscale image
+        d[..., 3] = data * 255 / (100 * np.percentile(data, 99.))  # alpha
+        d[..., 0] = d[..., 3]                                      # red
+        d[..., 1] = d[..., 3]                                      # green
+        d[..., 2] = d[..., 3]                                      # blue
+
+        if masks or colors:
+            if not (masks and colors) and (len(masks) == len(colors)):
+                raise UserWarning(
+                    "Both masks and colors should be defined "
+                    "and should have the same length"
+                )
+            else:
+                # Iteratively add masks to volume
+                for mask_i in range(len(masks)):
+                    mask = masks[mask_i]
+                    color = colors[mask_i]
+
+                    # Colors: RGBA
+                    if color == "red":
+                        d[..., 3][mask > 1e-2] = 255  # alpha
+                        d[..., 0][mask > 1e-2] = 255  # red
+                        d[..., 1][mask > 1e-2] = 0    # green
+                        d[..., 2][mask > 1e-2] = 0    # blue
+                    elif color == "green":
+                        d[..., 3][mask > 1e-2] = 255  # alpha
+                        d[..., 0][mask > 1e-2] = 0    # red
+                        d[..., 1][mask > 1e-2] = 255  # green
+                        d[..., 2][mask > 1e-2] = 0    # blue
+                    elif color == "blue":
+                        d[..., 3][mask > 1e-2] = 255  # alpha
+                        d[..., 0][mask > 1e-2] = 0    # red
+                        d[..., 1][mask > 1e-2] = 0    # green
+                        d[..., 2][mask > 1e-2] = 255  # blue
+                    else:
+                        raise ValueError(
+                            "Only the colors 'red', 'green' and 'blue' "
+                            "are supported"
+                        )
 
         return d
 
