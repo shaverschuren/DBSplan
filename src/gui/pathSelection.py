@@ -12,11 +12,12 @@ from util.nifti import load_nifti
 
 class PathSelection(QtWidgets.QWidget):
 
-    def __init__(self, paths, all_trajectories):
+    def __init__(self, app, paths, all_trajectories):
         """Main window initialization"""
         super().__init__()
 
         # Load paths and trajectories
+        self.app = app
         self.paths = paths
         self.all_trajectories = all_trajectories
 
@@ -786,7 +787,7 @@ def main(subject_paths, suggested_trajectories):
     app = QtGui.QApplication(sys.argv)
 
     path_selection = PathSelection(
-        subject_paths, suggested_trajectories)
+        app, subject_paths, suggested_trajectories)
     path_selection.show()
 
     QtGui.QApplication.exec_()

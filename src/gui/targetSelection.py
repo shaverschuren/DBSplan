@@ -11,11 +11,12 @@ from util.nifti import load_nifti
 
 class TargetSelection(QtWidgets.QWidget):
 
-    def __init__(self, paths):
+    def __init__(self, app, paths):
         """Main window initialization"""
         super().__init__()
 
         # Load paths and settings
+        self.app = app
         self.paths = paths
 
         # Setup main window
@@ -839,7 +840,7 @@ def main(subject_paths):
 
     app = QtGui.QApplication(sys.argv)
 
-    target_selection = TargetSelection(subject_paths)
+    target_selection = TargetSelection(app, subject_paths)
     target_selection.show()
 
     QtGui.QApplication.exec_()
