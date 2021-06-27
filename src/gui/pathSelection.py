@@ -321,10 +321,22 @@ class PathSelection(QtWidgets.QWidget):
         self.trajectoryLists = []
 
         for target_i in range(self.n_targets):
+            # Setup label
             id = f"Trajectories - Target {str(target_i + 1)}"
             self.trajectoryListLabels.append(
                 QtWidgets.QLabel(id, font=self.labelFont))
-            self.trajectoryLists.append(QtWidgets.QListWidget())
+
+            # Setup list
+            listWidget = QtWidgets.QListWidget()
+            row = 0
+            for tra_i in range(len(self.sorted_trajectories[target_i] // 10)):
+                margin = self.sorted_trajectories[target_i][tra_i][-1][0]
+                label = f"{tra_i + 1:2d} - Margin: {margin:.2f} [mm]"
+                listWidget.insertItem(row, label)
+                row += 1
+
+            # Store list
+            self.trajectoryLists.append(listWidget)
 
         # Add scans list
         self.scanList = QtWidgets.QListWidget()
