@@ -27,8 +27,6 @@ class PathSelection(QtWidgets.QWidget):
         self.initData()
         # Setup subplots widget
         self.initSubplots()
-        # Setup top bar
-        self.initTop()
         # Setup side bar
         self.initSide()
 
@@ -49,9 +47,8 @@ class PathSelection(QtWidgets.QWidget):
         # Layout of main window
         layout = QtGui.QGridLayout()
 
-        layout.addWidget(self.topBar, 0, 0, 1, 1)
-        layout.addWidget(self.sideBar, 0, 5, 2, 1)
-        layout.addWidget(self.subplots, 1, 0, 1, 5)
+        layout.addWidget(self.sideBar, 0, 5, 1, 1)
+        layout.addWidget(self.subplots, 0, 0, 1, 5)
 
         self.setLayout(layout)
 
@@ -297,33 +294,12 @@ class PathSelection(QtWidgets.QWidget):
         """Ignores events"""
         pass
 
-    def initTop(self):
-        """Initialize top bar"""
-
-        self.topBar = QtWidgets.QWidget()
-
-        layout = QtWidgets.QHBoxLayout()
-
-        # Setup buttons
-        self.button_tra = QtGui.QPushButton('tra')
-        # self.button_tra.clicked.connect(self.changeView_tra)
-        self.button_fro = QtGui.QPushButton('fro')
-        # self.button_fro.clicked.connect(self.changeView_fro)
-        self.button_sag = QtGui.QPushButton('sag')
-        # self.button_sag.clicked.connect(self.changeView_sag)
-
-        # Display buttons
-        layout.addWidget(self.button_tra)
-        layout.addWidget(self.button_fro)
-        layout.addWidget(self.button_sag)
-
-        self.topBar.setLayout(layout)
-
-        self.topBar.setMaximumHeight(40)
-        self.topBar.setMaximumWidth(100)
-
     def initSide(self):
         """Initializes the sidebar"""
+
+        # Init label font
+        self.labelFont = QtGui.QFont()
+        self.labelFont.setBold(True)
 
         # Initialize widget
         self.sideBar = QtWidgets.QWidget()
@@ -334,12 +310,21 @@ class PathSelection(QtWidgets.QWidget):
         self.sideBar.setMaximumWidth(200)
 
         # Add labels
-        self.targetLabel = QtWidgets.QLabel("Target points")
         self.scanLabel = QtWidgets.QLabel("Scans")
+        self.settingsLabel = QtWidgets.QLabel("Margin settings")
+
+        self.scanLabel.setFont(self.labelFont)
+        self.settingsLabel.setFont(self.labelFont)
 
         # Add target point list
-        self.targetList = QtWidgets.QListWidget()
-        # self.targetList.clicked.connect(self.selectTarget)
+        self.trajectoryListLabels = []
+        self.trajectoryLists = []
+
+        for target_i in range(self.n_targets):
+            id = f"Trajectories - Target {str(target_i + 1)}"
+            self.trajectoryListLabels.append(
+                QtWidgets.QLabel(id, font=self.labelFont))
+            self.trajectoryLists.append(QtWidgets.QListWidget())
 
         # Add scans list
         self.scanList = QtWidgets.QListWidget()
@@ -350,11 +335,33 @@ class PathSelection(QtWidgets.QWidget):
             self.scanList.insertItem(row, scan_name)
             row += 1
 
+        # Add settings box
+        self.settingsBox = QtWidgets.QWidget()
+        settings_layout = QtWidgets.QFormLayout()
+
+        self.marginSetting = QtWidgets.QLineEdit(text=f"{self.margin:.2f}")
+        self.marginSetting.setValidator = QtGui.QDoubleValidator(0.01, 9.99, 2)
+        self.marginSetting.setInputMask('9.99')
+        self.marginSetting.textChanged.connect(self.editMargin)
+        settings_layout.addRow("Margin [mm]:", self.marginSetting)
+
+        self.enforceMarginSetting = QtWidgets.QCheckBox()
+        self.enforceMarginSetting.setChecked(False)
+
+        settings_layout.addRow(
+            "Enforce:", self.enforceMarginSetting)
+
+        self.settingsBox.setLayout(settings_layout)
+
         # Add lists and labels to layout
-        layout.addWidget(self.targetLabel)
-        layout.addWidget(self.targetList)
+        for target_i in range(len(self.trajectoryListLabels)):
+            layout.addWidget(self.trajectoryListLabels[target_i])
+            layout.addWidget(self.trajectoryLists[target_i])
+
         layout.addWidget(self.scanLabel)
         layout.addWidget(self.scanList)
+        layout.addWidget(self.settingsLabel)
+        layout.addWidget(self.settingsBox)
 
     def convert_volume_to_opengl(
             self,
@@ -463,9 +470,10 @@ class PathSelection(QtWidgets.QWidget):
     def update_3d(self, event):
         """Updates 3D render"""
 
-        if event.buttons():
-            self.subplots.v_3d.update()
-            self.subplots.proxy_3d.update()
+        if not event.isExit():
+            if event.buttons():
+                self.subplots.v_3d.update()
+                self.subplots.proxy_3d.update()
 
     def updateProbeView(self):
         """Updates the probe eye view and performs data slicing"""
@@ -735,9 +743,6 @@ class PathSelection(QtWidgets.QWidget):
         # Zoom appropriate image
         self.zoomImage(delta, view)
 
-        # Update text
-        # self.updateText()
-
     def vLineDragged(self):
         """Handles dragging of vertical line"""
 
@@ -768,6 +773,36 @@ class PathSelection(QtWidgets.QWidget):
         # Set new margin
         self.margin = new_margin
         self.margin_pix = self.margin / self.aspect_x
+        # Remove old plot
+        self.subplots.v_probe.removeItem(self.subplots.probe_margin)
+        # Set new plot
+        self.subplots.probe_margin = QtWidgets.QGraphicsEllipseItem(
+            max(self.shape) // 2 - self.margin_pix,
+            max(self.shape) // 2 - self.margin_pix,
+            2 * self.margin_pix, 2 * self.margin_pix
+        )
+        self.subplots.probe_margin.setPen(self.margin_pen)
+        # Replace plot
+        self.subplots.v_probe.addItem(self.subplots.probe_margin)
+
+        # Set margin editline
+        self.marginSetting.setText(f"{self.margin:.2f}")
+
+    def editMargin(self):
+        """Handles margin changing via editline widget"""
+
+        margin_str = self.marginSetting.text()
+
+        try:
+            self.margin = float(margin_str)
+        except ValueError:
+            return
+
+        self.margin_pix = float(margin_str) / self.aspect_x
+
+        # Set new h_line value
+        self.subplots.h_line.setValue(self.margin)
+
         # Remove old plot
         self.subplots.v_probe.removeItem(self.subplots.probe_margin)
         # Set new plot
