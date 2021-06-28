@@ -190,7 +190,7 @@ class PathSelection(QtWidgets.QWidget):
         # Setup distance plot
         self.subplots.v_graph.plot(
             x=self.trajectory_dist2entryList, y=self.trajectory_distances)
-        self.subplots.v_graph.setMouseEnabled(x=False, y=False)
+        # self.subplots.v_graph.setMouseEnabled(x=False, y=False)
 
         # Setup vertical line marker
         self.subplots.v_line = pg.InfiniteLine(
@@ -310,42 +310,55 @@ class PathSelection(QtWidgets.QWidget):
         self.sideBar.setMaximumWidth(200)
 
         # Add labels
+        self.targetLabel = QtWidgets.QLabel("Targets")
+        self.trajectoryLabel = QtWidgets.QLabel("Trajectories")
         self.scanLabel = QtWidgets.QLabel("Scans")
         self.settingsLabel = QtWidgets.QLabel("Margin settings")
 
+        self.targetLabel.setFont(self.labelFont)
+        self.trajectoryLabel.setFont(self.labelFont)
         self.scanLabel.setFont(self.labelFont)
         self.settingsLabel.setFont(self.labelFont)
 
         # Add target point list
-        self.trajectoryListLabels = []
-        self.trajectoryLists = []
+        self.targetList = QtWidgets.QListWidget()
+        self.targetList.currentItemChanged.connect(self.selectTarget)
 
+        row = 0
         for target_i in range(self.n_targets):
-            # Setup label
-            id = f"Trajectories - Target {str(target_i + 1)}"
-            self.trajectoryListLabels.append(
-                QtWidgets.QLabel(id, font=self.labelFont))
+            self.targetList.insertItem(row, f"Target {target_i + 1}")
+            row += 1
 
-            # Setup list
-            listWidget = QtWidgets.QListWidget()
-            row = 0
-            for tra_i in range(len(self.sorted_trajectories[target_i] // 10)):
-                margin = self.sorted_trajectories[target_i][tra_i][-1][0]
-                label = f"{tra_i + 1:2d} - Margin: {margin:.2f} [mm]"
-                listWidget.insertItem(row, label)
-                row += 1
+        self.targetList.setCurrentRow(0)
 
-            # Store list
-            self.trajectoryLists.append(listWidget)
+        # Add trajectory list
+        self.trajectoryList = QtWidgets.QListWidget()
+        self.trajectoryList.currentItemChanged.connect(self.selectTrajectory)
+
+        row = 0
+        for trajectory_i in range(
+            len(self.sorted_trajectories[self.target_i]) // 10
+        ):
+            margin = self.sorted_trajectories[target_i][trajectory_i][-1][0]
+            label = (
+                f"Path {trajectory_i + 1:2d} "
+                f"- Margin: {margin:.2f}"
+            )
+            self.trajectoryList.insertItem(row, label)
+            row += 1
+
+        self.trajectoryList.setCurrentRow(0)
 
         # Add scans list
         self.scanList = QtWidgets.QListWidget()
-        self.scanList.clicked.connect(self.selectScan)
+        self.scanList.currentItemChanged.connect(self.selectScan)
 
         row = 0
         for scan_name in self.scans.keys():
             self.scanList.insertItem(row, scan_name)
             row += 1
+
+        self.scanList.setCurrentRow(0)
 
         # Add settings box
         self.settingsBox = QtWidgets.QWidget()
@@ -366,10 +379,10 @@ class PathSelection(QtWidgets.QWidget):
         self.settingsBox.setLayout(settings_layout)
 
         # Add lists and labels to layout
-        for target_i in range(len(self.trajectoryListLabels)):
-            layout.addWidget(self.trajectoryListLabels[target_i])
-            layout.addWidget(self.trajectoryLists[target_i])
-
+        layout.addWidget(self.targetLabel)
+        layout.addWidget(self.targetList)
+        layout.addWidget(self.trajectoryLabel)
+        layout.addWidget(self.trajectoryList)
         layout.addWidget(self.scanLabel)
         layout.addWidget(self.scanList)
         layout.addWidget(self.settingsLabel)
@@ -612,9 +625,15 @@ class PathSelection(QtWidgets.QWidget):
 
         # Setup appropriate graph range
         if not initial_pass:
-            self.subplots.v_graph.setLimits(
-                xMin=0, xMax=self.trajectory_dist2entryList[-1]
+            self.subplots.v_graph.setXRange(
+                0, self.trajectory_dist2entryList[-1], padding=0
             )
+
+            self.subplots.v_line.setBounds(
+                (0, self.trajectory_dist2entryList[-1])
+            )
+
+            self.updateImages()
 
     def zoomImage(self, delta, img_str):
         """Zooms in/out on a certain image"""
@@ -636,6 +655,44 @@ class PathSelection(QtWidgets.QWidget):
                 elevation=current_elevation, azimuth=current_azimuth)
 
             self.subplots.proxy_3d.update()
+
+    def selectTarget(self):
+        """Updates the target currently looked at"""
+
+        # Set new target / trajectory number
+        self.target_i = self.targetList.currentRow()
+        self.trajectory_i = 0
+
+        # Update trajectoryList (if applicable)
+        if 'trajectoryList' in dir(self):
+            self.trajectoryList.clear()
+
+            row = 0
+            for trajectory_i in range(
+                len(self.sorted_trajectories[self.target_i]) // 10
+            ):
+                margin = \
+                    self.sorted_trajectories[self.target_i][trajectory_i][-1][0]
+                label = (
+                    f"Path {trajectory_i + 1:2d} "
+                    f"- Margin: {margin:.2f}"
+                )
+                self.trajectoryList.insertItem(row, label)
+                row += 1
+
+            self.trajectoryList.setCurrentRow(0)
+
+        # Update views
+        self.updateTrajectory()
+
+    def selectTrajectory(self):
+        """Updates the trajectory currently in view"""
+
+        # Set new trajectory number
+        self.trajectory_i = self.trajectoryList.currentRow()
+
+        # Update views
+        self.updateTrajectory()
 
     def selectScan(self):
         """Updates the scan currently in view"""
