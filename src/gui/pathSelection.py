@@ -133,7 +133,7 @@ class PathSelection(QtWidgets.QWidget):
         self.subplots.sub2.addItem(self.subplots.proxy_3d)
 
         self.subplots.v_graph = pg.PlotItem(
-            labels={'left': "Margin [mm]", 'bottom': "Depth [mm]"}
+            labels={'left': "Margin [mm]", 'bottom': "Distance to target [mm]"}
         )
         self.subplots.sub3.addItem(self.subplots.v_graph)
 
@@ -189,14 +189,17 @@ class PathSelection(QtWidgets.QWidget):
 
         # Setup distance plot
         self.subplots.v_graph.plot(
-            x=self.trajectory_dist2entryList, y=self.trajectory_distances)
+            x=self.trajectory_dist2targetList, y=self.trajectory_distances)
         self.subplots.v_graph.setMouseEnabled(x=False, y=False)
 
         # Setup vertical line marker
         self.subplots.v_line = pg.InfiniteLine(
-            pos=self.trajectory_dist2entryList[self.checkpoint_i],
+            pos=self.trajectory_dist2targetList[self.checkpoint_i],
             angle=90, movable=True,
-            bounds=[0, self.trajectory_dist2entryList[-1]]
+            bounds=[
+                self.trajectory_dist2targetList[0],
+                self.trajectory_dist2targetList[-1]
+            ]
         )
         self.subplots.v_graph.addItem(self.subplots.v_line)
 
@@ -210,7 +213,8 @@ class PathSelection(QtWidgets.QWidget):
 
         # Setup appropriate graph range
         self.subplots.v_graph.setLimits(
-            xMin=0, xMax=self.trajectory_dist2entryList[-1],
+            xMin=self.trajectory_dist2targetList[0],
+            xMax=self.trajectory_dist2targetList[-1],
             yMin=0
         )
 
@@ -520,7 +524,7 @@ class PathSelection(QtWidgets.QWidget):
         # Update vertical line pos
         if "v_line" in dir(self.subplots):
             self.subplots.v_line.setValue(
-                self.trajectory_dist2entryList[self.checkpoint_i])
+                self.trajectory_dist2targetList[self.checkpoint_i])
 
     def define_checkpoints(self):
         """Define checkpoints along current trajectory"""
@@ -534,28 +538,52 @@ class PathSelection(QtWidgets.QWidget):
                     self.current_direction[1] ** 2 +
                     self.current_direction[2] ** 2
                 ) * 50
-
             )
         )
         stop = np.array(self.current_target)
 
+        target = stop - (
+            np.array(self.current_direction) / np.sqrt(
+                self.current_direction[0] ** 2 +
+                self.current_direction[1] ** 2 +
+                self.current_direction[2] ** 2
+            ) * 3
+        )
+
         # Determine trajectory vector
         trajectory_vector = stop - start
 
+        # Calculate distance entry-target
+        start2target = np.sqrt(np.sum(
+            [(self.vox_dims[j] * (target - start)) ** 2
+                for j in range(3)]
+        ))
+
         # Setup arrays
         self.trajectory_checkpoints = np.zeros((100, 3))
-        self.trajectory_dist2entryList = np.zeros(100)
+        self.trajectory_dist2targetList = np.zeros(100)
         self.trajectory_distances = np.zeros(100)
 
         # Loop over checkpoints and fill arrays
+        first_pass = True
         for i in range(100):
             # Define checkpoint coordinates
             checkpoint = start + trajectory_vector * (i / 99)
-            # Define distance to entry (mm)
-            dist2entry = np.sqrt(np.sum(
-                [(self.vox_dims[j] * trajectory_vector[j] * (i / 99)) ** 2
+            # Define distance to target (mm)
+            dist2target = np.sqrt(np.sum(
+                [(self.vox_dims[j] * (target - checkpoint)) ** 2
                     for j in range(3)]
             ))
+            # Check whether we've passed the target
+            dist2start = np.sqrt(np.sum(
+                [(self.vox_dims[j] * (start - checkpoint)) ** 2
+                    for j in range(3)]
+            ))
+            if dist2start > start2target:
+                if first_pass:
+                    first_pass = False
+            else:
+                dist2target = -dist2target
             # Define distance to critical structure
             checkpoint_idx = np.round(checkpoint)
             distance = self.distance_map[
@@ -565,7 +593,7 @@ class PathSelection(QtWidgets.QWidget):
             ]
             # Store found results
             self.trajectory_checkpoints[i] = checkpoint
-            self.trajectory_dist2entryList[i] = dist2entry
+            self.trajectory_dist2targetList[i] = dist2target
             self.trajectory_distances[i] = distance
 
     def updateTrajectory(self, initial_pass: bool = False):
@@ -635,13 +663,20 @@ class PathSelection(QtWidgets.QWidget):
 
         # Setup appropriate graph range
         if not initial_pass:
-            self.subplots.v_graph.setXRange(
-                0, self.trajectory_dist2entryList[-1], padding=0
+            self.subplots.v_graph.setLimits(
+                xMin=self.trajectory_dist2targetList[0],
+                xMax=self.trajectory_dist2targetList[-1]
             )
 
-            self.subplots.v_line.setBounds(
-                (0, self.trajectory_dist2entryList[-1])
+            self.subplots.v_graph.setXRange(
+                self.trajectory_dist2targetList[0],
+                self.trajectory_dist2targetList[-1], padding=0
             )
+
+            self.subplots.v_line.setBounds((
+                self.trajectory_dist2targetList[0],
+                self.trajectory_dist2targetList[-1]
+            ))
 
             self.updateImages()
             self.update3dLineColors()
@@ -851,15 +886,15 @@ class PathSelection(QtWidgets.QWidget):
         """Handles dragging of vertical line"""
 
         # Extract position
-        dist2entry = self.subplots.v_line.value()
+        dist2target = self.subplots.v_line.value()
 
         # Loop over checkpoints and check for the best fit
         opt_checkpoint_i = 0
         min_diff = 100
 
         for checkpoint_i in range(len(self.trajectory_checkpoints)):
-            actual_dist = self.trajectory_dist2entryList[checkpoint_i]
-            diff = abs(dist2entry - actual_dist)
+            actual_dist = self.trajectory_dist2targetList[checkpoint_i]
+            diff = abs(dist2target - actual_dist)
 
             if diff < min_diff:
                 opt_checkpoint_i = checkpoint_i
