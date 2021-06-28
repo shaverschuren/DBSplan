@@ -422,7 +422,7 @@ def generate_trajectories(
         len(margin_trajectories[i]) > 0
         for i in range(len(margin_trajectories))
     ]):
-        return margin_trajectories
+        return np.array(margin_trajectories, dtype=object)
     else:
         raise UserWarning(
             "No possible paths found. "
