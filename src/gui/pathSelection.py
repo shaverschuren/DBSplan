@@ -273,14 +273,24 @@ class PathSelection(QtWidgets.QWidget):
         self.trajectoryPlots = {}
         for target_i in range(self.n_targets):
             for i in range(len(self.sorted_trajectories[target_i]) // 10):
+                # Set id
                 identifyer = f"{str(target_i)}_{str(i)}"
+                # Set color
+                if target_i == self.target_i and i == self.trajectory_i:
+                    color = (1., 0., 0., 1.0)
+                    width = 5
+                else:
+                    color = (1., 1., 0., 0.5)
+                    width = 1
+                # Define points
                 pts = np.array([
                     self.sorted_trajectories[target_i][i][1] -
                     self.sorted_trajectories[target_i][i][0] * 50,
                     self.sorted_trajectories[target_i][i][2]
                 ])
+                # Plot line
                 self.trajectoryPlots[identifyer] = gl.GLLinePlotItem(
-                    pos=pts, width=2, color=(1., 0., 0., 0.5))
+                    pos=pts, width=width, color=color)
                 self.trajectoryPlots[identifyer].translate(
                     dx=-self.shape[0] / 2,
                     dy=-self.shape[1] / 2,
@@ -482,7 +492,7 @@ class PathSelection(QtWidgets.QWidget):
 
         self.sorted_trajectories = np.array(sorted_trajectories, dtype=object)
         self.target_i = 0
-        self.trajectory_i = 1  # TODO: should be 0
+        self.trajectory_i = 0
 
     def updateImages(self):
         """Updates images on event"""
@@ -634,6 +644,7 @@ class PathSelection(QtWidgets.QWidget):
             )
 
             self.updateImages()
+            self.update3dLineColors()
 
     def zoomImage(self, delta, img_str):
         """Zooms in/out on a certain image"""
@@ -656,6 +667,30 @@ class PathSelection(QtWidgets.QWidget):
 
             self.subplots.proxy_3d.update()
 
+    def update3dLineColors(self):
+        """Updates the 3D plot line colors"""
+
+        for trajectory_id, plot_item in self.trajectoryPlots.items():
+            id_split = trajectory_id.split("_")
+            target_i = int(id_split[0])
+            trajectory_i = int(id_split[1])
+
+            if (
+                target_i == self.target_i and
+                trajectory_i == self.trajectory_i
+            ):
+                color = (1., 0., 0., 1.0)
+                width = 5
+            else:
+                color = (1., 1., 0., 0.5)
+                width = 1
+
+            plot_item.setData(color=color, width=width)
+            plot_item.update()
+
+        self.subplots.v_3d.update()
+        self.subplots.proxy_3d.update()
+
     def selectTarget(self):
         """Updates the target currently looked at"""
 
@@ -671,8 +706,8 @@ class PathSelection(QtWidgets.QWidget):
             for trajectory_i in range(
                 len(self.sorted_trajectories[self.target_i]) // 10
             ):
-                margin = \
-                    self.sorted_trajectories[self.target_i][trajectory_i][-1][0]
+                margin = self.sorted_trajectories[
+                    self.target_i][trajectory_i][-1][0]
                 label = (
                     f"Path {trajectory_i + 1:2d} "
                     f"- Margin: {margin:.2f}"
