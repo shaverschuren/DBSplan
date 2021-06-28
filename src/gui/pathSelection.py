@@ -190,7 +190,7 @@ class PathSelection(QtWidgets.QWidget):
         # Setup distance plot
         self.subplots.v_graph.plot(
             x=self.trajectory_dist2entryList, y=self.trajectory_distances)
-        # self.subplots.v_graph.setMouseEnabled(x=False, y=False)
+        self.subplots.v_graph.setMouseEnabled(x=False, y=False)
 
         # Setup vertical line marker
         self.subplots.v_line = pg.InfiniteLine(
