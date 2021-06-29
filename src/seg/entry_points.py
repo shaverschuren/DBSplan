@@ -30,8 +30,8 @@ def find_mask_edges(mask: np.ndarray) -> np.ndarray:
 
 
 def extract_entry_points(processing_paths: dict,
-                         threshold_sulc: float = -3.0,
-                         threshold_curv: float = -0.5):
+                         threshold_sulc: float = -1.0,
+                         threshold_curv: float = 0.0):
     """
     This function runs the mask manipulation of the entry
     point segmentation.
@@ -79,12 +79,12 @@ def extract_entry_points(processing_paths: dict,
     include_vertices = np.ones(np.shape(curv_points), dtype=bool)
 
     # Find indices of vertices which exceed the threshold for curv/sulc
-    for surf, threshold in [
-        (curv_points, threshold_sulc), (sulc_points, threshold_curv)
+    for surf, threshold, sign in [
+        (sulc_points, threshold_sulc, -1), (curv_points, threshold_curv, -1)
     ]:
         abs_threshold = np.mean(surf) + threshold * np.std(surf)
 
-        include_vertices[surf < abs_threshold] = False
+        include_vertices[surf * sign < abs_threshold * sign] = False
         include_vertices[surf == 0.0] = False
 
     # Extract frontal lobe indices
