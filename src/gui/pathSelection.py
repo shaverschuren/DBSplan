@@ -537,7 +537,7 @@ class PathSelection(QtWidgets.QWidget):
                     self.current_direction[0] ** 2 +
                     self.current_direction[1] ** 2 +
                     self.current_direction[2] ** 2
-                ) * 50
+                ) * 10
             )
         )
         stop = np.array(self.current_target)
