@@ -663,16 +663,27 @@ class PathSelection(QtWidgets.QWidget):
 
         # Setup appropriate graph range
         if not initial_pass:
+            # Clear plot
+            self.subplots.v_graph.clear()
+            # Plot new trajectory data
+            self.subplots.v_graph.plot(
+                x=self.trajectory_dist2targetList,
+                y=self.trajectory_distances
+            )
+            # Re-add lines
+            self.subplots.v_graph.addItem(self.subplots.h_line)
+            self.subplots.v_graph.addItem(self.subplots.v_line)
+
+            # Adjust limits
             self.subplots.v_graph.setLimits(
                 xMin=self.trajectory_dist2targetList[0],
                 xMax=self.trajectory_dist2targetList[-1]
             )
-
             self.subplots.v_graph.setXRange(
                 self.trajectory_dist2targetList[0],
                 self.trajectory_dist2targetList[-1], padding=0
             )
-
+            # Update vertical line bounds
             self.subplots.v_line.setBounds((
                 self.trajectory_dist2targetList[0],
                 self.trajectory_dist2targetList[-1]
