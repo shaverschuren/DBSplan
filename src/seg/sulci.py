@@ -2,11 +2,13 @@
 
 import os
 import subprocess
+import gzip
 import nibabel as nib
 import numpy as np
 import skimage.morphology as morph
 from scipy.ndimage import affine_transform
 from tqdm import tqdm
+from path_planning import generate_distance_map
 from util.nifti import load_nifti
 
 
@@ -30,7 +32,7 @@ def extract_sulci_fs(seg_paths: dict):
             "ribbon": seg_paths["ribbon"],
             "rh_surf": seg_paths["rh_sulc"],
             "lh_surf": seg_paths["lh_sulc"],
-            "threshold": -3.0}
+            "threshold": -1.0}
     curv = {"nii": seg_paths["curv_vol"],
             "ribbon": seg_paths["ribbon"],
             "rh_surf": seg_paths["rh_curv"],
@@ -82,10 +84,10 @@ def extract_sulci_fs(seg_paths: dict):
 
     # Find proper element size
     avg_vox_dim = np.mean(np.absolute((np.array(aff).diagonal())[:-1]))
-    close_element = morph.ball(int(1 / avg_vox_dim))  # Element radius +- 1 mm
+    close_element = morph.ball(int(1 / avg_vox_dim))  # Radius approx 1 mm
 
     # Perform closing
-    mask_as_np = morph.closing(mask_as_np, close_element)
+    # mask_as_np = morph.closing(mask_as_np, close_element)
 
     # --- Perform dilation (but only CSF) ---
 
@@ -121,7 +123,77 @@ def extract_sulci_fs(seg_paths: dict):
 
     # --- Perform final (small) closing ---
 
-    mask_as_np = morph.closing(mask_as_np, close_element)
+    # mask_as_np = morph.closing(mask_as_np, close_element)
+
+    # --- Remove mig-saggital area ---
+    # We do this by excluding all voxels that are close
+    # to both the right and left hemisphere pial surfaces.
+
+    # Create empty mask
+    fs_space_mask, aff_fs, _ = load_nifti(seg_paths["curv_vol"])
+    mid_sag_mask = np.zeros(np.shape(fs_space_mask))
+
+    # Extract mgh data
+    with gzip.open(seg_paths["orig_mgh"], 'rb') as mgh_file_handle:
+        mgh_header = \
+            nib.freesurfer.mghformat.MGHHeader.from_fileobj(mgh_file_handle)
+
+    # Extract list of vertices on the pial surfaces
+    rh_pial_points, _ = \
+        nib.freesurfer.read_geometry(seg_paths["rh_pial"])
+    lh_pial_points, _ = \
+        nib.freesurfer.read_geometry(seg_paths["lh_pial"])
+
+    # Transform entry point coordinates from RAS to voxel space
+    ras2vox_aff = np.linalg.inv(mgh_header.get_vox2ras_tkr())
+    # Right hemisphere
+    rh_pial_vox = np.zeros(np.shape(rh_pial_points))
+    for i in range(np.shape(rh_pial_vox)[0]):
+        rh_pial_vox[i] = (
+            ras2vox_aff.dot(np.array([*rh_pial_points[i], 1]))
+        )[:-1].astype(int)
+    # Left hemisphere
+    lh_pial_vox = np.zeros(np.shape(lh_pial_points))
+    for i in range(np.shape(lh_pial_vox)[0]):
+        lh_pial_vox[i] = (
+            ras2vox_aff.dot(np.array([*lh_pial_points[i], 1]))
+        )[:-1].astype(int)
+
+    # Create distance-to-surface masks
+    vol_rh = np.zeros(np.shape(mid_sag_mask))
+    vol_lh = np.zeros(np.shape(mid_sag_mask))
+    # Right hemisphere
+    for i in range(np.shape(rh_pial_vox)[0]):
+        indices = rh_pial_vox[i].astype(int)
+        vol_rh[indices[0], indices[1], indices[2]] = 1.0
+    dist2surf_rh = generate_distance_map(
+        vol_rh, aff_fs
+    )
+    # Left hemisphere
+    for i in range(np.shape(lh_pial_vox)[0]):
+        indices = lh_pial_vox[i].astype(int)
+        vol_lh[indices[0], indices[1], indices[2]] = 1.0
+    dist2surf_lh = generate_distance_map(
+        vol_lh, aff_fs
+    )
+
+    # Generate mid-saggital area mask
+    # Everything close to both the rh and lh edge is deemed
+    # mid-saggital plane
+    mid_sag_mask[
+        (dist2surf_rh + dist2surf_lh) < 3.
+    ] = 1.
+
+    # Perform affine transform to subject space
+    if not (aff_fs == aff).all():
+        aff_translation = (np.linalg.inv(aff_fs)).dot(aff)
+        mid_sag_mask = affine_transform(
+            mid_sag_mask, aff_translation,
+            output_shape=np.shape(mask_as_np)
+        )
+
+    # Add mid-sag area mask to sulc mask
+    mask_as_np[mid_sag_mask == 1.] = 1.
 
     # --- Save mask img ---
 
@@ -240,6 +312,7 @@ def fs_seg_sulci(paths: dict, settings: dict, verbose: bool = True) \
         # Define needed FreeSurfer paths
         T1_path = os.path.join(fs_path, "nifti", "T1.nii.gz")
         ribbon_path = os.path.join(fs_path, "mri", "ribbon.mgz")
+        orig_path = os.path.join(fs_path, "mri", "orig.mgz")
         rh_pial_path = os.path.join(fs_path, "surf", "rh.pial.T1")
         lh_pial_path = os.path.join(fs_path, "surf", "lh.pial.T1")
         lh_curv_path = os.path.join(fs_path, "surf", "lh.curv")
@@ -267,6 +340,7 @@ def fs_seg_sulci(paths: dict, settings: dict, verbose: bool = True) \
         subject_dict = {"subject": subject,
                         "T1": T1_path,
                         "ribbon": ribbon_path,
+                        "orig_mgh": orig_path,
                         "rh_pial": rh_pial_path,
                         "lh_pial": lh_pial_path,
                         "rh_curv": rh_curv_path,
