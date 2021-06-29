@@ -419,7 +419,7 @@ def generate_trajectories(
 
     # If there are any valid trajectories, return them
     if all([
-        len(margin_trajectories[i]) > 0
+        len(margin_trajectories[i]) > 1
         for i in range(len(margin_trajectories))
     ]):
         return np.array(margin_trajectories, dtype=object)
