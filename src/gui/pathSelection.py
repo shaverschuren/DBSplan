@@ -276,7 +276,7 @@ class PathSelection(QtWidgets.QWidget):
         # Plot trajectories
         self.trajectoryPlots = {}
         for target_i in range(self.n_targets):
-            for i in range(len(self.sorted_trajectories[target_i]) // 10):
+            for i in range(len(self.sorted_trajectories[target_i])):
                 # Set id
                 identifyer = f"{str(target_i)}_{str(i)}"
                 # Set color
@@ -351,9 +351,10 @@ class PathSelection(QtWidgets.QWidget):
 
         row = 0
         for trajectory_i in range(
-            len(self.sorted_trajectories[self.target_i]) // 10
+            len(self.sorted_trajectories[self.target_i])
         ):
-            margin = self.sorted_trajectories[target_i][trajectory_i][-1][0]
+            margin = \
+                self.sorted_trajectories[self.target_i][trajectory_i][-1][0]
             label = (
                 f"Path {trajectory_i + 1:2d} "
                 f"- Margin: {margin:.2f}"
@@ -750,7 +751,7 @@ class PathSelection(QtWidgets.QWidget):
 
             row = 0
             for trajectory_i in range(
-                len(self.sorted_trajectories[self.target_i]) // 10
+                len(self.sorted_trajectories[self.target_i])
             ):
                 margin = self.sorted_trajectories[
                     self.target_i][trajectory_i][-1][0]
