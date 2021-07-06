@@ -70,6 +70,20 @@ class TargetSelection(QtWidgets.QWidget):
             scan3_name: scan3_arr,
         }
 
+        # Add optional scans in dict
+        if "T2w" in self.paths:
+            scan4_arr, scan4_aff, _ = load_nifti(self.paths["T2w"])
+            scan4_name = "T2w"
+            self.scans[scan4_name] = scan4_arr
+        if "IR" in self.paths:
+            scan5_arr, scan5_aff, _ = load_nifti(self.paths["IR"])
+            scan5_name = "IR"
+            self.scans[scan5_name] = scan5_arr
+        if "FLAIR" in self.paths:
+            scan6_arr, scan6_aff, _ = load_nifti(self.paths["FLAIR"])
+            scan6_name = "FLAIR"
+            self.scans[scan6_name] = scan6_arr
+
         # Set starting data and shape
         self.data = scan1_arr
         self.aff = scan1_aff

@@ -299,6 +299,14 @@ def generate_planning_paths(paths: dict, settings: dict) -> tuple[list, dict]:
             "output_path": output_txt
         }
 
+        if "t2w_coreg" in paths["ctreg_paths"][subject]:
+            subject_dict["T2w"] = paths["ctreg_paths"][subject]["t2w_coreg"]
+        if "ir_coreg" in paths["ctreg_paths"][subject]:
+            subject_dict["IR"] = paths["ctreg_paths"][subject]["ir_coreg"]
+        if "flair_coreg" in paths["ctreg_paths"][subject]:
+            subject_dict["FLAIR"] = \
+                paths["ctreg_paths"][subject]["flair_coreg"]
+
         # Add subject dict to paths + planning paths
         planning_paths.append(subject_dict)
         paths["pathplanning_paths"][subject] = subject_dict
