@@ -226,6 +226,13 @@ class PathSelection(QtWidgets.QWidget):
         self.subplots.v_graph.addItem(self.subplots.h_line)
 
         # Setup appropriate graph range
+        self.subplots.v_graph.setYRange(
+            0.0, 10.0, padding=0
+        )
+        self.subplots.v_graph.setXRange(
+            self.trajectory_dist2targetList[0],
+            self.trajectory_dist2targetList[-1], padding=0
+        )
         self.subplots.v_graph.setLimits(
             xMin=self.trajectory_dist2targetList[0],
             xMax=self.trajectory_dist2targetList[-1],
@@ -241,7 +248,6 @@ class PathSelection(QtWidgets.QWidget):
 
         # Fix scaling
         self.subplots.v_probe.autoRange()
-        self.subplots.v_graph.autoRange()
 
         # Setup events
         self.subplots.sub2.hoverEvent = self.update_3d
@@ -690,14 +696,19 @@ class PathSelection(QtWidgets.QWidget):
             self.subplots.v_graph.addItem(self.subplots.v_line)
 
             # Adjust limits
-            self.subplots.v_graph.setLimits(
-                xMin=self.trajectory_dist2targetList[0],
-                xMax=self.trajectory_dist2targetList[-1]
-            )
             self.subplots.v_graph.setXRange(
                 self.trajectory_dist2targetList[0],
                 self.trajectory_dist2targetList[-1], padding=0
             )
+            self.subplots.v_graph.setYRange(
+                0.0, 10.0, padding=0
+            )
+            self.subplots.v_graph.setLimits(
+                xMin=self.trajectory_dist2targetList[0],
+                xMax=self.trajectory_dist2targetList[-1],
+                yMin=0
+            )
+
             # Update vertical line bounds
             self.subplots.v_line.setBounds((
                 self.trajectory_dist2targetList[0],
