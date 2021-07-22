@@ -65,6 +65,16 @@ def setup_reg_paths(paths: dict, settings: dict) -> tuple[dict, dict]:
         paths["ctreg_paths"][subject]["omat"] = \
             os.path.join(subjectDir, "coreg.mat")
 
+        if "MRI_T2W" in paths["nii_paths"][subject]:
+            paths["ctreg_paths"][subject]["t2w_coreg"] = \
+                os.path.join(subjectDir, "MRI_T2W_coreg.nii.gz")
+        if "MRI_IR" in paths["nii_paths"][subject]:
+            paths["ctreg_paths"][subject]["ir_coreg"] = \
+                os.path.join(subjectDir, "MRI_IR_coreg.nii.gz")
+        if "MRI_FLAIR" in paths["nii_paths"][subject]:
+            paths["ctreg_paths"][subject]["flair_coreg"] = \
+                os.path.join(subjectDir, "MRI_FLAIR_coreg.nii.gz")
+
     return paths, settings
 
 
@@ -113,6 +123,22 @@ def coreg_ct(paths, settings, verbose):
             (paths["fsl_paths"][subject]["bet"],
              regpaths["bet_coreg"])
         ]
+
+        if "t2w_coreg" in regpaths:
+            coreg_paths.append((
+                paths["mrreg_paths"][subject]["t2w_coreg"],
+                regpaths["t2w_coreg"]
+            ))
+        if "ir_coreg" in regpaths:
+            coreg_paths.append((
+                paths["mrreg_paths"][subject]["ir_coreg"],
+                regpaths["ir_coreg"]
+            ))
+        if "flair_coreg" in regpaths:
+            coreg_paths.append((
+                paths["mrreg_paths"][subject]["flair_coreg"],
+                regpaths["flair_coreg"]
+            ))
 
         # Check output
         output_ok = all(

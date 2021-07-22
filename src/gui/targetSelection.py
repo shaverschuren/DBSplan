@@ -70,6 +70,20 @@ class TargetSelection(QtWidgets.QWidget):
             scan3_name: scan3_arr,
         }
 
+        # Add optional scans in dict
+        if "T2w" in self.paths:
+            scan4_arr, scan4_aff, _ = load_nifti(self.paths["T2w"])
+            scan4_name = "T2w"
+            self.scans[scan4_name] = scan4_arr
+        if "IR" in self.paths:
+            scan5_arr, scan5_aff, _ = load_nifti(self.paths["IR"])
+            scan5_name = "IR"
+            self.scans[scan5_name] = scan5_arr
+        if "FLAIR" in self.paths:
+            scan6_arr, scan6_aff, _ = load_nifti(self.paths["FLAIR"])
+            scan6_name = "FLAIR"
+            self.scans[scan6_name] = scan6_arr
+
         # Set starting data and shape
         self.data = scan1_arr
         self.aff = scan1_aff
@@ -105,24 +119,24 @@ class TargetSelection(QtWidgets.QWidget):
 
         # Add labels for image viewboxes
         self.view_v1 = "sag"
-        self.view_v2 = "fro"
+        self.view_v2 = "cor"
         self.view_v3 = "tra"
 
         self.view_sag = "v1"
-        self.view_fro = "v2"
+        self.view_cor = "v2"
         self.view_tra = "v3"
 
         # Define starting positions
         self.tra_pos = self.shape[2] // 2
         self.sag_pos = self.shape[0] // 2
-        self.fro_pos = self.shape[1] // 2
+        self.cor_pos = self.shape[1] // 2
 
         self.cursor_i = self.sag_pos
-        self.cursor_j = self.fro_pos
+        self.cursor_j = self.cor_pos
         self.cursor_k = self.tra_pos
 
         self.hover_i = self.sag_pos
-        self.hover_j = self.fro_pos
+        self.hover_j = self.cor_pos
         self.hover_k = self.tra_pos
 
         self.current_hover = None
@@ -142,25 +156,25 @@ class TargetSelection(QtWidgets.QWidget):
 
         # Items for displaying image data
         self.subplots.img_tra = pg.ImageItem(self.data[:, :, self.tra_pos])
-        self.subplots.img_fro = pg.ImageItem(self.data[:, self.fro_pos, :])
+        self.subplots.img_cor = pg.ImageItem(self.data[:, self.cor_pos, :])
         self.subplots.img_sag = pg.ImageItem(self.data[self.sag_pos, :, :])
 
         self.subplots.v1.addItem(self.subplots.img_sag)
-        self.subplots.v2.addItem(self.subplots.img_fro)
+        self.subplots.v2.addItem(self.subplots.img_cor)
         self.subplots.v3.addItem(self.subplots.img_tra)
 
         # Add target point plots in all 3 images
         self.target_points = []
         self.target_points_sag = []
-        self.target_points_fro = []
+        self.target_points_cor = []
         self.target_points_tra = []
 
         self.subplots.tar_sag = pg.ScatterPlotItem(
             pos=self.target_points_sag,
             symbol="o", brush="b", pen="b", size=8
         )
-        self.subplots.tar_fro = pg.ScatterPlotItem(
-            pos=self.target_points_fro,
+        self.subplots.tar_cor = pg.ScatterPlotItem(
+            pos=self.target_points_cor,
             symbol="o", brush="b", pen="b", size=8
         )
         self.subplots.tar_tra = pg.ScatterPlotItem(
@@ -169,7 +183,7 @@ class TargetSelection(QtWidgets.QWidget):
         )
 
         self.subplots.v1.addItem(self.subplots.tar_sag)
-        self.subplots.v2.addItem(self.subplots.tar_fro)
+        self.subplots.v2.addItem(self.subplots.tar_cor)
         self.subplots.v3.addItem(self.subplots.tar_tra)
 
         # Add cursor in all 3 images
@@ -177,7 +191,7 @@ class TargetSelection(QtWidgets.QWidget):
             pos=[(self.cursor_j, self.cursor_k)],
             symbol="+", brush="r", pen="r", size=6
         )
-        self.subplots.cur_fro = pg.ScatterPlotItem(
+        self.subplots.cur_cor = pg.ScatterPlotItem(
             pos=[(self.cursor_i, self.cursor_k)],
             symbol="+", brush="r", pen="r", size=6
         )
@@ -187,7 +201,7 @@ class TargetSelection(QtWidgets.QWidget):
         )
 
         self.subplots.v1.addItem(self.subplots.cur_sag)
-        self.subplots.v2.addItem(self.subplots.cur_fro)
+        self.subplots.v2.addItem(self.subplots.cur_cor)
         self.subplots.v3.addItem(self.subplots.cur_tra)
 
         # Display text bar
@@ -217,25 +231,25 @@ class TargetSelection(QtWidgets.QWidget):
 
         # Setup events
         self.subplots.img_tra.hoverEvent = self.imageHoverEvent_tra
-        self.subplots.img_fro.hoverEvent = self.imageHoverEvent_fro
+        self.subplots.img_cor.hoverEvent = self.imageHoverEvent_cor
         self.subplots.img_sag.hoverEvent = self.imageHoverEvent_sag
 
         self.subplots.img_tra.mouseClickEvent = self.imageMouseClickEvent_tra
-        self.subplots.img_fro.mouseClickEvent = self.imageMouseClickEvent_fro
+        self.subplots.img_cor.mouseClickEvent = self.imageMouseClickEvent_cor
         self.subplots.img_sag.mouseClickEvent = self.imageMouseClickEvent_sag
 
         self.subplots.img_tra.mouseDragEvent = self.imageMouseDragEvent_tra
-        self.subplots.img_fro.mouseDragEvent = self.imageMouseDragEvent_fro
+        self.subplots.img_cor.mouseDragEvent = self.imageMouseDragEvent_cor
         self.subplots.img_sag.mouseDragEvent = self.imageMouseDragEvent_sag
 
         # self.subplots.img_tra.keyPressEvent = self.imageKeyPressEvent_tra
-        # self.subplots.img_fro.keyPressEvent = self.imageKeyPressEvent_fro
+        # self.subplots.img_cor.keyPressEvent = self.imageKeyPressEvent_cor
         # self.subplots.img_sag.keyPressEvent = self.imageKeyPressEvent_sag
 
         self.subplots.keyPressEvent = self.keyPressEvent
 
         self.subplots.img_tra.wheelEvent = self.imageWheelEvent_tra
-        self.subplots.img_fro.wheelEvent = self.imageWheelEvent_fro
+        self.subplots.img_cor.wheelEvent = self.imageWheelEvent_cor
         self.subplots.img_sag.wheelEvent = self.imageWheelEvent_sag
 
     def initTop(self):
@@ -248,14 +262,14 @@ class TargetSelection(QtWidgets.QWidget):
         # Setup buttons
         self.button_tra = QtGui.QPushButton('tra')
         self.button_tra.clicked.connect(self.changeView_tra)
-        self.button_fro = QtGui.QPushButton('fro')
-        self.button_fro.clicked.connect(self.changeView_fro)
+        self.button_cor = QtGui.QPushButton('cor')
+        self.button_cor.clicked.connect(self.changeView_cor)
         self.button_sag = QtGui.QPushButton('sag')
         self.button_sag.clicked.connect(self.changeView_sag)
 
         # Display buttons
         layout.addWidget(self.button_tra)
-        layout.addWidget(self.button_fro)
+        layout.addWidget(self.button_cor)
         layout.addWidget(self.button_sag)
 
         self.topBar.setLayout(layout)
@@ -301,25 +315,25 @@ class TargetSelection(QtWidgets.QWidget):
         """Updates images on event"""
         # Update images
         self.subplots.img_tra.setImage(self.data[:, :, self.tra_pos])
-        self.subplots.img_fro.setImage(self.data[:, self.fro_pos, :])
+        self.subplots.img_cor.setImage(self.data[:, self.cor_pos, :])
         self.subplots.img_sag.setImage(self.data[self.sag_pos, :, :])
 
         # Update cursor plots
         self.subplots.cur_tra.setData(pos=[(self.cursor_i, self.cursor_j)])
-        self.subplots.cur_fro.setData(pos=[(self.cursor_i, self.cursor_k)])
+        self.subplots.cur_cor.setData(pos=[(self.cursor_i, self.cursor_k)])
         self.subplots.cur_sag.setData(pos=[(self.cursor_j, self.cursor_k)])
 
         # Update target plots
         self.target_points_tra = []
-        self.target_points_fro = []
+        self.target_points_cor = []
         self.target_points_sag = []
         for target_point in self.target_points:
             if self.tra_pos == target_point[2]:
                 self.target_points_tra.append(
                     (target_point[0], target_point[1])
                 )
-            if self.fro_pos == target_point[1]:
-                self.target_points_fro.append(
+            if self.cor_pos == target_point[1]:
+                self.target_points_cor.append(
                     (target_point[0], target_point[2])
                 )
             if self.sag_pos == target_point[0]:
@@ -327,7 +341,7 @@ class TargetSelection(QtWidgets.QWidget):
                     (target_point[1], target_point[2])
                 )
         self.subplots.tar_tra.setData(pos=self.target_points_tra)
-        self.subplots.tar_fro.setData(pos=self.target_points_fro)
+        self.subplots.tar_cor.setData(pos=self.target_points_cor)
         self.subplots.tar_sag.setData(pos=self.target_points_sag)
 
     def updateText(self):
@@ -352,13 +366,13 @@ class TargetSelection(QtWidgets.QWidget):
 
         # Calculate aspect ratios
         self.aspect_ratio_tra = dim_i / dim_j
-        self.aspect_ratio_fro = dim_i / dim_k
+        self.aspect_ratio_cor = dim_i / dim_k
         self.aspect_ratio_sag = dim_j / dim_k
 
         # Set aspect ratios to appropriate viewboxes
         for aspect_ratio, plane in [
             (self.aspect_ratio_tra, "tra"),
-            (self.aspect_ratio_fro, "fro"),
+            (self.aspect_ratio_cor, "cor"),
             (self.aspect_ratio_sag, "sag"),
         ]:
             if self.view_v1 == plane:
@@ -405,10 +419,10 @@ class TargetSelection(QtWidgets.QWidget):
             x_scale = self.hover_i
             y_scale = self.hover_j
             view = self.view_tra
-        elif img_str == "fro":
+        elif img_str == "cor":
             x_scale = self.hover_i
             y_scale = self.hover_k
-            view = self.view_fro
+            view = self.view_cor
         elif img_str == "sag":
             x_scale = self.hover_j
             y_scale = self.hover_k
@@ -432,9 +446,9 @@ class TargetSelection(QtWidgets.QWidget):
         view = "tra"
         self.changeView(view)
 
-    def changeView_fro(self):
-        """Handles clicking on the 'fro' button"""
-        view = "fro"
+    def changeView_cor(self):
+        """Handles clicking on the 'cor' button"""
+        view = "cor"
         self.changeView(view)
 
     def changeView_sag(self):
@@ -452,23 +466,23 @@ class TargetSelection(QtWidgets.QWidget):
         if view == "tra":
             new_v1 = "tra"
             new_v2 = "sag"
-            new_v3 = "fro"
+            new_v3 = "cor"
             new_tra = "v1"
-            new_fro = "v3"
+            new_cor = "v3"
             new_sag = "v2"
-        elif view == "fro":
-            new_v1 = "fro"
+        elif view == "cor":
+            new_v1 = "cor"
             new_v2 = "sag"
             new_v3 = "tra"
             new_tra = "v3"
-            new_fro = "v1"
+            new_cor = "v1"
             new_sag = "v2"
         elif view == "sag":
             new_v1 = "sag"
-            new_v2 = "fro"
+            new_v2 = "cor"
             new_v3 = "tra"
             new_tra = "v3"
-            new_fro = "v2"
+            new_cor = "v2"
             new_sag = "v1"
 
         # Make the switch if necessary
@@ -491,10 +505,10 @@ class TargetSelection(QtWidgets.QWidget):
                     v.addItem(self.subplots.img_tra)
                     v.addItem(self.subplots.tar_tra)
                     v.addItem(self.subplots.cur_tra)
-                elif new == "fro":
-                    v.addItem(self.subplots.img_fro)
-                    v.addItem(self.subplots.tar_fro)
-                    v.addItem(self.subplots.cur_fro)
+                elif new == "cor":
+                    v.addItem(self.subplots.img_cor)
+                    v.addItem(self.subplots.tar_cor)
+                    v.addItem(self.subplots.cur_cor)
                 elif new == "sag":
                     v.addItem(self.subplots.img_sag)
                     v.addItem(self.subplots.tar_sag)
@@ -509,7 +523,7 @@ class TargetSelection(QtWidgets.QWidget):
             self.view_v3 = new_v3
 
             self.view_tra = new_tra
-            self.view_fro = new_fro
+            self.view_cor = new_cor
             self.view_sag = new_sag
 
             # Update images
@@ -530,7 +544,7 @@ class TargetSelection(QtWidgets.QWidget):
 
         # Set view to target
         self.sag_pos = self.selectedTarget[0]
-        self.fro_pos = self.selectedTarget[1]
+        self.cor_pos = self.selectedTarget[1]
         self.tra_pos = self.selectedTarget[2]
 
         self.cursor_i = self.selectedTarget[0]
@@ -560,10 +574,10 @@ class TargetSelection(QtWidgets.QWidget):
         self.current_hover = "tra"
         self.imageHoverEvent(event, view)
 
-    def imageHoverEvent_fro(self, event):
-        """Handles hover event on frontal plane"""
-        view = "fro"
-        self.current_hover = "fro"
+    def imageHoverEvent_cor(self, event):
+        """Handles hover event on coronal plane"""
+        view = "cor"
+        self.current_hover = "cor"
         self.imageHoverEvent(event, view)
 
     def imageHoverEvent_sag(self, event):
@@ -590,9 +604,9 @@ class TargetSelection(QtWidgets.QWidget):
             self.hover_i = int(np.clip(y, 0, self.shape[0] - 1))
             self.hover_j = int(np.clip(x, 0, self.shape[1] - 1))
             self.hover_k = int(self.tra_pos)
-        elif view == "fro":
+        elif view == "cor":
             self.hover_i = int(np.clip(y, 0, self.shape[0] - 1))
-            self.hover_j = int(self.fro_pos)
+            self.hover_j = int(self.cor_pos)
             self.hover_k = int(np.clip(x, 0, self.shape[2] - 1))
         elif view == "sag":
             self.hover_i = int(self.sag_pos)
@@ -601,7 +615,7 @@ class TargetSelection(QtWidgets.QWidget):
 
         if QtCore.Qt.LeftButton == event.buttons():
             self.sag_pos = self.hover_i
-            self.fro_pos = self.hover_j
+            self.cor_pos = self.hover_j
             self.tra_pos = self.hover_k
 
             self.cursor_i = self.hover_i
@@ -617,9 +631,9 @@ class TargetSelection(QtWidgets.QWidget):
         view = "tra"
         self.imageMouseClickEvent(event, view)
 
-    def imageMouseClickEvent_fro(self, event):
-        """Handles click event on frontal plane"""
-        view = "fro"
+    def imageMouseClickEvent_cor(self, event):
+        """Handles click event on coronal plane"""
+        view = "cor"
         self.imageMouseClickEvent(event, view)
 
     def imageMouseClickEvent_sag(self, event):
@@ -638,16 +652,16 @@ class TargetSelection(QtWidgets.QWidget):
             # Update view
             if view == "tra":
                 self.sag_pos = int(np.clip(y, 0, self.shape[0] - 1))
-                self.fro_pos = int(np.clip(x, 0, self.shape[1] - 1))
-            elif view == "fro":
+                self.cor_pos = int(np.clip(x, 0, self.shape[1] - 1))
+            elif view == "cor":
                 self.sag_pos = int(np.clip(y, 0, self.shape[0] - 1))
                 self.tra_pos = int(np.clip(x, 0, self.shape[2] - 1))
             elif view == "sag":
-                self.fro_pos = int(np.clip(y, 0, self.shape[1] - 1))
+                self.cor_pos = int(np.clip(y, 0, self.shape[1] - 1))
                 self.tra_pos = int(np.clip(x, 0, self.shape[2] - 1))
 
             self.cursor_i = self.sag_pos
-            self.cursor_j = self.fro_pos
+            self.cursor_j = self.cor_pos
             self.cursor_k = self.tra_pos
 
             self.updateImages()
@@ -658,9 +672,9 @@ class TargetSelection(QtWidgets.QWidget):
         view = "tra"
         self.imageMouseDragEvent(event, view)
 
-    def imageMouseDragEvent_fro(self, event):
-        """Handles drag event on frontal plane"""
-        view = "fro"
+    def imageMouseDragEvent_cor(self, event):
+        """Handles drag event on coronal plane"""
+        view = "cor"
         self.imageMouseDragEvent(event, view)
 
     def imageMouseDragEvent_sag(self, event):
@@ -695,8 +709,8 @@ class TargetSelection(QtWidgets.QWidget):
                 # Check which viewbox to update
                 if view == "tra":
                     view = self.view_tra
-                elif view == "fro":
-                    view = self.view_fro
+                elif view == "cor":
+                    view = self.view_cor
                 elif view == "sag":
                     view = self.view_sag
 
@@ -725,8 +739,8 @@ class TargetSelection(QtWidgets.QWidget):
 
         if self.current_hover == "tra":
             self.imageKeyPressEvent_tra(event)
-        if self.current_hover == "fro":
-            self.imageKeyPressEvent_fro(event)
+        if self.current_hover == "cor":
+            self.imageKeyPressEvent_cor(event)
         if self.current_hover == "sag":
             self.imageKeyPressEvent_sag(event)
 
@@ -735,9 +749,9 @@ class TargetSelection(QtWidgets.QWidget):
         view = "tra"
         self.imageKeyPressEvent(event, view)
 
-    def imageKeyPressEvent_fro(self, event):
-        """Handles keypress event on frontal plane"""
-        view = "fro"
+    def imageKeyPressEvent_cor(self, event):
+        """Handles keypress event on coronal plane"""
+        view = "cor"
         self.imageKeyPressEvent(event, view)
 
     def imageKeyPressEvent_sag(self, event):
@@ -764,9 +778,9 @@ class TargetSelection(QtWidgets.QWidget):
                 if self.cursor_k > 0 and self.cursor_k < self.shape[2] - 1:
                     self.tra_pos += scroll
                     self.cursor_k += scroll
-            elif view == "fro":
+            elif view == "cor":
                 if self.cursor_j > 0 and self.cursor_j < self.shape[1] - 1:
-                    self.fro_pos += scroll
+                    self.cor_pos += scroll
                     self.cursor_j += scroll
             elif view == "sag":
                 if self.cursor_i > 0 and self.cursor_i < self.shape[0] - 1:
@@ -807,9 +821,9 @@ class TargetSelection(QtWidgets.QWidget):
         view = "tra"
         self.imageWheelEvent(event, view)
 
-    def imageWheelEvent_fro(self, event):
-        """Handles mousewheel event on frontal plane"""
-        view = "fro"
+    def imageWheelEvent_cor(self, event):
+        """Handles mousewheel event on coronal plane"""
+        view = "cor"
         self.imageWheelEvent(event, view)
 
     def imageWheelEvent_sag(self, event):
