@@ -193,7 +193,10 @@ def generate_margin_trajectories(
 
             min_margin = 10.0
 
-            current_point = np.array(entry_point, dtype=float)
+            current_point = (
+                np.array(entry_point, dtype=float) -
+                direction * 20                        # Also check 20mm before
+            )
 
             # Check for collisions iteratively
             while (

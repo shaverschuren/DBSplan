@@ -30,8 +30,8 @@ def find_mask_edges(mask: np.ndarray) -> np.ndarray:
 
 
 def extract_entry_points(processing_paths: dict,
-                         threshold_sulc: float = -1.0,
-                         threshold_curv: float = 0.0):
+                         threshold_sulc: float = -0.8,
+                         threshold_curv: float = 0.5):
     """
     This function runs the mask manipulation of the entry
     point segmentation.
